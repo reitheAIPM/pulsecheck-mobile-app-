@@ -98,7 +98,7 @@ async def get_pulse_response(
             "user_id": current_user["id"]
         }
         
-        pulse_response = await pulse_ai.generate_pulse_response(journal_entry, user_context)
+        pulse_response = pulse_ai.generate_pulse_response(journal_entry, user_context)
         
         return pulse_response
         
@@ -137,7 +137,7 @@ async def get_ai_analysis(
                 user_history = [JournalEntryResponse(**entry) for entry in history_result.data]
         
         # Generate comprehensive AI analysis
-        analysis = await pulse_ai.analyze_journal_entry(journal_entry, user_history)
+        analysis = pulse_ai.analyze_journal_entry(journal_entry, user_history)
         
         return analysis
         
