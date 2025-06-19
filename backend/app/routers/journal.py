@@ -13,6 +13,11 @@ from app.core.database import get_database, Database
 
 router = APIRouter()
 
+@router.get("/test")
+async def test_journal_router():
+    """Simple test endpoint to verify journal router is working"""
+    return {"message": "Journal router is working!", "timestamp": datetime.utcnow()}
+
 # Mock user dependency for MVP (will implement proper auth later)
 async def get_current_user():
     """Mock user for MVP - will implement proper JWT auth later"""
