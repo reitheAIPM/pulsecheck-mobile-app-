@@ -1,0 +1,413 @@
+"""
+Admin Router - Beta Analytics and Monitoring
+Provides endpoints for tracking beta performance, user engagement, and costs
+"""
+
+from fastapi import APIRouter, HTTPException, Depends, Query
+from typing import List, Dict, Any, Optional
+from datetime import datetime, date, timedelta
+import json
+
+from app.core.database import get_database, Database
+
+router = APIRouter(prefix="/admin", tags=["admin"])
+
+# Simple admin authentication (for beta - replace with proper auth)
+async def verify_admin_access():
+    """Simple admin verification - replace with proper JWT auth"""
+    # For beta, we'll use a simple approach
+    # In production, this would check JWT tokens and admin roles
+    return {"admin": True, "user_id": "admin"}
+
+@router.get("/beta-metrics/daily")
+async def get_daily_beta_metrics(
+    date_filter: Optional[str] = Query(None, description="Date in YYYY-MM-DD format"),
+    db: Database = Depends(get_database),
+    admin: dict = Depends(verify_admin_access)
+):
+    """
+    Get daily beta metrics for monitoring
+    
+    Returns:
+    - Daily active users
+    - AI interactions count
+    - Average tokens per interaction
+    - Total daily cost
+    - Average confidence score
+    - Error rates
+    """
+    try:
+        # Use today if no date specified
+        target_date = date_filter or date.today().isoformat()
+        
+        # Get daily metrics from the view
+        query = """
+            SELECT * FROM beta_daily_metrics 
+            WHERE metric_date = $1
+        """
+        
+        result = await db.fetch_one(query, target_date)
+        
+        if not result:
+            return {
+                "date": target_date,
+                "daily_active_users": 0,
+                "total_ai_interactions": 0,
+                "avg_tokens_per_interaction": 0,
+                "total_daily_cost": 0,
+                "avg_confidence_score": 0,
+                "avg_response_time_ms": 0,
+                "error_count": 0,
+                "error_rate_percent": 0
+            }
+        
+        return dict(result)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching daily metrics: {str(e)}")
+
+@router.get("/beta-metrics/weekly")
+async def get_weekly_beta_metrics(
+    weeks_back: int = Query(4, description="Number of weeks to include"),
+    db: Database = Depends(get_database),
+    admin: dict = Depends(verify_admin_access)
+):
+    """
+    Get weekly aggregated beta metrics
+    """
+    try:
+        # Get weekly metrics
+        query = """
+            SELECT 
+                DATE_TRUNC('week', metric_date) as week_start,
+                SUM(daily_active_users) as total_active_users,
+                SUM(total_ai_interactions) as total_interactions,
+                AVG(avg_tokens_per_interaction) as avg_tokens,
+                SUM(total_daily_cost) as total_cost,
+                AVG(avg_confidence_score) as avg_confidence,
+                AVG(avg_response_time_ms) as avg_response_time,
+                SUM(error_count) as total_errors,
+                AVG(error_rate_percent) as avg_error_rate
+            FROM beta_daily_metrics
+            WHERE metric_date >= CURRENT_DATE - INTERVAL '%s weeks'
+            GROUP BY DATE_TRUNC('week', metric_date)
+            ORDER BY week_start DESC
+        """ % weeks_back
+        
+        results = await db.fetch_all(query)
+        
+        return {
+            "weeks_included": weeks_back,
+            "weekly_metrics": [dict(row) for row in results]
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching weekly metrics: {str(e)}")
+
+@router.get("/beta-metrics/users")
+async def get_user_engagement_metrics(
+    limit: int = Query(20, description="Number of users to return"),
+    sort_by: str = Query("total_journal_entries", description="Sort field"),
+    db: Database = Depends(get_database),
+    admin: dict = Depends(verify_admin_access)
+):
+    """
+    Get user engagement metrics for beta analysis
+    """
+    try:
+        # Validate sort field
+        valid_sorts = [
+            "total_journal_entries", "total_ai_interactions", 
+            "avg_ai_quality", "total_cost_incurred", "active_days"
+        ]
+        if sort_by not in valid_sorts:
+            sort_by = "total_journal_entries"
+        
+        # Get user engagement data
+        query = f"""
+            SELECT * FROM beta_user_engagement
+            ORDER BY {sort_by} DESC
+            LIMIT $1
+        """
+        
+        results = await db.fetch_all(query, limit)
+        
+        # Calculate summary stats
+        if results:
+            total_users = len(results)
+            active_users = len([r for r in results if r['engagement_status'] == 'active'])
+            at_risk_users = len([r for r in results if r['engagement_status'] == 'at_risk'])
+            churned_users = len([r for r in results if r['engagement_status'] == 'churned'])
+            
+            avg_entries = sum(r['total_journal_entries'] or 0 for r in results) / total_users
+            avg_ai_interactions = sum(r['total_ai_interactions'] or 0 for r in results) / total_users
+            total_cost = sum(float(r['total_cost_incurred'] or 0) for r in results)
+        else:
+            total_users = active_users = at_risk_users = churned_users = 0
+            avg_entries = avg_ai_interactions = total_cost = 0
+        
+        return {
+            "summary": {
+                "total_users": total_users,
+                "active_users": active_users,
+                "at_risk_users": at_risk_users,
+                "churned_users": churned_users,
+                "avg_entries_per_user": round(avg_entries, 1),
+                "avg_ai_interactions_per_user": round(avg_ai_interactions, 1),
+                "total_cost_all_users": round(total_cost, 4)
+            },
+            "users": [dict(row) for row in results]
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching user metrics: {str(e)}")
+
+@router.get("/beta-metrics/feedback")
+async def get_feedback_analytics(
+    days_back: int = Query(7, description="Number of days to analyze"),
+    db: Database = Depends(get_database),
+    admin: dict = Depends(verify_admin_access)
+):
+    """
+    Get AI feedback analytics for quality assessment
+    """
+    try:
+        # Get feedback summary
+        query = """
+            SELECT 
+                feedback_type,
+                user_tier,
+                COUNT(*) as feedback_count,
+                AVG(confidence_score) as avg_confidence,
+                AVG(response_time_ms) as avg_response_time
+            FROM ai_feedback
+            WHERE created_at >= CURRENT_DATE - INTERVAL '%s days'
+            GROUP BY feedback_type, user_tier
+            ORDER BY feedback_count DESC
+        """ % days_back
+        
+        results = await db.fetch_all(query)
+        
+        # Calculate overall sentiment
+        feedback_data = [dict(row) for row in results]
+        
+        positive_count = sum(r['feedback_count'] for r in feedback_data if r['feedback_type'] == 'thumbs_up')
+        negative_count = sum(r['feedback_count'] for r in feedback_data if r['feedback_type'] == 'thumbs_down')
+        total_feedback = positive_count + negative_count
+        
+        sentiment_score = (positive_count / total_feedback * 100) if total_feedback > 0 else 0
+        
+        return {
+            "period_days": days_back,
+            "overall_sentiment": {
+                "positive_feedback": positive_count,
+                "negative_feedback": negative_count,
+                "total_feedback": total_feedback,
+                "sentiment_score_percent": round(sentiment_score, 1)
+            },
+            "detailed_feedback": feedback_data
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching feedback analytics: {str(e)}")
+
+@router.get("/beta-metrics/costs")
+async def get_cost_analytics(
+    days_back: int = Query(30, description="Number of days to analyze"),
+    db: Database = Depends(get_database),
+    admin: dict = Depends(verify_admin_access)
+):
+    """
+    Get detailed cost analytics for budget planning
+    """
+    try:
+        # Get cost breakdown by model and user tier
+        query = """
+            SELECT 
+                DATE(aul.timestamp) as date,
+                aul.model_used,
+                COUNT(*) as interactions,
+                SUM(aul.total_tokens) as total_tokens,
+                SUM(aul.cost_usd) as total_cost,
+                AVG(aul.cost_usd) as avg_cost_per_interaction,
+                COUNT(DISTINCT aul.user_id) as unique_users
+            FROM ai_usage_logs aul
+            WHERE aul.timestamp >= CURRENT_DATE - INTERVAL '%s days'
+            GROUP BY DATE(aul.timestamp), aul.model_used
+            ORDER BY date DESC, total_cost DESC
+        """ % days_back
+        
+        results = await db.fetch_all(query)
+        
+        # Calculate projections
+        daily_data = [dict(row) for row in results]
+        
+        if daily_data:
+            total_cost = sum(float(r['total_cost']) for r in daily_data)
+            total_interactions = sum(r['interactions'] for r in daily_data)
+            avg_daily_cost = total_cost / days_back if days_back > 0 else 0
+            
+            # Project monthly cost
+            monthly_projection = avg_daily_cost * 30
+            
+            # Calculate cost per user
+            unique_users = len(set(r['unique_users'] for r in daily_data))
+            cost_per_user = total_cost / unique_users if unique_users > 0 else 0
+        else:
+            total_cost = total_interactions = avg_daily_cost = monthly_projection = cost_per_user = 0
+        
+        return {
+            "period_days": days_back,
+            "cost_summary": {
+                "total_cost": round(total_cost, 4),
+                "total_interactions": total_interactions,
+                "avg_daily_cost": round(avg_daily_cost, 4),
+                "monthly_projection": round(monthly_projection, 4),
+                "cost_per_user": round(cost_per_user, 4)
+            },
+            "daily_breakdown": daily_data
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching cost analytics: {str(e)}")
+
+@router.get("/beta-metrics/health")
+async def get_system_health(
+    db: Database = Depends(get_database),
+    admin: dict = Depends(verify_admin_access)
+):
+    """
+    Get overall system health metrics for beta monitoring
+    """
+    try:
+        # Get recent error rates
+        error_query = """
+            SELECT 
+                COUNT(*) as total_requests,
+                COUNT(CASE WHEN success = false THEN 1 END) as failed_requests,
+                AVG(response_time_ms) as avg_response_time,
+                AVG(confidence_score) as avg_confidence
+            FROM ai_usage_logs
+            WHERE timestamp >= NOW() - INTERVAL '24 hours'
+        """
+        
+        error_result = await db.fetch_one(error_query)
+        
+        # Get user tier distribution
+        tier_query = """
+            SELECT 
+                CASE 
+                    WHEN is_premium THEN 'premium'
+                    WHEN created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 'beta'
+                    ELSE 'free'
+                END as tier,
+                COUNT(*) as user_count
+            FROM users 
+            GROUP BY 1
+        """
+        
+        tier_results = await db.fetch_all(tier_query)
+        
+        # Calculate health score
+        if error_result and error_result['total_requests'] > 0:
+            error_rate = (error_result['failed_requests'] / error_result['total_requests']) * 100
+            response_time = error_result['avg_response_time'] or 0
+            confidence = error_result['avg_confidence'] or 0
+            
+            # Simple health scoring
+            health_score = 100
+            if error_rate > 5: health_score -= 20
+            if response_time > 3000: health_score -= 15  # 3 second threshold
+            if confidence < 0.6: health_score -= 15
+            
+            health_score = max(0, health_score)
+        else:
+            error_rate = response_time = confidence = health_score = 0
+        
+        return {
+            "health_score": health_score,
+            "last_24h_metrics": {
+                "total_requests": error_result['total_requests'] if error_result else 0,
+                "error_rate_percent": round(error_rate, 2),
+                "avg_response_time_ms": round(response_time, 0),
+                "avg_confidence_score": round(confidence, 2)
+            },
+            "user_tier_distribution": [dict(row) for row in tier_results],
+            "status": "healthy" if health_score >= 80 else "warning" if health_score >= 60 else "critical"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching system health: {str(e)}")
+
+@router.post("/beta-metrics/reset-usage")
+async def reset_daily_usage_counters(
+    db: Database = Depends(get_database),
+    admin: dict = Depends(verify_admin_access)
+):
+    """
+    Manually reset daily usage counters (for testing)
+    """
+    try:
+        query = "SELECT reset_daily_usage_counters()"
+        await db.execute(query)
+        
+        return {
+            "message": "Daily usage counters reset successfully",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error resetting usage counters: {str(e)}")
+
+@router.get("/beta-metrics/export")
+async def export_beta_data(
+    format: str = Query("json", description="Export format: json or csv"),
+    days_back: int = Query(7, description="Number of days to export"),
+    db: Database = Depends(get_database),
+    admin: dict = Depends(verify_admin_access)
+):
+    """
+    Export beta data for external analysis
+    """
+    try:
+        # Get comprehensive data
+        query = """
+            SELECT 
+                aul.timestamp,
+                aul.user_id,
+                aul.total_tokens,
+                aul.cost_usd,
+                aul.model_used,
+                aul.confidence_score,
+                aul.response_time_ms,
+                aul.context_type,
+                aul.success,
+                af.feedback_type
+            FROM ai_usage_logs aul
+            LEFT JOIN ai_feedback af ON aul.journal_entry_id = af.journal_entry_id
+            WHERE aul.timestamp >= CURRENT_DATE - INTERVAL '%s days'
+            ORDER BY aul.timestamp DESC
+        """ % days_back
+        
+        results = await db.fetch_all(query)
+        
+        export_data = [dict(row) for row in results]
+        
+        if format.lower() == "csv":
+            # For CSV, we'd need to implement CSV conversion
+            # For now, return JSON with CSV structure hint
+            return {
+                "format": "csv_structure",
+                "data": export_data,
+                "note": "CSV conversion would be implemented here"
+            }
+        else:
+            return {
+                "format": "json",
+                "period_days": days_back,
+                "record_count": len(export_data),
+                "data": export_data
+            }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error exporting data: {str(e)}") 

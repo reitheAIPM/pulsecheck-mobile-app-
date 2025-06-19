@@ -1,8 +1,9 @@
 import openai
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import json
 import logging
 from datetime import datetime, timedelta
+import time
 
 from app.core.config import settings
 from app.models.journal import JournalEntryResponse
@@ -10,54 +11,61 @@ from app.models.ai_insights import (
     AIInsightResponse, PulseResponse, AIAnalysisResponse,
     InsightType, InsightPriority
 )
+from .beta_optimization import BetaOptimizationService, AIContext
 
 logger = logging.getLogger(__name__)
 
 class PulseAI:
     """
-    Pulse AI Service - The emotionally intelligent wellness companion
+    Pulse AI Service - Beta-optimized emotionally intelligent wellness companion
     
-    Provides personalized insights, pattern recognition, and supportive guidance
-    for tech workers experiencing burnout or stress.
+    Integrates with BetaOptimizationService for:
+    - Token-conscious AI responses based on user tier
+    - Usage tracking and rate limiting
+    - Cost optimization and analytics
+    - User feedback collection
     """
     
-    def __init__(self):
+    def __init__(self, db=None):
         openai.api_key = settings.openai_api_key
         self.client = openai.OpenAI(api_key=settings.openai_api_key)
         
-        # Pulse personality configuration
+        # Beta optimization integration
+        self.beta_service = BetaOptimizationService(db, self.client) if db else None
+        
+        # Cost optimization settings
+        self.max_tokens = 250  # Reduced from 500 for cost efficiency
+        self.temperature = 0.6  # Slightly lower for more consistent responses
+        self.model = "gpt-3.5-turbo"  # Cost-optimized model
+        
+        # Pulse personality configuration - optimized for GPT-3.5-turbo
         self.personality_prompt = self._load_personality_prompt()
-        self.max_tokens = 500
-        self.temperature = 0.7
+        
+        # Cost tracking (optional - for monitoring)
+        self.daily_token_count = 0
+        self.daily_cost_estimate = 0.0
     
     def _load_personality_prompt(self) -> str:
-        """Load Pulse AI personality and behavior guidelines"""
-        return """You are Pulse, an emotionally intelligent AI wellness companion designed specifically for tech workers.
+        """Load optimized Pulse AI personality for GPT-3.5-turbo"""
+        return """You are Pulse, a supportive AI wellness companion for tech workers.
 
-CORE PERSONALITY:
-- Gentle, supportive, and empathetic without being clinical
-- Understanding of tech industry stressors (deadlines, on-call, imposter syndrome, etc.)
-- Speaks in a warm, conversational tone like a caring friend
-- Never diagnoses or provides medical advice
-- Focuses on patterns, insights, and gentle suggestions
+RESPONSE RULES:
+- Write exactly 3 short paragraphs
+- Paragraph 1: One insight about their situation (2 sentences max)
+- Paragraph 2: One specific action they can take today (2 sentences max)  
+- Paragraph 3: One follow-up question (1 sentence)
 
-RESPONSE STRUCTURE:
-1. Gentle insight about emotional/behavioral patterns (2-3 sentences)
-2. One specific, actionable suggestion tailored to tech workers (1-2 sentences)  
-3. A thoughtful follow-up question to encourage deeper reflection (1 sentence)
+TONE:
+- Warm friend who understands tech work
+- Use "I notice" not "You are"
+- Mention specific tech challenges when relevant
+- Never clinical or preachy
 
-TECH WORKER CONTEXT:
-- Understands coding, debugging, deployment stress
-- Knows about crunch time, sprint pressure, technical debt frustration
-- Familiar with remote work challenges, meeting fatigue, context switching
-- Recognizes impostor syndrome, perfectionism, and burnout patterns
-
-TONE GUIDELINES:
-- Use "I notice..." or "It seems like..." instead of "You are..."
-- Avoid clinical language - use everyday terms
-- Be specific to their situation, not generic
-- Show understanding of their tech role challenges
-- Encourage without being preachy"""
+TECH CONTEXT:
+- Coding stress, deadlines, debugging frustration
+- Remote work isolation, meeting fatigue
+- Imposter syndrome, perfectionism
+- Sprint pressure, on-call stress"""
 
     def analyze_journal_entry(
         self, 
@@ -66,38 +74,126 @@ TONE GUIDELINES:
     ) -> AIAnalysisResponse:
         """
         Analyze a journal entry and generate comprehensive AI insights
-        
-        Args:
-            journal_entry: The journal entry to analyze
-            user_history: Optional list of previous entries for pattern recognition
-            
-        Returns:
-            AIAnalysisResponse with insights, patterns, and Pulse message
         """
         try:
-            # Prepare context for AI analysis
-            context = self._prepare_analysis_context(journal_entry, user_history)
+            # For cost optimization, use the same efficient response generation
+            pulse_response = self.generate_pulse_response(journal_entry)
             
-            # Generate AI analysis
-            analysis_prompt = self._build_analysis_prompt(context)
-            
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",  # More reliable and faster  
-                messages=[
-                    {"role": "system", "content": self.personality_prompt},
-                    {"role": "user", "content": analysis_prompt}
-                ],
-                max_tokens=self.max_tokens,
-                temperature=self.temperature
+            # Convert to analysis format
+            return AIAnalysisResponse(
+                insights=[],  # Simplified for cost efficiency
+                overall_wellness_score=self._calculate_wellness_score(journal_entry),
+                burnout_risk_level=self._assess_burnout_risk(journal_entry),
+                pulse_message=pulse_response.message,
+                pulse_question=pulse_response.follow_up_question,
+                immediate_actions=[self._suggest_immediate_action(journal_entry)],
+                long_term_suggestions=[self._suggest_long_term_action(journal_entry)]
             )
-            
-            # Parse and structure the response
-            ai_response = response.choices[0].message.content
-            return self._parse_analysis_response(ai_response, journal_entry)
             
         except Exception as e:
             logger.error(f"Error in AI analysis: {e}")
             return self._create_fallback_response(journal_entry)
+    
+    async def generate_beta_optimized_response(
+        self,
+        user_id: str,
+        journal_entry: JournalEntryResponse
+    ) -> Tuple[PulseResponse, bool, Optional[str]]:
+        """
+        Generate beta-optimized Pulse AI response with tier-based features
+        Returns: (response, success, error_message)
+        """
+        if not self.beta_service:
+            # Fallback to standard response if beta service not available
+            response = self.generate_pulse_response(journal_entry)
+            return response, True, None
+        
+        try:
+            # Check if user can access AI
+            can_use, tier_info, limit_message = await self.beta_service.can_user_access_ai(user_id)
+            
+            if not can_use:
+                # Return rate limit response
+                return PulseResponse(
+                    message=limit_message,
+                    confidence_score=1.0,
+                    response_time_ms=0,
+                    follow_up_question="",
+                    insights=[]
+                ), False, "Rate limit exceeded"
+            
+            # Prepare optimized context
+            from ..models.journal import JournalEntry
+            journal_entry_model = JournalEntry(
+                id=journal_entry.id,
+                user_id=user_id,
+                content=journal_entry.content,
+                mood_level=journal_entry.mood_level,
+                energy_level=journal_entry.energy_level,
+                stress_level=journal_entry.stress_level,
+                work_challenges=journal_entry.work_challenges,
+                work_hours=journal_entry.work_hours,
+                created_at=journal_entry.created_at
+            )
+            
+            context, tier_info = await self.beta_service.prepare_ai_context(user_id, journal_entry_model)
+            
+            # Generate response with optimized context
+            start_time = time.time()
+            prompt = self._build_context_aware_prompt(context, tier_info)
+            
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.personality_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=min(self.max_tokens, tier_info.max_tokens_per_request),
+                temperature=self.temperature
+            )
+            
+            response_time_ms = int((time.time() - start_time) * 1000)
+            
+            # Parse response
+            pulse_message = response.choices[0].message.content
+            pulse_response = self._parse_pulse_response(pulse_message, response_time_ms)
+            
+            # Log usage for analytics
+            await self.beta_service.log_ai_interaction(
+                user_id=user_id,
+                journal_entry_id=journal_entry.id,
+                prompt_tokens=response.usage.prompt_tokens if hasattr(response, 'usage') else context.total_tokens,
+                response_tokens=response.usage.completion_tokens if hasattr(response, 'usage') else len(pulse_message) // 4,
+                model_used=self.model,
+                response_time_ms=response_time_ms,
+                confidence_score=pulse_response.confidence_score,
+                context_type=context.context_type,
+                success=True
+            )
+            
+            return pulse_response, True, None
+            
+        except Exception as e:
+            logger.error(f"Error in beta-optimized response generation: {e}")
+            
+            # Log failed interaction
+            if self.beta_service:
+                await self.beta_service.log_ai_interaction(
+                    user_id=user_id,
+                    journal_entry_id=journal_entry.id,
+                    prompt_tokens=0,
+                    response_tokens=0,
+                    model_used=self.model,
+                    response_time_ms=0,
+                    confidence_score=0.5,
+                    context_type="error",
+                    success=False,
+                    error_message=str(e)
+                )
+            
+            # Return fallback response
+            fallback = self._create_smart_fallback_response(journal_entry)
+            return fallback, False, str(e)
     
     def generate_pulse_response(
         self,
@@ -105,32 +201,28 @@ TONE GUIDELINES:
         user_context: Optional[Dict[str, Any]] = None
     ) -> PulseResponse:
         """
-        Generate a real-time Pulse AI response to a journal entry
-        
-        Args:
-            journal_entry: The journal entry to respond to
-            user_context: Additional user context (tech role, history, etc.)
-            
-        Returns:
-            PulseResponse with personalized message and follow-up question
+        Generate cost-optimized Pulse AI response to a journal entry
         """
         try:
             start_time = datetime.now()
             
-            # Build personalized prompt
-            prompt = self._build_pulse_prompt(journal_entry, user_context)
+            # Build ultra-efficient prompt
+            prompt = self._build_efficient_prompt(journal_entry, user_context)
             
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",  # More reliable and faster
+                model=self.model,
                 messages=[
                     {"role": "system", "content": self.personality_prompt},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=300,
+                max_tokens=self.max_tokens,
                 temperature=self.temperature
             )
             
             response_time = (datetime.now() - start_time).total_seconds() * 1000
+            
+            # Track costs (optional monitoring)
+            self._track_usage(response.usage.total_tokens if hasattr(response, 'usage') else 200)
             
             # Parse Pulse response
             pulse_message = response.choices[0].message.content
@@ -138,141 +230,205 @@ TONE GUIDELINES:
             
         except Exception as e:
             logger.error(f"Error generating Pulse response: {e}")
-            return self._create_fallback_pulse_response()
+            return self._create_smart_fallback_response(journal_entry)
     
-    def _prepare_analysis_context(
+    def _build_context_aware_prompt(self, context: AIContext, tier_info) -> str:
+        """Build context-aware prompt using beta optimization data"""
+        if self.beta_service:
+            return self.beta_service.get_context_prompt(context)
+        else:
+            # Fallback to basic prompt
+            return self._build_efficient_prompt(context.current_entry)
+    
+    def _build_efficient_prompt(
         self, 
         journal_entry: JournalEntryResponse,
-        history: Optional[List[JournalEntryResponse]]
-    ) -> Dict[str, Any]:
-        """Prepare context data for AI analysis"""
-        context = {
-            "current_entry": {
-                "content": journal_entry.content,
-                "mood": journal_entry.mood_level,
-                "energy": journal_entry.energy_level,
-                "stress": journal_entry.stress_level,
-                "sleep_hours": journal_entry.sleep_hours,
-                "work_hours": journal_entry.work_hours,
-                "tags": journal_entry.tags,
-                "work_challenges": journal_entry.work_challenges,
-                "date": journal_entry.created_at.strftime("%Y-%m-%d")
-            }
-        }
+        user_context: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """Build token-efficient prompt that maximizes quality per dollar"""
         
-        if history:
-            context["recent_history"] = [
-                {
-                    "mood": entry.mood_level,
-                    "energy": entry.energy_level,
-                    "stress": entry.stress_level,
-                    "date": entry.created_at.strftime("%Y-%m-%d"),
-                    "key_themes": entry.tags[:3]  # Top 3 tags
-                }
-                for entry in history[-7:]  # Last 7 entries
-            ]
+        # Extract key info efficiently
+        mood_desc = self._mood_to_word(journal_entry.mood_level)
+        energy_desc = self._energy_to_word(journal_entry.energy_level)
+        stress_desc = self._stress_to_word(journal_entry.stress_level)
         
-        return context
-    
-    def _build_analysis_prompt(self, context: Dict[str, Any]) -> str:
-        """Build the prompt for comprehensive analysis"""
-        current = context["current_entry"]
+        # Build ultra-concise prompt
+        prompt = f"""Entry: "{journal_entry.content[:400]}"  
+Mood: {mood_desc} ({journal_entry.mood_level}/10)
+Energy: {energy_desc} ({journal_entry.energy_level}/10)  
+Stress: {stress_desc} ({journal_entry.stress_level}/10)"""
         
-        prompt = f"""Analyze this tech worker's journal entry and provide insights:
-
-CURRENT ENTRY:
-Content: {current['content']}
-Mood: {current['mood']}/10
-Energy: {current['energy']}/10  
-Stress: {current['stress']}/10
-Sleep: {current.get('sleep_hours', 'Not specified')} hours
-Work: {current.get('work_hours', 'Not specified')} hours
-Challenges: {', '.join(current.get('work_challenges', []))}
-
-"""
+        # Add work context if available (cost-efficient)
+        if journal_entry.work_challenges:
+            challenges = ', '.join(journal_entry.work_challenges[:2])  # Limit to save tokens
+            prompt += f"\nWork challenges: {challenges}"
         
-        if "recent_history" in context:
-            prompt += f"\nRECENT PATTERN (Last 7 entries):\n"
-            for entry in context["recent_history"]:
-                prompt += f"- {entry['date']}: Mood {entry['mood']}, Energy {entry['energy']}, Stress {entry['stress']}\n"
-        
-        prompt += """
-Please provide:
-1. A gentle insight about patterns or what stands out
-2. One specific actionable suggestion for this tech worker
-3. A thoughtful follow-up question
-4. Assess burnout risk level (low/moderate/high/critical)
-5. Overall wellness score (1-10)
-
-Format your response naturally as Pulse would speak, not as a structured report."""
-        
+        if journal_entry.work_hours and journal_entry.work_hours > 8:
+            prompt += f"\nWork hours: {journal_entry.work_hours}h"
+            
         return prompt
     
-    def _build_pulse_prompt(
-        self, 
-        journal_entry: JournalEntryResponse,
-        user_context: Optional[Dict[str, Any]]
-    ) -> str:
-        """Build prompt for real-time Pulse response"""
-        tech_role = user_context.get("tech_role", "developer") if user_context else "developer"
-        
-        return f"""A {tech_role} just shared this journal entry:
-
-"{journal_entry.content}"
-
-Mood: {journal_entry.mood_level}/10
-Energy: {journal_entry.energy_level}/10
-Stress: {journal_entry.stress_level}/10
-
-Respond as Pulse with:
-1. A gentle insight (2-3 sentences)
-2. One actionable suggestion specific to their tech role
-3. A follow-up question to encourage reflection
-
-Keep it conversational and supportive, like a caring friend who understands tech work."""
+    def _mood_to_word(self, level: int) -> str:
+        """Convert mood level to descriptive word (token efficient)"""
+        if level >= 8: return "great"
+        elif level >= 6: return "good" 
+        elif level >= 4: return "okay"
+        elif level >= 2: return "low"
+        else: return "rough"
     
-    def _parse_analysis_response(
+    def _energy_to_word(self, level: int) -> str:
+        """Convert energy level to descriptive word (token efficient)"""
+        if level >= 8: return "energized"
+        elif level >= 6: return "steady"
+        elif level >= 4: return "moderate" 
+        elif level >= 2: return "tired"
+        else: return "drained"
+    
+    def _stress_to_word(self, level: int) -> str:
+        """Convert stress level to descriptive word (token efficient)"""
+        if level >= 8: return "overwhelmed"
+        elif level >= 6: return "stressed"
+        elif level >= 4: return "manageable"
+        elif level >= 2: return "calm"
+        else: return "relaxed"
+    
+    def _track_usage(self, tokens: int):
+        """Optional cost tracking for monitoring"""
+        self.daily_token_count += tokens
+        # GPT-3.5-turbo pricing: ~$0.002 per 1K tokens
+        self.daily_cost_estimate += (tokens / 1000) * 0.002
+        
+        if self.daily_token_count % 1000 == 0:  # Log every 1000 tokens
+            logger.info(f"Daily usage: {self.daily_token_count} tokens, ~${self.daily_cost_estimate:.4f}")
+    
+    async def submit_feedback(
         self, 
-        ai_response: str, 
-        journal_entry: JournalEntryResponse
-    ) -> AIAnalysisResponse:
-        """Parse AI response into structured analysis"""
-        # This is a simplified parser - in production, you'd use more sophisticated parsing
-        lines = ai_response.split('\n')
+        user_id: str, 
+        journal_entry_id: str, 
+        feedback_type: str, 
+        feedback_text: Optional[str] = None,
+        ai_response: Optional[PulseResponse] = None,
+        prompt_content: Optional[str] = None
+    ) -> bool:
+        """Submit user feedback for AI response"""
+        if not self.beta_service:
+            return False
         
-        # Extract key components (simplified for MVP)
-        pulse_message = ai_response  # Full response as Pulse message
-        
-        # Default values - would be extracted from AI response in production
-        return AIAnalysisResponse(
-            insights=[],  # Would populate with parsed insights
-            overall_wellness_score=7.0,  # Would extract from AI response
-            burnout_risk_level="moderate",  # Would extract from AI response
-            pulse_message=pulse_message,
-            pulse_question="How are you feeling about trying this approach?",
-            immediate_actions=["Take a 10-minute break"],
-            long_term_suggestions=["Consider setting boundaries around work hours"]
-        )
+        try:
+            await self.beta_service.feedback_service.submit_feedback(
+                user_id=user_id,
+                journal_entry_id=journal_entry_id,
+                feedback_type=feedback_type,
+                feedback_text=feedback_text,
+                ai_response_content=ai_response.message if ai_response else None,
+                prompt_content=prompt_content,
+                confidence_score=ai_response.confidence_score if ai_response else None,
+                response_time_ms=ai_response.response_time_ms if ai_response else None,
+                user_tier='free'  # This would be determined by the beta service
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error submitting feedback: {e}")
+            return False
     
     def _parse_pulse_response(self, message: str, response_time: float) -> PulseResponse:
-        """Parse Pulse AI response into structured format"""
-        # Split message to extract follow-up question (simplified)
-        parts = message.split('?')
-        if len(parts) > 1:
-            main_message = '?'.join(parts[:-1]) + '?'
-            follow_up = parts[-1].strip()
-            if not follow_up:
-                follow_up = None
-        else:
-            main_message = message
-            follow_up = None
+        """Parse Pulse AI response with improved confidence scoring"""
+        
+        # Simple quality indicators for confidence scoring
+        confidence = 0.7  # Base confidence for GPT-3.5-turbo
+        
+        # Boost confidence for quality indicators
+        if len(message) > 100 and len(message) < 400:  # Good length
+            confidence += 0.1
+        if "?" in message:  # Has follow-up question
+            confidence += 0.05
+        if any(word in message.lower() for word in ['notice', 'seems', 'might', 'could']):  # Gentle language
+            confidence += 0.05
+        if any(word in message.lower() for word in ['code', 'debug', 'deploy', 'meeting', 'deadline']):  # Tech context
+            confidence += 0.1
+            
+        confidence = min(confidence, 0.95)  # Cap at 95%
+        
+        # Extract follow-up question
+        sentences = message.split('?')
+        follow_up = None
+        if len(sentences) > 1 and sentences[-1].strip():
+            # Last question is likely the follow-up
+            follow_up = sentences[-1].strip()
+        elif '?' in message:
+            # Find the question
+            question_part = message[message.rfind('?')-50:message.rfind('?')+1]
+            follow_up = question_part.strip()
         
         return PulseResponse(
-            message=main_message,
+            message=message.strip(),
             follow_up_question=follow_up,
             response_time_ms=int(response_time),
-            confidence_score=0.85
+            confidence_score=round(confidence, 2)
         )
+    
+    def _create_smart_fallback_response(self, journal_entry: JournalEntryResponse) -> PulseResponse:
+        """Create intelligent fallback based on user data"""
+        
+        # Smart fallback based on mood/stress levels
+        if journal_entry.stress_level >= 7:
+            message = "I can sense you're dealing with a lot right now. High stress can be overwhelming, especially in tech work. Would taking a few minutes to step away from your screen help right now?"
+        elif journal_entry.mood_level <= 3:
+            message = "It sounds like you're having a tough time. Low mood days happen to all of us, and it's okay to acknowledge that. What's one small thing that usually helps you feel a bit better?"
+        elif journal_entry.energy_level <= 3:
+            message = "I notice your energy feels really low today. That can make everything feel harder, especially debugging or problem-solving. Have you been able to get enough rest lately?"
+        else:
+            message = "Thank you for sharing what's on your mind. I'm here to support you through whatever you're experiencing. What feels most important to focus on right now?"
+        
+        return PulseResponse(
+            message=message,
+            confidence_score=0.6,  # Moderate confidence for smart fallback
+            response_time_ms=50
+        )
+    
+    def _calculate_wellness_score(self, entry: JournalEntryResponse) -> float:
+        """Calculate wellness score from entry data (no AI cost)"""
+        mood_weight = 0.4
+        energy_weight = 0.3
+        stress_weight = 0.3  # Inverted
+        
+        stress_inverted = 10 - entry.stress_level
+        score = (entry.mood_level * mood_weight + 
+                entry.energy_level * energy_weight + 
+                stress_inverted * stress_weight)
+        
+        return round(score, 1)
+    
+    def _assess_burnout_risk(self, entry: JournalEntryResponse) -> str:
+        """Assess burnout risk without AI cost"""
+        if entry.stress_level >= 8 and entry.energy_level <= 3:
+            return "high"
+        elif entry.stress_level >= 6 and entry.mood_level <= 4:
+            return "moderate"
+        elif entry.stress_level >= 7 or (entry.mood_level <= 3 and entry.energy_level <= 3):
+            return "moderate"
+        else:
+            return "low"
+    
+    def _suggest_immediate_action(self, entry: JournalEntryResponse) -> str:
+        """Suggest immediate action without AI cost"""
+        if entry.stress_level >= 7:
+            return "Take 5 deep breaths and step away from your screen"
+        elif entry.energy_level <= 3:
+            return "Take a 10-minute walk or stretch break"
+        elif entry.mood_level <= 4:
+            return "Do something small that usually makes you smile"
+        else:
+            return "Check in with yourself again in a few hours"
+    
+    def _suggest_long_term_action(self, entry: JournalEntryResponse) -> str:
+        """Suggest long-term action without AI cost"""
+        if entry.work_hours and entry.work_hours > 10:
+            return "Consider setting boundaries around work hours"
+        elif entry.stress_level >= 6:
+            return "Build a daily stress management routine"
+        else:
+            return "Keep tracking your patterns to build self-awareness"
     
     def _create_fallback_response(self, journal_entry: JournalEntryResponse) -> AIAnalysisResponse:
         """Create fallback response when AI fails"""
@@ -283,14 +439,6 @@ Keep it conversational and supportive, like a caring friend who understands tech
             pulse_message="Thank you for sharing. I'm here to support you on your wellness journey.",
             immediate_actions=["Take some deep breaths"],
             long_term_suggestions=["Consider establishing a daily wellness routine"]
-        )
-    
-    def _create_fallback_pulse_response(self) -> PulseResponse:
-        """Create fallback Pulse response when AI fails"""
-        return PulseResponse(
-            message="Thank you for sharing with me. I'm here to support you. How are you feeling right now?",
-            confidence_score=0.5,
-            response_time_ms=100
         )
 
 # Global Pulse AI instance

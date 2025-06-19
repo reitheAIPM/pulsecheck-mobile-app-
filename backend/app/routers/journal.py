@@ -8,10 +8,14 @@ from app.models.journal import (
     JournalStats, JournalEntryUpdate
 )
 from app.models.ai_insights import PulseResponse, AIAnalysisResponse
-from app.services.pulse_ai import pulse_ai
+from app.services.pulse_ai import PulseAI
 from app.core.database import get_database, Database
 
 router = APIRouter()
+
+# Initialize PulseAI with database for beta optimization
+def get_pulse_ai_service(db: Database = Depends(get_database)):
+    return PulseAI(db=db)
 
 @router.get("/test")
 async def test_journal_router():
@@ -75,12 +79,17 @@ async def create_journal_entry(
 async def get_pulse_response(
     entry_id: str,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    pulse_ai: PulseAI = Depends(get_pulse_ai_service)
 ):
     """
-    Get Pulse AI response for a journal entry
+    Get Pulse AI response for a journal entry - Beta Optimized
     
-    This is the core AI interaction - where Pulse provides personalized insights
+    Features:
+    - User tier-based rate limiting
+    - Token-conscious context building
+    - Cost tracking and analytics
+    - Personalized responses based on history
     """
     try:
         # Get the journal entry
@@ -92,13 +101,22 @@ async def get_pulse_response(
         # Convert to model
         journal_entry = JournalEntryResponse(**result.data[0])
         
-        # Generate Pulse AI response
-        user_context = {
-            "tech_role": current_user.get("tech_role", "developer"),
-            "user_id": current_user["id"]
-        }
+        # Use beta-optimized AI response generation
+        pulse_response, success, error_message = await pulse_ai.generate_beta_optimized_response(
+            user_id=current_user["id"],
+            journal_entry=journal_entry
+        )
         
-        pulse_response = pulse_ai.generate_pulse_response(journal_entry, user_context)
+        if not success and error_message == "Rate limit exceeded":
+            # Return rate limit response with specific status code
+            raise HTTPException(
+                status_code=429, 
+                detail={
+                    "message": pulse_response.message,
+                    "type": "rate_limit",
+                    "retry_after": "24 hours"
+                }
+            )
         
         return pulse_response
         
@@ -107,17 +125,63 @@ async def get_pulse_response(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating Pulse response: {str(e)}")
 
+@router.post("/entries/{entry_id}/feedback")
+async def submit_pulse_feedback(
+    entry_id: str,
+    feedback_type: str,  # 'thumbs_up', 'thumbs_down', 'report'
+    feedback_text: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+    pulse_ai: PulseAI = Depends(get_pulse_ai_service)
+):
+    """
+    Submit feedback for a Pulse AI response
+    
+    Helps improve AI quality and provides beta analytics
+    """
+    try:
+        # Validate feedback type
+        valid_types = ['thumbs_up', 'thumbs_down', 'report', 'detailed']
+        if feedback_type not in valid_types:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid feedback type. Must be one of: {', '.join(valid_types)}"
+            )
+        
+        # Submit feedback
+        success = await pulse_ai.submit_feedback(
+            user_id=current_user["id"],
+            journal_entry_id=entry_id,
+            feedback_type=feedback_type,
+            feedback_text=feedback_text
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to submit feedback")
+        
+        return {
+            "message": "Feedback submitted successfully",
+            "feedback_type": feedback_type,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error submitting feedback: {str(e)}")
+
 @router.get("/entries/{entry_id}/analysis", response_model=AIAnalysisResponse)
 async def get_ai_analysis(
     entry_id: str,
     include_history: bool = True,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    pulse_ai: PulseAI = Depends(get_pulse_ai_service)
 ):
     """
-    Get comprehensive AI analysis for a journal entry
+    Get comprehensive AI analysis for a journal entry - Beta Optimized
     
     Provides deeper insights, patterns, and wellness recommendations
+    Uses tier-based context and rate limiting
     """
     try:
         # Get the journal entry
@@ -128,15 +192,15 @@ async def get_ai_analysis(
         
         journal_entry = JournalEntryResponse(**result.data[0])
         
-        # Get user history if requested
+        # Get user history if requested (simplified for beta)
         user_history = None
         if include_history:
-            history_result = db.get_client().table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(10).execute()
+            history_result = db.get_client().table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(5).execute()
             
             if history_result.data:
                 user_history = [JournalEntryResponse(**entry) for entry in history_result.data]
         
-        # Generate comprehensive AI analysis
+        # Generate comprehensive AI analysis (fallback to standard for now)
         analysis = pulse_ai.analyze_journal_entry(journal_entry, user_history)
         
         return analysis

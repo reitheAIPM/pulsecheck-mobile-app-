@@ -23,7 +23,7 @@ except Exception as e:
         port = 8000
     settings = MinimalSettings()
 
-from app.routers import auth, checkins, journal
+from app.routers import auth, checkins, journal, admin
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -94,6 +94,8 @@ if config_loaded:
     print("✅ Check-ins router loaded")
     app.include_router(journal.router, prefix="/api/v1/journal", tags=["journal"])
     print("✅ Journal router loaded at /api/v1/journal")
+    app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
+    print("✅ Admin router loaded at /api/v1/admin")
     # app.include_router(ai_insights.router, prefix="/api/v1/ai", tags=["ai-insights"])
     # app.include_router(user.router, prefix="/api/v1/user", tags=["user"])
     print("🚀 All routers loaded successfully")
