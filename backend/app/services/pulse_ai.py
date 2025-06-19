@@ -59,7 +59,7 @@ TONE GUIDELINES:
 - Show understanding of their tech role challenges
 - Encourage without being preachy"""
 
-    async def analyze_journal_entry(
+    def analyze_journal_entry(
         self, 
         journal_entry: JournalEntryResponse,
         user_history: Optional[List[JournalEntryResponse]] = None
@@ -81,8 +81,8 @@ TONE GUIDELINES:
             # Generate AI analysis
             analysis_prompt = self._build_analysis_prompt(context)
             
-            response = await self.client.chat.completions.acreate(
-                model="gpt-4",
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",  # More reliable and faster  
                 messages=[
                     {"role": "system", "content": self.personality_prompt},
                     {"role": "user", "content": analysis_prompt}
@@ -99,7 +99,7 @@ TONE GUIDELINES:
             logger.error(f"Error in AI analysis: {e}")
             return self._create_fallback_response(journal_entry)
     
-    async def generate_pulse_response(
+    def generate_pulse_response(
         self,
         journal_entry: JournalEntryResponse,
         user_context: Optional[Dict[str, Any]] = None
@@ -120,8 +120,8 @@ TONE GUIDELINES:
             # Build personalized prompt
             prompt = self._build_pulse_prompt(journal_entry, user_context)
             
-            response = await self.client.chat.completions.acreate(
-                model="gpt-4",
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",  # More reliable and faster
                 messages=[
                     {"role": "system", "content": self.personality_prompt},
                     {"role": "user", "content": prompt}
