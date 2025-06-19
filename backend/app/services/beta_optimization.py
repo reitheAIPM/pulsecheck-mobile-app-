@@ -9,7 +9,12 @@ from datetime import datetime, date, timedelta
 from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass
 from decimal import Decimal
-import tiktoken
+try:
+    import tiktoken
+    TIKTOKEN_AVAILABLE = True
+except ImportError:
+    TIKTOKEN_AVAILABLE = False
+    tiktoken = None
 import openai
 from openai import OpenAI
 
@@ -80,8 +85,11 @@ class TokenManager:
     
     def __init__(self):
         try:
-            self.encoder = tiktoken.encoding_for_model("gpt-3.5-turbo")
-        except:
+            if TIKTOKEN_AVAILABLE and tiktoken:
+                self.encoder = tiktoken.encoding_for_model("gpt-3.5-turbo")
+            else:
+                self.encoder = None
+        except Exception:
             self.encoder = None
     
     def count_tokens(self, text: str) -> int:
