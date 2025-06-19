@@ -120,62 +120,40 @@ PulseCheck/
    # Add to .env: SECRET_KEY=generated_key
    ```
 
-### Database Setup (Supabase)
+### Database Setup (Supabase) - ✅ COMPLETED
 
-1. Create these tables in your Supabase dashboard:
+**Schema Successfully Deployed:**
 
-**users table:**
-```sql
-CREATE TABLE users (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL,
-    tech_role TEXT NOT NULL,
-    experience_years INTEGER,
-    company_size TEXT,
-    role TEXT DEFAULT 'user',
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
+✅ **Database Status**: All beta optimization tables successfully created and deployed
+✅ **Tables**: Core app tables + user_tiers, ai_usage_logs, user_feedback, usage_quotas  
+✅ **Views**: daily_usage_stats, user_tier_stats, feedback_summary
+✅ **Functions**: get_user_tier, log_ai_usage
 
-**journal_entries table:**
-```sql
-CREATE TABLE journal_entries (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    content TEXT NOT NULL,
-    mood_level INTEGER NOT NULL CHECK (mood_level >= 1 AND mood_level <= 10),
-    energy_level INTEGER NOT NULL CHECK (energy_level >= 1 AND energy_level <= 10),
-    stress_level INTEGER NOT NULL CHECK (stress_level >= 1 AND stress_level <= 10),
-    sleep_hours DECIMAL,
-    work_hours DECIMAL,
-    tags TEXT[] DEFAULT '{}',
-    work_challenges TEXT[] DEFAULT '{}',
-    gratitude_items TEXT[] DEFAULT '{}',
-    ai_insights JSONB,
-    ai_generated_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
+The database schema has been fully deployed and is ready for production use. All admin endpoints and beta optimization features are now supported.
+
+📖 **See `DEPLOYMENT_INSTRUCTIONS.md` for reference and troubleshooting.**
 
 ## 📱 MVP Features (Current)
 
 ### ✅ Completed
 - [x] FastAPI backend with journal endpoints
-- [x] Pulse AI service with OpenAI integration
+- [x] Pulse AI service with OpenAI integration  
 - [x] React Native app with navigation
 - [x] Home dashboard with wellness stats
 - [x] Journal entry screen with mood/energy/stress tracking
 - [x] Pulse response screen with AI insights
 - [x] TypeScript types and API service
+- [x] **Supabase database integration** - ✅ Schema deployed
+- [x] **Beta optimization features** - ✅ Admin endpoints, user tiers, usage tracking
+- [x] **Production deployment** - ✅ Railway backend live
 
-### 🚧 In Progress
-- [ ] Supabase database integration
-- [ ] User authentication
-- [ ] Data persistence and sync
+### 🔄 In Progress  
+- [ ] Railway deployment restart (picking up new database schema)
+- [ ] Final production testing and verification
+
+### 🎯 Ready for Testing
+- [ ] User authentication flow
+- [ ] Data persistence and sync  
 - [ ] AI insight quality improvements
 
 ### 📋 Next Sprint

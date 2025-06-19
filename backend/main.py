@@ -120,4 +120,6 @@ else:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host=getattr(settings, 'host', '0.0.0.0'), port=getattr(settings, 'port', 8000)) 
+    # Use Railway's PORT environment variable if available
+    port = int(os.getenv('PORT', getattr(settings, 'port', 8000)))
+    uvicorn.run(app, host=getattr(settings, 'host', '0.0.0.0'), port=port) 

@@ -273,6 +273,12 @@ REACT_APP_PUBLIC_BUILDER_KEY=93b18bce96bf4218884de91289488848
 
 ## 📚 Important Reference Notes
 
+### **🎯 CRITICAL: AI Alignment Guide**
+- **File**: `ai/ai-alignment-guide.md` - **READ THIS FIRST**
+- **Purpose**: Keeps AI assistant aligned with current project state
+- **Prevents**: Variable confusion, schema mix-ups, outdated references
+- **Updates**: Current file structure, exact deployment steps, working examples
+
 ### Testing Framework
 - **Backend**: 8/8 tests passing (100% coverage)
 - **Frontend**: 9/9 tests passing (Jest + React Native Testing Library)
