@@ -53,8 +53,8 @@ async def create_journal_entry(
             "tags": entry.tags or [],
             "work_challenges": entry.work_challenges or [],
             "gratitude_items": entry.gratitude_items or [],
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
         }
         
         # Insert into Supabase
