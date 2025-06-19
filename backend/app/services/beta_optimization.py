@@ -19,7 +19,7 @@ import openai
 from openai import OpenAI
 
 from ..core.database import get_database
-from ..models.journal import JournalEntry
+from ..models.journal import JournalEntryResponse
 from ..models.user import User
 
 # =====================================================
@@ -41,8 +41,8 @@ class UserTierInfo:
 
 @dataclass
 class AIContext:
-    current_entry: JournalEntry
-    recent_entries: List[JournalEntry]
+    current_entry: JournalEntryResponse
+    recent_entries: List[JournalEntryResponse]
     summaries: List[Dict[str, Any]]
     total_tokens: int
     context_type: str
@@ -104,7 +104,7 @@ class TokenManager:
             # Fallback estimation: ~4 characters per token
             return len(text) // 4
     
-    def estimate_entry_tokens(self, entry: JournalEntry) -> int:
+    def estimate_entry_tokens(self, entry: JournalEntryResponse) -> int:
         """Estimate tokens for a journal entry"""
         content = f"Entry: {entry.content}\nMood: {entry.mood_level}/10\nEnergy: {entry.energy_level}/10\nStress: {entry.stress_level}/10"
         return self.count_tokens(content)
@@ -117,8 +117,8 @@ class TokenManager:
         content += f"Themes: {', '.join(summary.top_themes)}"
         return self.count_tokens(content)
     
-    def optimize_context_for_budget(self, entries: List[JournalEntry], summaries: List[JournalSummary], 
-                                  budget: int) -> Tuple[List[JournalEntry], List[JournalSummary], int]:
+    def optimize_context_for_budget(self, entries: List[JournalEntryResponse], summaries: List[JournalSummary], 
+                                  budget: int) -> Tuple[List[JournalEntryResponse], List[JournalSummary], int]:
         """Optimize context to fit within token budget"""
         used_tokens = 0
         selected_entries = []
@@ -248,7 +248,7 @@ class ContextBuilderService:
         self.db = db
         self.token_manager = TokenManager()
     
-    async def build_ai_context(self, user_id: str, current_entry: JournalEntry, tier_info: UserTierInfo) -> AIContext:
+    async def build_ai_context(self, user_id: str, current_entry: JournalEntryResponse, tier_info: UserTierInfo) -> AIContext:
         """Build optimized AI context for user's tier"""
         
         # Get recent entries based on tier
@@ -276,7 +276,7 @@ class ContextBuilderService:
             context_type=context_type
         )
     
-    async def _get_recent_entries(self, user_id: str, limit: int) -> List[JournalEntry]:
+    async def _get_recent_entries(self, user_id: str, limit: int) -> List[JournalEntryResponse]:
         """Get recent journal entries for user"""
         try:
             query = """
@@ -427,7 +427,7 @@ class BetaOptimizationService:
         
         return True, tier_info, None
     
-    async def prepare_ai_context(self, user_id: str, current_entry: JournalEntry) -> Tuple[AIContext, UserTierInfo]:
+    async def prepare_ai_context(self, user_id: str, current_entry: JournalEntryResponse) -> Tuple[AIContext, UserTierInfo]:
         """Prepare optimized AI context for user"""
         tier_info = await self.tier_service.get_user_tier_info(user_id)
         context = await self.context_builder.build_ai_context(user_id, current_entry, tier_info)

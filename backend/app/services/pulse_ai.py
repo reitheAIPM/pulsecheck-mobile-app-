@@ -123,8 +123,8 @@ TECH CONTEXT:
                 ), False, "Rate limit exceeded"
             
             # Prepare optimized context
-            from ..models.journal import JournalEntry
-            journal_entry_model = JournalEntry(
+            from ..models.journal import JournalEntryResponse
+            journal_entry_model = JournalEntryResponse(
                 id=journal_entry.id,
                 user_id=user_id,
                 content=journal_entry.content,
