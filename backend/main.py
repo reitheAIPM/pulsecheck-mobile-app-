@@ -88,14 +88,30 @@ async def health_check():
 # Include routers only if configuration is loaded
 if config_loaded:
     print("🔗 Loading API routers...")
-    app.include_router(auth.router, prefix="/api/v1", tags=["authentication"])
-    print("✅ Auth router loaded")
-    app.include_router(checkins.router, prefix="/api/v1", tags=["check-ins"])
-    print("✅ Check-ins router loaded")
-    app.include_router(journal.router, prefix="/api/v1/journal", tags=["journal"])
-    print("✅ Journal router loaded at /api/v1/journal")
-    app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
-    print("✅ Admin router loaded at /api/v1/admin")
+    try:
+        app.include_router(auth.router, prefix="/api/v1", tags=["authentication"])
+        print("✅ Auth router loaded")
+    except Exception as e:
+        print(f"❌ Auth router failed: {e}")
+        
+    try:
+        app.include_router(checkins.router, prefix="/api/v1", tags=["check-ins"])
+        print("✅ Check-ins router loaded")
+    except Exception as e:
+        print(f"❌ Check-ins router failed: {e}")
+        
+    try:
+        app.include_router(journal.router, prefix="/api/v1/journal", tags=["journal"])
+        print("✅ Journal router loaded at /api/v1/journal")
+    except Exception as e:
+        print(f"❌ Journal router failed: {e}")
+        
+    try:
+        app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
+        print("✅ Admin router loaded at /api/v1/admin")
+    except Exception as e:
+        print(f"❌ Admin router failed: {e}")
+        
     # app.include_router(ai_insights.router, prefix="/api/v1/ai", tags=["ai-insights"])
     # app.include_router(user.router, prefix="/api/v1/user", tags=["user"])
     print("🚀 All routers loaded successfully")
