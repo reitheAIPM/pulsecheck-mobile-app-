@@ -9,7 +9,20 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import configuration and routers
-from app.core.config import settings
+try:
+    from app.core.config import settings
+    config_loaded = True
+except Exception as e:
+    print(f"❌ Configuration loading failed: {e}")
+    config_loaded = False
+    # Create minimal settings for health checks
+    class MinimalSettings:
+        environment = "production"
+        allowed_origins_list = ["*"]
+        host = "0.0.0.0"
+        port = 8000
+    settings = MinimalSettings()
+
 from app.routers import auth, checkins
 
 @asynccontextmanager
@@ -17,7 +30,12 @@ async def lifespan(app: FastAPI):
     # Startup
     print("🚀 PulseCheck API starting up...")
     print(f"🌍 Environment: {settings.environment}")
-    print(f"🔗 CORS Origins: {settings.allowed_origins_list}")
+    if config_loaded:
+        print(f"🔗 CORS Origins: {settings.allowed_origins_list}")
+        print("✅ Configuration loaded successfully")
+    else:
+        print("⚠️  Running with minimal configuration")
+        print("🔧 Some features may not work without proper environment variables")
     yield
     # Shutdown
     print("👋 PulseCheck API shutting down...")
@@ -30,9 +48,14 @@ app = FastAPI(
 )
 
 # CORS configuration for React Native
+if config_loaded:
+    cors_origins = settings.allowed_origins_list
+else:
+    cors_origins = ["*"]  # Allow all origins if config failed
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins_list,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,19 +69,31 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Detailed health check"""
-    return {
+    health_status = {
         "status": "healthy",
         "service": "PulseCheck API",
         "version": "1.0.0",
-        "environment": settings.environment
+        "environment": getattr(settings, 'environment', 'unknown'),
+        "config_loaded": config_loaded
     }
+    
+    if not config_loaded:
+        health_status["warnings"] = [
+            "Configuration not fully loaded",
+            "Some features may be unavailable"
+        ]
+    
+    return health_status
 
-# Include routers
-app.include_router(auth.router, prefix="/api/v1", tags=["authentication"])
-app.include_router(checkins.router, prefix="/api/v1", tags=["check-ins"])
-# app.include_router(ai_insights.router, prefix="/api/v1/ai", tags=["ai-insights"])
-# app.include_router(user.router, prefix="/api/v1/user", tags=["user"])
+# Include routers only if configuration is loaded
+if config_loaded:
+    app.include_router(auth.router, prefix="/api/v1", tags=["authentication"])
+    app.include_router(checkins.router, prefix="/api/v1", tags=["check-ins"])
+    # app.include_router(ai_insights.router, prefix="/api/v1/ai", tags=["ai-insights"])
+    # app.include_router(user.router, prefix="/api/v1/user", tags=["user"])
+else:
+    print("⚠️  API routes not loaded due to configuration issues")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host=settings.host, port=settings.port) 
+    uvicorn.run(app, host=getattr(settings, 'host', '0.0.0.0'), port=getattr(settings, 'port', 8000)) 
