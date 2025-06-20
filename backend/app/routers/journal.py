@@ -146,6 +146,10 @@ async def get_pulse_response(
             raise HTTPException(status_code=404, detail="Journal entry not found")
         
         entry_data = result.data
+        # Ensure updated_at field exists before creating response
+        if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
+            entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow())
+            
         journal_entry = JournalEntryResponse(**entry_data)
         
         # Use beta-optimized AI response generation
@@ -241,6 +245,10 @@ async def get_ai_analysis(
             raise HTTPException(status_code=404, detail="Journal entry not found")
         
         entry_data = result.data
+        # Ensure updated_at field exists before creating response
+        if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
+            entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow())
+            
         journal_entry = JournalEntryResponse(**entry_data)
         
         # Get user history if requested (simplified for beta)
@@ -249,7 +257,12 @@ async def get_ai_analysis(
             history_result = await client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(5).execute()
             
             if history_result.data:
-                user_history = [JournalEntryResponse(**entry) for entry in history_result.data]
+                user_history = []
+                for entry in history_result.data:
+                    # Ensure updated_at field exists for each history entry
+                    if 'updated_at' not in entry or entry['updated_at'] is None:
+                        entry['updated_at'] = entry.get('created_at', datetime.utcnow())
+                    user_history.append(JournalEntryResponse(**entry))
 
         # Generate analysis
         analysis_response = await pulse_ai.get_comprehensive_analysis(
@@ -406,8 +419,13 @@ async def get_journal_entry(
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
+        
+        # Ensure updated_at field exists before creating response
+        entry_data = result.data
+        if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
+            entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow())
             
-        return JournalEntryResponse(**result.data)
+        return JournalEntryResponse(**entry_data)
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving journal entry: {str(e)}")

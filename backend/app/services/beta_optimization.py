@@ -388,9 +388,10 @@ class CostTracker:
                 "context_type": usage_log.context_type,
                 "success": usage_log.success,
                 "error_message": usage_log.error_message,
-                "created_at": datetime.utcnow()
+                "created_at": datetime.utcnow().isoformat()
             }
             
+            # Use Supabase client method instead of SQLAlchemy
             self.db.get_client().table("ai_usage_logs").insert(log_data).execute()
             
         except Exception as e:
@@ -426,9 +427,10 @@ class FeedbackService:
                 "confidence_score": confidence_score,
                 "response_time_ms": response_time_ms,
                 "user_tier": user_tier,
-                "created_at": datetime.utcnow()
+                "created_at": datetime.utcnow().isoformat()
             }
             
+            # Use Supabase client method instead of SQLAlchemy
             self.db.get_client().table("ai_feedback").insert(feedback_data).execute()
             
         except Exception as e:

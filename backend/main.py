@@ -81,6 +81,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
+# Global OPTIONS handler for Railway health checks
+@app.options("/{full_path:path}")
+async def global_options_handler(full_path: str):
+    """Handle all OPTIONS requests for Railway health check compatibility"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, HEAD",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Max-Age": "86400"
+        }
+    )
+
 @app.get("/")
 async def root():
     """Health check endpoint"""
