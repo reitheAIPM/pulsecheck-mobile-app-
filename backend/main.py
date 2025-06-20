@@ -102,7 +102,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Detailed health check with OpenAI status"""
+    """Detailed health check with OpenAI status - v2.0 with fixes"""
     # Check OpenAI configuration
     openai_api_key = os.getenv('OPENAI_API_KEY')
     openai_configured = bool(openai_api_key and openai_api_key.startswith('sk-'))
