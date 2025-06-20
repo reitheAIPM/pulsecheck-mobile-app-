@@ -49,11 +49,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration for React Native
+# CORS configuration for React Native and Railway health checks
 if config_loaded:
     cors_origins = settings.allowed_origins_list
 else:
     cors_origins = ["*"]  # Allow all origins if config failed
+
+# Add Railway health check domain to allowed origins
+railway_health_check = "healthcheck.railway.app"
+if railway_health_check not in cors_origins and "*" not in cors_origins:
+    cors_origins.append(railway_health_check)
 
 app.add_middleware(
     CORSMiddleware,
@@ -110,6 +115,19 @@ async def health_check():
         health_status["warnings"] = warnings
     
     return health_status
+
+@app.options("/health")
+async def health_check_options():
+    """Handle OPTIONS requests for health check (Railway health check compatibility)"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Max-Age": "86400"
+        }
+    )
 
 @app.get("/docs")
 async def api_documentation():
