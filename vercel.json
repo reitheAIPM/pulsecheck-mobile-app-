@@ -4,17 +4,14 @@
   "framework": "vite",
   "installCommand": "cd \"spark-realm (1)\" && npm install",
   "devCommand": "cd \"spark-realm (1)\" && npm run dev",
-  "routes": [
+  "rewrites": [
     { 
-      "src": "/assets/(.*)", 
-      "dest": "/spark-realm (1)/dist/assets/$1" 
+      "source": "/assets/(.*)", 
+      "destination": "/spark-realm (1)/dist/assets/$1" 
     },
     { 
-      "handle": "filesystem" 
-    },
-    { 
-      "src": "/(.*)", 
-      "dest": "/spark-realm (1)/dist/index.html" 
+      "source": "/(.*)", 
+      "destination": "/spark-realm (1)/dist/index.html" 
     }
   ],
   "headers": [
