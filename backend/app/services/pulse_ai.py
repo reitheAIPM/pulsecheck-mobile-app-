@@ -138,7 +138,7 @@ Remember: You're like a caring friend checking in on their social media post, no
         
         try:
             # Check if user can access AI
-            can_use, tier_info, limit_message = await self.beta_service.can_user_access_ai(user_id)
+            can_use, tier_info, limit_message = self.beta_service.can_user_access_ai(user_id)
             
             if not can_use:
                 # Return rate limit response
@@ -152,20 +152,7 @@ Remember: You're like a caring friend checking in on their social media post, no
                 ), False, "Rate limit exceeded"
             
             # Prepare optimized context
-            from ..models.journal import JournalEntryResponse
-            journal_entry_model = JournalEntryResponse(
-                id=journal_entry.id,
-                user_id=user_id,
-                content=journal_entry.content,
-                mood_level=journal_entry.mood_level,
-                energy_level=journal_entry.energy_level,
-                stress_level=journal_entry.stress_level,
-                work_challenges=journal_entry.work_challenges,
-                work_hours=journal_entry.work_hours,
-                created_at=journal_entry.created_at
-            )
-            
-            context, tier_info = await self.beta_service.prepare_ai_context(user_id, journal_entry_model)
+            context, tier_info = self.beta_service.prepare_ai_context(user_id, journal_entry)
             
             # Generate response with optimized context
             start_time = time.time()
@@ -200,7 +187,7 @@ Remember: You're like a caring friend checking in on their social media post, no
             pulse_response = self._parse_pulse_response(pulse_message, response_time_ms)
             
             # Log usage for analytics
-            await self.beta_service.log_ai_interaction(
+            self.beta_service.log_ai_interaction(
                 user_id=user_id,
                 journal_entry_id=journal_entry.id,
                 prompt_tokens=response.usage.prompt_tokens if hasattr(response, 'usage') else context.total_tokens,
@@ -219,7 +206,7 @@ Remember: You're like a caring friend checking in on their social media post, no
             
             # Log failed interaction
             if self.beta_service:
-                await self.beta_service.log_ai_interaction(
+                self.beta_service.log_ai_interaction(
                     user_id=user_id,
                     journal_entry_id=journal_entry.id,
                     prompt_tokens=0,
@@ -368,12 +355,17 @@ Stress: {stress_desc} ({journal_entry.stress_level}/10)"""
         ai_response: Optional[PulseResponse] = None,
         prompt_content: Optional[str] = None
     ) -> bool:
-        """Submit user feedback for AI response"""
+        """Submit feedback to the database using the BetaOptimizationService"""
+        
         if not self.beta_service:
+            logger.warning("Feedback submitted but beta service not available for logging.")
             return False
         
         try:
-            await self.beta_service.feedback_service.submit_feedback(
+            # Get tier info for logging
+            _, tier_info, _ = self.beta_service.can_user_access_ai(user_id)
+            
+            self.beta_service.feedback_service.submit_feedback(
                 user_id=user_id,
                 journal_entry_id=journal_entry_id,
                 feedback_type=feedback_type,
@@ -382,11 +374,11 @@ Stress: {stress_desc} ({journal_entry.stress_level}/10)"""
                 prompt_content=prompt_content,
                 confidence_score=ai_response.confidence_score if ai_response else None,
                 response_time_ms=ai_response.response_time_ms if ai_response else None,
-                user_tier='free'  # This would be determined by the beta service
+                user_tier=tier_info.tier_name
             )
             return True
         except Exception as e:
-            logger.error(f"Error submitting feedback: {e}")
+            logger.error(f"Error submitting feedback via beta service: {e}")
             return False
     
     def _parse_pulse_response(self, message: str, response_time: float) -> PulseResponse:

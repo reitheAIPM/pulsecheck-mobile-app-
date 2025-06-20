@@ -83,6 +83,9 @@ async def create_journal_entry(
     This is the core MVP endpoint - where users submit their daily wellness check-ins
     """
     try:
+        # Get the database client
+        client = await db.get_client()
+        
         # Create journal entry data
         entry_data = {
             "id": str(uuid.uuid4()),
@@ -91,27 +94,29 @@ async def create_journal_entry(
             "mood_level": int(entry.mood_level) if entry.mood_level is not None else None,
             "energy_level": int(entry.energy_level) if entry.energy_level is not None else None,
             "stress_level": int(entry.stress_level) if entry.stress_level is not None else None,
-            "sleep_hours": int(entry.sleep_hours) if entry.sleep_hours is not None else None,
-            "work_hours": int(entry.work_hours) if entry.work_hours is not None else None,
+            "sleep_hours": entry.sleep_hours,
+            "work_hours": entry.work_hours,
             "tags": entry.tags or [],
             "work_challenges": entry.work_challenges or [],
             "gratitude_items": entry.gratitude_items or [],
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
         }
         
-        # Insert into Supabase
-        result = db.get_client().table("journal_entries").insert(entry_data).execute()
+        # Insert into Supabase using async client
+        result = await client.table("journal_entries").insert(entry_data).execute()
         
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create journal entry")
         
         # Convert to response model
-        journal_entry = JournalEntryResponse(**result.data[0])
+        created_entry = result.data[0]
         
-        return journal_entry
+        return JournalEntryResponse(**created_entry)
         
     except Exception as e:
+        # Log the exception for debugging
+        print(f"Error creating journal entry: {e}")
         raise HTTPException(status_code=500, detail=f"Error creating journal entry: {str(e)}")
 
 @router.get("/entries/{entry_id}/pulse", response_model=PulseResponse)
@@ -131,16 +136,16 @@ async def get_pulse_response(
     - Personalized responses based on history
     """
     try:
+        # Get the database client
+        client = await db.get_client()
+        
         # Get the journal entry
-        result = db.get_client().table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).execute()
+        result = await client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
         
-        entry_data = result.data[0]
-        # Ensure updated_at field exists
-        if 'updated_at' not in entry_data:
-            entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow().isoformat())
+        entry_data = result.data
         journal_entry = JournalEntryResponse(**entry_data)
         
         # Use beta-optimized AI response generation
@@ -190,7 +195,7 @@ async def submit_pulse_feedback(
             )
         
         # Submit feedback
-        success = await pulse_ai.submit_feedback(
+        success = pulse_ai.submit_feedback(
             user_id=current_user["id"],
             journal_entry_id=entry_id,
             feedback_type=feedback_type,
@@ -226,34 +231,34 @@ async def get_ai_analysis(
     Uses tier-based context and rate limiting
     """
     try:
+        # Get the database client
+        client = await db.get_client()
+        
         # Get the journal entry
-        result = db.get_client().table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).execute()
+        result = await client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
         
-        entry_data = result.data[0]
-        # Ensure updated_at field exists
-        if 'updated_at' not in entry_data:
-            entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow().isoformat())
+        entry_data = result.data
         journal_entry = JournalEntryResponse(**entry_data)
         
         # Get user history if requested (simplified for beta)
         user_history = None
         if include_history:
-            history_result = db.get_client().table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(5).execute()
+            history_result = await client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(5).execute()
             
             if history_result.data:
-                user_history = []
-                for entry in history_result.data:
-                    if 'updated_at' not in entry:
-                        entry['updated_at'] = entry.get('created_at', datetime.utcnow().isoformat())
-                    user_history.append(JournalEntryResponse(**entry))
+                user_history = [JournalEntryResponse(**entry) for entry in history_result.data]
+
+        # Generate analysis
+        analysis_response = await pulse_ai.get_comprehensive_analysis(
+            user_id=current_user["id"],
+            journal_entry=journal_entry,
+            user_history=user_history
+        )
         
-        # Generate comprehensive AI analysis (fallback to standard for now)
-        analysis = pulse_ai.analyze_journal_entry(journal_entry, user_history)
-        
-        return analysis
+        return analysis_response
         
     except HTTPException:
         raise
@@ -271,6 +276,8 @@ async def get_journal_entries(
     Get paginated list of user's journal entries
     """
     try:
+        client = await db.get_client()
+        
         # Validate parameters
         if page < 1:
             page = 1
@@ -281,7 +288,7 @@ async def get_journal_entries(
         offset = (page - 1) * per_page
         
         # Get total count first
-        count_result = db.get_client().table("journal_entries").select("id", count="exact").eq("user_id", current_user["id"]).execute()
+        count_result = await client.table("journal_entries").select("id", count="exact").eq("user_id", current_user["id"]).execute()
         total = count_result.count if count_result.count else 0
         
         # If no entries, return empty response
@@ -308,17 +315,17 @@ async def get_journal_entries(
             )
         
         # Get entries with pagination - use proper range
-        result = db.get_client().table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).range(offset, offset + per_page - 1).execute()
+        result = await client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).range(offset, offset + per_page - 1).execute()
         
         # Convert to response models and handle missing updated_at field
         entries = []
         if result.data:
             for entry in result.data:
-                # Ensure updated_at field exists
-                if 'updated_at' not in entry:
-                    entry['updated_at'] = entry.get('created_at', datetime.utcnow().isoformat())
+                # Ensure updated_at field exists. This is the critical fix.
+                if 'updated_at' not in entry or entry['updated_at'] is None:
+                    entry['updated_at'] = entry.get('created_at', datetime.utcnow())
                 entries.append(JournalEntryResponse(**entry))
-        
+
         return JournalEntriesResponse(
             entries=entries,
             total=total,
@@ -392,23 +399,62 @@ async def get_journal_entry(
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user)
 ):
-    """
-    Get a specific journal entry by ID
-    """
+    """Get a single journal entry by ID"""
     try:
-        result = db.get_client().table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).execute()
+        client = await db.get_client()
+        result = await client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
+            
+        return JournalEntryResponse(**result.data)
         
-        entry_data = result.data[0]
-        # Ensure updated_at field exists
-        if 'updated_at' not in entry_data:
-            entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow().isoformat())
-        
-        return JournalEntryResponse(**entry_data)
-        
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching journal entry: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Error retrieving journal entry: {str(e)}")
+
+@router.put("/entries/{entry_id}", response_model=JournalEntryResponse)
+async def update_journal_entry(
+    entry_id: str,
+    entry: JournalEntryUpdate,
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update an existing journal entry"""
+    try:
+        client = await db.get_client()
+        
+        # Prepare update data, excluding None values
+        update_data = entry.dict(exclude_unset=True)
+        
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
+            
+        # Add updated_at timestamp
+        update_data["updated_at"] = datetime.utcnow()
+        
+        result = await client.table("journal_entries").update(update_data).eq("id", entry_id).eq("user_id", current_user["id"]).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Journal entry not found or no changes made")
+            
+        return JournalEntryResponse(**result.data[0])
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating journal entry: {str(e)}")
+
+@router.delete("/entries/{entry_id}", status_code=204)
+async def delete_journal_entry(
+    entry_id: str,
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a journal entry"""
+    try:
+        client = await db.get_client()
+        result = await client.table("journal_entries").delete().eq("id", entry_id).eq("user_id", current_user["id"]).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Journal entry not found")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting journal entry: {str(e)}") 
