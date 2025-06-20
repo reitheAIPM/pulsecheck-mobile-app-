@@ -1,11 +1,11 @@
 {
-  "start_time": "2025-06-20T13:32:31.109650",
+  "start_time": "2025-06-20T13:50:26.338385",
   "tests": {
     "Backend Health Check": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:32:31.230863",
+      "timestamp": "2025-06-20T13:50:26.459745",
       "details": {
-        "response_time_ms": 119.847,
+        "response_time_ms": 119.784,
         "service": "PulseCheck API",
         "version": "1.0.0",
         "environment": "development",
@@ -14,55 +14,55 @@
     },
     "API Endpoint: Root Endpoint": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:32:31.270735",
+      "timestamp": "2025-06-20T13:50:26.484027",
       "details": {
         "method": "GET",
         "endpoint": "/",
         "status_code": 200,
-        "response_time_ms": 39.146
+        "response_time_ms": 23.398
       }
     },
     "API Endpoint: API Documentation": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:32:31.295708",
+      "timestamp": "2025-06-20T13:50:26.505406",
       "details": {
         "method": "GET",
         "endpoint": "/docs",
         "status_code": 200,
-        "response_time_ms": 23.89
+        "response_time_ms": 20.697
       }
     },
     "API Endpoint: Get Journal Entries": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:32:31.467951",
+      "timestamp": "2025-06-20T13:50:26.720962",
       "details": {
         "method": "GET",
         "endpoint": "/api/v1/journal/entries",
         "status_code": 200,
-        "response_time_ms": 171.52100000000002
+        "response_time_ms": 215.014
       }
     },
     "Journal Entry Creation": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:32:31.563939",
+      "timestamp": "2025-06-20T13:50:26.796580",
       "details": {
-        "entry_id": "ce66d2f3-9f91-4517-ab49-643a4f74e9d5",
-        "response_time_ms": 95.016,
+        "entry_id": "5d57babe-c7a6-4d4a-9c8b-041a34c10ae2",
+        "response_time_ms": 74.11,
         "content_length": 142,
         "status_code": 200
       }
     },
     "Journal Entry Retrieval": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:32:31.651151",
+      "timestamp": "2025-06-20T13:50:26.861060",
       "details": {
-        "entry_id": "ce66d2f3-9f91-4517-ab49-643a4f74e9d5",
-        "response_time_ms": 86.51599999999999
+        "entry_id": "5d57babe-c7a6-4d4a-9c8b-041a34c10ae2",
+        "response_time_ms": 63.60300000000001
       }
     },
     "AI Response Generation": {
       "status": "FAIL",
-      "timestamp": "2025-06-20T13:32:31.860141",
+      "timestamp": "2025-06-20T13:50:26.974270",
       "details": {
         "error": "object of type 'NoneType' has no len()",
         "error_type": "TypeError"
@@ -70,18 +70,18 @@
     },
     "Performance Under Load": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:32:32.006474",
+      "timestamp": "2025-06-20T13:50:27.089113",
       "details": {
         "total_requests": 10,
         "successful_requests": 10,
         "success_rate": "100.00%",
-        "total_time_seconds": 0.1460273265838623,
-        "avg_response_time_ms": 61.045899999999996
+        "total_time_seconds": 0.11444902420043945,
+        "avg_response_time_ms": 52.88770000000001
       }
     },
     "Error Handling - Invalid Endpoint": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:32:32.037352",
+      "timestamp": "2025-06-20T13:50:27.112115",
       "details": {
         "status_code": 404,
         "expected_error": true
@@ -89,7 +89,7 @@
     },
     "Error Handling - Invalid Entry ID": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:32:32.108833",
+      "timestamp": "2025-06-20T13:50:27.218102",
       "details": {
         "status_code": 500,
         "expected_error": true
@@ -97,14 +97,14 @@
     },
     "Security - CORS Headers": {
       "status": "WARN",
-      "timestamp": "2025-06-20T13:32:32.132724",
+      "timestamp": "2025-06-20T13:50:27.242852",
       "details": {
         "cors_headers_present": false
       }
     },
     "Security - Security Headers": {
       "status": "WARN",
-      "timestamp": "2025-06-20T13:32:32.159734",
+      "timestamp": "2025-06-20T13:50:27.266137",
       "details": {
         "security_headers_present": 0,
         "headers": {
