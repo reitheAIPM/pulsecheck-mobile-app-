@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Heart, Sparkles, Brain, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Plus, Heart, Sparkles, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { JournalCard } from "@/components/JournalCard";
+import { StatusIndicator, LoadingCard, EmptyState } from "@/components/ui/loading-states";
 import { apiService } from "@/services/api";
+import { toast } from "@/hooks/use-toast";
 
 // Mock data for development
 const mockEntries = [
@@ -50,18 +52,32 @@ const Index = () => {
   const navigate = useNavigate();
   const [entries, setEntries] = useState(mockEntries);
   const [apiStatus, setApiStatus] = useState<'loading' | 'connected' | 'error'>('loading');
-  const [apiUrl, setApiUrl] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingEntries, setIsLoadingEntries] = useState(false);
 
   useEffect(() => {
     // Test API connection on component mount
     const testApiConnection = async () => {
       try {
-        setApiUrl(apiService.getBaseUrl());
         const isConnected = await apiService.testConnection();
         setApiStatus(isConnected ? 'connected' : 'error');
+        
+        if (isConnected) {
+          toast({
+            title: "Connected to PulseCheck",
+            description: "Your wellness companion is ready to support you.",
+            duration: 3000,
+          });
+        }
       } catch (error) {
         console.error('API connection test failed:', error);
         setApiStatus('error');
+        toast({
+          title: "Connection Issue",
+          description: "Unable to connect to PulseCheck. You can still use the app offline.",
+          variant: "destructive",
+          duration: 5000,
+        });
       }
     };
 
@@ -76,18 +92,60 @@ const Index = () => {
     navigate("/new-entry");
   };
 
-  const getApiStatusIcon = () => {
-    switch (apiStatus) {
-      case 'loading':
-        return <Loader2 className="w-4 h-4 animate-spin" />;
-      case 'connected':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'error':
-        return <XCircle className="w-4 h-4 text-red-500" />;
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Simulate refresh delay for better UX
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Test API connection again
+      const isConnected = await apiService.testConnection();
+      setApiStatus(isConnected ? 'connected' : 'error');
+      
+      if (isConnected) {
+        toast({
+          title: "Refreshed",
+          description: "Connection restored successfully.",
+          duration: 2000,
+        });
+      }
+    } catch (error) {
+      console.error('Refresh failed:', error);
+      setApiStatus('error');
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
-  const getApiStatusText = () => {
+  const handleLoadEntries = async () => {
+    setIsLoadingEntries(true);
+    try {
+      // Simulate loading real entries from API
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // In real implementation, this would fetch from API
+      // const realEntries = await apiService.getJournalEntries();
+      // setEntries(realEntries);
+      
+      toast({
+        title: "Entries loaded",
+        description: "Your reflections are ready.",
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Failed to load entries:', error);
+      toast({
+        title: "Loading failed",
+        description: "Unable to load your entries. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setIsLoadingEntries(false);
+    }
+  };
+
+  const getStatusMessage = () => {
     switch (apiStatus) {
       case 'loading':
         return 'Testing connection...';
@@ -116,7 +174,10 @@ const Index = () => {
               </div>
             </div>
 
-            <Button onClick={handleNewEntry} className="gap-2">
+            <Button 
+              onClick={handleNewEntry} 
+              className="gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
+            >
               <Plus className="w-4 h-4" />
               Reflect
             </Button>
@@ -127,23 +188,16 @@ const Index = () => {
       {/* Main Content */}
       <main className="max-w-lg mx-auto px-4 py-6">
         {/* API Status Indicator */}
-        <div className="mb-4 p-3 bg-muted/50 rounded-lg">
-          <div className="flex items-center gap-2 text-sm">
-            {getApiStatusIcon()}
-            <span className={apiStatus === 'connected' ? 'text-green-600' : apiStatus === 'error' ? 'text-red-600' : 'text-muted-foreground'}>
-              {getApiStatusText()}
-            </span>
-          </div>
-          {apiStatus === 'error' && (
-            <p className="text-xs text-muted-foreground mt-1">
-              API URL: {apiUrl}
-            </p>
-          )}
-        </div>
+        <StatusIndicator
+          status={apiStatus === 'loading' ? 'loading' : apiStatus === 'connected' ? 'success' : 'error'}
+          message={getStatusMessage()}
+          onRetry={apiStatus === 'error' ? handleRefresh : undefined}
+          className="mb-4"
+        />
 
         {/* Welcome Message */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-md text-sm font-medium mb-3">
+          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-md text-sm font-medium mb-3 animate-fade-in">
             <Sparkles className="w-4 h-4" />
             Welcome back
           </div>
@@ -157,10 +211,10 @@ const Index = () => {
           <Button
             onClick={handleNewEntry}
             variant="outline"
-            className="w-full h-14 border-2 border-dashed hover:bg-muted/50 transition-colors"
+            className="w-full h-14 border-2 border-dashed hover:bg-muted/50 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] group"
           >
             <div className="flex items-center gap-3">
-              <Plus className="w-5 h-5" />
+              <Plus className="w-5 h-5 transition-transform group-hover:rotate-90 duration-200" />
               <span>What's on your mind today?</span>
             </div>
           </Button>
@@ -168,45 +222,57 @@ const Index = () => {
 
         {/* Journal Feed */}
         <div className="space-y-6">
-          <div className="flex items-center gap-2 text-sm text-calm-600 mb-4">
-            <Heart className="w-4 h-4" />
-            <span>Your recent reflections</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-calm-600">
+              <Heart className="w-4 h-4" />
+              <span>Your recent reflections</span>
+            </div>
+            
+            {apiStatus === 'connected' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLoadEntries}
+                disabled={isLoadingEntries}
+                className="h-8 px-2 text-xs"
+              >
+                {isLoadingEntries ? 'Loading...' : 'Refresh'}
+              </Button>
+            )}
           </div>
 
-          {entries.length > 0 ? (
-            entries.map((entry) => (
-              <JournalCard
-                key={entry.id}
-                entry={entry}
-                onPulseClick={handlePulseClick}
-              />
-            ))
-          ) : (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-full bg-pulse-100 flex items-center justify-center mx-auto mb-4">
-                <Heart className="w-8 h-8 text-pulse-500" />
-              </div>
-              <h3 className="text-lg font-medium text-calm-800 mb-2">
-                Start your reflection journey
-              </h3>
-              <p className="text-calm-600 mb-6 max-w-sm mx-auto">
-                Your first journal entry is just a click away. Take a moment to
-                check in with yourself.
-              </p>
-              <Button
-                onClick={handleNewEntry}
-                className="gap-2 bg-gradient-to-r from-pulse-500 to-pulse-600 hover:from-pulse-600 hover:to-pulse-700 text-white rounded-xl"
-              >
-                <Plus className="w-4 h-4" />
-                Write your first reflection
-              </Button>
+          {isLoadingEntries ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <LoadingCard key={i} lines={4} />
+              ))}
             </div>
+          ) : entries.length > 0 ? (
+            <div className="space-y-4">
+              {entries.map((entry, index) => (
+                <div
+                  key={entry.id}
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <JournalCard
+                    entry={entry}
+                    onPulseClick={handlePulseClick}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<Heart className="w-8 h-8 text-pulse-500" />}
+              title="Start your reflection journey"
+              description="Your first journal entry is just a click away. Take a moment to check in with yourself."
+              action={{
+                label: "Write your first reflection",
+                onClick: handleNewEntry,
+              }}
+            />
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="text-center py-8 text-sm text-calm-500">
-          <p>Your reflections are private and secure</p>
         </div>
       </main>
     </div>

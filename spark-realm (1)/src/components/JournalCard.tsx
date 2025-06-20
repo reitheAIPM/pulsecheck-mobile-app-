@@ -1,9 +1,15 @@
 import { useState } from "react";
-import { Heart, MessageCircle, Clock, Brain } from "lucide-react";
+import { Heart, MessageCircle, Clock, Brain, Share2, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface JournalEntry {
   id: string;
@@ -24,6 +30,7 @@ interface JournalCardProps {
 
 export function JournalCard({ entry, onPulseClick }: JournalCardProps) {
   const [liked, setLiked] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -46,18 +53,51 @@ export function JournalCard({ entry, onPulseClick }: JournalCardProps) {
     return "😄";
   };
 
+  const getMoodColor = (mood: number) => {
+    if (mood <= 2) return "text-red-500 bg-red-50";
+    if (mood <= 4) return "text-orange-500 bg-orange-50";
+    if (mood <= 6) return "text-yellow-500 bg-yellow-50";
+    if (mood <= 8) return "text-green-500 bg-green-50";
+    return "text-blue-500 bg-blue-50";
+  };
+
   const truncateContent = (content: string, maxLength: number = 280) => {
     if (content.length <= maxLength) return content;
     return content.substring(0, maxLength) + "...";
   };
 
+  const handleLike = () => {
+    setLiked(!liked);
+    // Add haptic feedback for mobile
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: "My Reflection",
+        text: entry.content.substring(0, 100) + "...",
+        url: window.location.href,
+      });
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(entry.content);
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(entry.content);
+  };
+
   return (
-    <Card className="w-full bg-card border hover:border-primary/20 transition-colors duration-200">
+    <Card className="w-full bg-card border hover:border-primary/20 transition-all duration-300 hover:shadow-md group">
       <CardContent className="p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-gradient-to-r from-pulse-400 to-pulse-500"></div>
+            <div className="w-3 h-3 rounded-full bg-gradient-to-r from-pulse-400 to-pulse-500 animate-pulse"></div>
             <span className="text-sm font-medium text-calm-700">
               Your reflection
             </span>
@@ -67,25 +107,54 @@ export function JournalCard({ entry, onPulseClick }: JournalCardProps) {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-lg">{getMoodEmoji(entry.mood)}</span>
-            <span className="text-xs text-calm-500 bg-calm-100 px-2 py-1 rounded-full">
+            <span className="text-lg transition-transform hover:scale-110">{getMoodEmoji(entry.mood)}</span>
+            <span className={cn(
+              "text-xs px-2 py-1 rounded-full font-medium transition-colors",
+              getMoodColor(entry.mood)
+            )}>
               {entry.mood}/10
             </span>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <MoreHorizontal className="w-4 h-4" />
+                  <span className="sr-only">More options</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleCopy}>
+                  Copy text
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleShare}>
+                  Share
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
         {/* Content */}
         <div className="mb-4">
-          <p className="text-calm-800 leading-relaxed whitespace-pre-wrap">
-            {truncateContent(entry.content)}
+          <p className="text-calm-800 leading-relaxed whitespace-pre-wrap cursor-pointer" 
+             onClick={() => setIsExpanded(!isExpanded)}>
+            {isExpanded ? entry.content : truncateContent(entry.content)}
           </p>
+          {entry.content.length > 280 && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-sm text-pulse-600 hover:text-pulse-700 font-medium mt-2 transition-colors"
+            >
+              {isExpanded ? "Show less" : "Read more"}
+            </button>
+          )}
         </div>
 
         {/* AI Response */}
         {entry.aiResponse && (
-          <div className="border-l-2 border-primary/30 pl-4 mb-4 bg-muted/30 -ml-1 py-3 rounded-r-md">
+          <div className="border-l-2 border-primary/30 pl-4 mb-4 bg-muted/30 -ml-1 py-3 rounded-r-md transition-all duration-200 hover:bg-muted/50">
             <div className="flex items-start gap-3">
-              <Avatar className="w-6 h-6 ring-2 ring-pulse-200">
+              <Avatar className="w-6 h-6 ring-2 ring-pulse-200 transition-transform hover:scale-110">
                 <AvatarFallback className="bg-gradient-to-br from-pulse-400 to-pulse-500 text-white text-xs">
                   <Brain className="w-3 h-3" />
                 </AvatarFallback>
@@ -99,7 +168,7 @@ export function JournalCard({ entry, onPulseClick }: JournalCardProps) {
                     {formatTimestamp(entry.aiResponse.timestamp)}
                   </span>
                   {entry.aiResponse.emoji && (
-                    <span className="text-sm">{entry.aiResponse.emoji}</span>
+                    <span className="text-sm animate-bounce">{entry.aiResponse.emoji}</span>
                   )}
                 </div>
                 <div className="space-y-1">
@@ -123,14 +192,15 @@ export function JournalCard({ entry, onPulseClick }: JournalCardProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setLiked(!liked)}
+              onClick={handleLike}
               className={cn(
-                "gap-2 text-calm-600 hover:text-pulse-600 transition-colors",
+                "gap-2 text-calm-600 hover:text-pulse-600 transition-all duration-200 hover:scale-105 active:scale-95",
                 liked && "text-pulse-600",
               )}
+              aria-label={liked ? "Unlike reflection" : "Like reflection"}
             >
-              <Heart className={cn("w-4 h-4", liked && "fill-current")} />
-              <span className="text-sm">Reflect</span>
+              <Heart className={cn("w-4 h-4 transition-all duration-200", liked && "fill-current scale-110")} />
+              <span className="text-sm">{liked ? "Liked" : "Reflect"}</span>
             </Button>
 
             {entry.aiResponse && (
@@ -138,12 +208,24 @@ export function JournalCard({ entry, onPulseClick }: JournalCardProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => onPulseClick?.(entry.id)}
-                className="gap-2 text-calm-600 hover:text-pulse-600 transition-colors"
+                className="gap-2 text-calm-600 hover:text-pulse-600 transition-all duration-200 hover:scale-105 active:scale-95"
+                aria-label="Reply to Pulse"
               >
                 <MessageCircle className="w-4 h-4" />
                 <span className="text-sm">Reply to Pulse</span>
               </Button>
             )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleShare}
+              className="gap-2 text-calm-600 hover:text-pulse-600 transition-all duration-200 hover:scale-105 active:scale-95 opacity-0 group-hover:opacity-100"
+              aria-label="Share reflection"
+            >
+              <Share2 className="w-4 h-4" />
+              <span className="text-sm">Share</span>
+            </Button>
           </div>
 
           {!entry.aiResponse && (
