@@ -240,61 +240,48 @@ async def get_system_health(
     Get overall system health metrics for beta monitoring
     """
     try:
-        # Get recent error rates
-        error_query = """
-            SELECT 
-                COUNT(*) as total_requests,
-                COUNT(CASE WHEN success = false THEN 1 END) as failed_requests,
-                AVG(response_time_ms) as avg_response_time,
-                AVG(confidence_score) as avg_confidence
-            FROM ai_usage_logs
-            WHERE timestamp >= NOW() - INTERVAL '24 hours'
-        """
+        # Use RPC function to get admin stats for basic health check
+        result = db.get_client().rpc('get_admin_stats').execute()
         
-        error_result = await db.fetch_one(error_query)
-        
-        # Get user tier distribution
-        tier_query = """
-            SELECT 
-                CASE 
-                    WHEN is_premium THEN 'premium'
-                    WHEN created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 'beta'
-                    ELSE 'free'
-                END as tier,
-                COUNT(*) as user_count
-            FROM users 
-            GROUP BY 1
-        """
-        
-        tier_results = await db.fetch_all(tier_query)
-        
-        # Calculate health score
-        if error_result and error_result['total_requests'] > 0:
-            error_rate = (error_result['failed_requests'] / error_result['total_requests']) * 100
-            response_time = error_result['avg_response_time'] or 0
-            confidence = error_result['avg_confidence'] or 0
+        if result.data and len(result.data) > 0:
+            stats = result.data[0]
             
-            # Simple health scoring
+            # Calculate basic health score based on available data
             health_score = 100
-            if error_rate > 5: health_score -= 20
-            if response_time > 3000: health_score -= 15  # 3 second threshold
-            if confidence < 0.6: health_score -= 15
+            
+            # Reduce score if no users or data
+            if stats.get('total_users', 0) == 0:
+                health_score -= 30
+            if stats.get('total_journal_entries', 0) == 0:
+                health_score -= 20
+            if not stats.get('views_exist', False):
+                health_score -= 25
             
             health_score = max(0, health_score)
+            
+            return {
+                "health_score": health_score,
+                "system_stats": {
+                    "total_users": stats.get('total_users', 0),
+                    "total_journal_entries": stats.get('total_journal_entries', 0),
+                    "total_ai_interactions": stats.get('total_ai_interactions', 0),
+                    "total_feedback": stats.get('total_feedback', 0),
+                    "views_operational": stats.get('views_exist', False)
+                },
+                "status": "healthy" if health_score >= 80 else "warning" if health_score >= 60 else "critical"
+            }
         else:
-            error_rate = response_time = confidence = health_score = 0
-        
-        return {
-            "health_score": health_score,
-            "last_24h_metrics": {
-                "total_requests": error_result['total_requests'] if error_result else 0,
-                "error_rate_percent": round(error_rate, 2),
-                "avg_response_time_ms": round(response_time, 0),
-                "avg_confidence_score": round(confidence, 2)
-            },
-            "user_tier_distribution": [dict(row) for row in tier_results],
-            "status": "healthy" if health_score >= 80 else "warning" if health_score >= 60 else "critical"
-        }
+            return {
+                "health_score": 50,
+                "system_stats": {
+                    "total_users": 0,
+                    "total_journal_entries": 0,
+                    "total_ai_interactions": 0,
+                    "total_feedback": 0,
+                    "views_operational": False
+                },
+                "status": "warning"
+            }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching system health: {str(e)}")

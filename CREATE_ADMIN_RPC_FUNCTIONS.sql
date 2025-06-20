@@ -55,11 +55,11 @@ CREATE OR REPLACE FUNCTION get_user_engagement_metrics(row_limit integer DEFAULT
 RETURNS TABLE (
     user_id text,
     email text,
-    total_journal_entries bigint,
-    total_ai_interactions bigint,
+    total_journal_entries integer,
+    total_ai_interactions integer,
     avg_ai_quality numeric,
     total_cost_incurred numeric,
-    active_days bigint,
+    active_days integer,
     engagement_status text,
     user_tier text,
     user_since timestamp with time zone
@@ -73,11 +73,11 @@ BEGIN
         SELECT 
             be.user_id,
             be.email,
-            be.total_journal_entries,
-            be.total_ai_interactions,
+            COALESCE(be.total_journal_entries, 0)::integer,
+            COALESCE(be.total_ai_interactions, 0)::integer,
             be.avg_ai_quality,
             be.total_cost_incurred,
-            be.active_days,
+            COALESCE(be.active_days, 0)::integer,
             be.engagement_status,
             be.user_tier,
             be.user_since
@@ -92,11 +92,11 @@ BEGIN
         SELECT 
             bes.user_id,
             bes.email,
-            bes.total_journal_entries,
-            bes.total_ai_interactions,
+            COALESCE(bes.total_journal_entries, 0)::integer,
+            COALESCE(bes.total_ai_interactions, 0)::integer,
             bes.avg_ai_quality,
             bes.total_cost_incurred,
-            bes.active_days,
+            COALESCE(bes.active_days, 0)::integer,
             bes.engagement_status,
             bes.user_tier,
             bes.user_since
@@ -126,7 +126,7 @@ BEGIN
         AVG(af.confidence_score) as avg_confidence,
         AVG(af.response_time_ms) as avg_response_time
     FROM ai_feedback af
-    WHERE af.created_at >= CURRENT_DATE - INTERVAL '%s days'
+    WHERE af.created_at >= CURRENT_DATE - (days_back || ' days')::interval
     GROUP BY af.feedback_type, af.user_tier
     ORDER BY COUNT(*) DESC;
 END
