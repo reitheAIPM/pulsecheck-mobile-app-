@@ -325,4 +325,75 @@ REACT_APP_PUBLIC_BUILDER_KEY=93b18bce96bf4218884de91289488848
 
 ---
 
-Remember: Every technical decision should serve the product vision, and every product decision should consider real implementation challenges and user impact. 
+Remember: Every technical decision should serve the product vision, and every product decision should consider real implementation challenges and user impact.
+
+---
+
+## 📱 React Native & React Router Best Practices
+
+### Navigation Architecture
+- **Always use BrowserRouter**: Ensure proper routing by wrapping the App component in BrowserRouter
+- **Organize routes logically**: Group routes by feature or access level
+- **Use React Router hooks**: Leverage useNavigate, useParams, and useLocation for navigation
+
+### Common Pitfalls to Avoid
+- ❌ **Missing Router Configuration**: Components using React Router hooks (useNavigate, useParams) without a router setup
+- ❌ **Multiple NavigationContainers**: Only use one at the root level
+- ❌ **Route Path Inconsistencies**: Maintain consistent route naming across the application
+- ❌ **Missing Nested Routes**: Always provide a fallback route or NotFound component
+
+### Implementation Examples
+
+#### Router Configuration
+```typescript
+// main.tsx (root file)
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import App from "./App.tsx";
+import "./index.css";
+
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Root element not found");
+}
+
+const root = createRoot(rootElement);
+root.render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>
+);
+```
+
+#### Route Structure
+```typescript
+// App.tsx (routes configuration)
+import { Routes, Route } from 'react-router-dom'
+import Index from './pages/Index'
+import JournalEntry from './pages/JournalEntry'
+import NotFound from './pages/NotFound'
+
+function App() {
+  return (
+    <div className="app-container">
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/journal/:id?" element={<JournalEntry />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <BottomNav />
+    </div>
+  )
+}
+```
+
+### UI Component Guidelines
+- **Navigation Components**: Always place navigation components (BottomNav, Sidebar) outside the Routes
+- **Route Transitions**: Implement smooth transitions between routes for better UX
+- **Loading States**: Show appropriate loading states during navigation
+- **Error Boundaries**: Include error boundaries to catch and handle navigation errors
+
+--- 

@@ -172,6 +172,30 @@
 
 ---
 
+## 🧪 Frontend Specific Pitfalls
+
+### 1. React Router Integration
+**❌ Mistake**: Using React Router hooks (useNavigate, useParams) without proper router setup  
+**✅ Solution**: Always wrap the App component with BrowserRouter in the main entry file  
+**Key Insight**: This causes a blank white page with no visible errors - the app simply doesn't render  
+
+**❌ Mistake**: Placing navigation components (like BottomNav) inside the Routes component  
+**✅ Solution**: Position navigation UI elements outside the Routes component  
+**Key Insight**: Navigation components should persist across route changes  
+
+**❌ Mistake**: Inconsistent route path naming across the application  
+**✅ Solution**: Maintain a consistent route naming convention and document all routes  
+**Key Insight**: Route inconsistencies lead to navigation dead-ends and user confusion
+
+### 2. Component Structure
+**❌ Mistake**: Directly importing pages without proper routing configuration  
+**✅ Solution**: Always use Routes and Route components to define the application's navigation structure  
+**Key Insight**: Without proper routing, dynamic navigation and deep linking will fail  
+
+**❌ Mistake**: Missing error boundaries around route components  
+**✅ Solution**: Implement error boundaries to catch and handle component rendering failures  
+**Key Insight**: Without error boundaries, a single component failure can break the entire app
+
 *This document will be updated throughout development as we encounter and learn from real implementation challenges.*
 
 **Current Status**: Anticipated pitfalls based on industry research  

@@ -1,4 +1,4 @@
-import { Builder } from '@builder.io/react'
+import { Builder, builder } from '@builder.io/react'
 import { Button } from './src/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './src/components/ui/card'
 import { Input } from './src/components/ui/input'
@@ -245,4 +245,4 @@ Builder.registerComponent(Card, {
 })
 
 // Set up Builder.io configuration
-Builder.init('YOUR_BUILDER_API_KEY') // You'll get this from Builder.io dashboard 
+builder.init('93b18bce96bf4218884de91289488848') // Use builder instance instead of Builder class 
