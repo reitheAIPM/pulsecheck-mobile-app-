@@ -1,9 +1,9 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
+  "buildCommand": "cd spark-realm (1) && npm run build",
+  "outputDirectory": "spark-realm (1)/dist",
   "framework": "vite",
-  "installCommand": "npm install",
-  "devCommand": "npm run dev",
+  "installCommand": "cd spark-realm (1) && npm install",
+  "devCommand": "cd spark-realm (1) && npm run dev",
   "rewrites": [
     {
       "source": "/(.*)",

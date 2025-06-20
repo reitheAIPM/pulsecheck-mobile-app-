@@ -1,0 +1,33 @@
+# Backend files (not needed for frontend deployment)
+backend/
+*.py
+requirements.txt
+.env
+.venv/
+venv/
+
+# Development files
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+!README.md
+
+# SQL files
+*.sql
+
+# Archive
+archived-react-native-setup/
+
+# Personal files
+personal/
+
+# AI documentation
+ai/
+
+# Debug files
+debug_*.py
+test_*.py 
