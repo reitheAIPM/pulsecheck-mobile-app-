@@ -84,7 +84,7 @@ async def create_journal_entry(
     """
     try:
         # Get the database client
-        client = await db.get_client()
+        client = db.get_client()
         
         # Create journal entry data
         entry_data = {
@@ -137,7 +137,7 @@ async def get_pulse_response(
     """
     try:
         # Get the database client
-        client = await db.get_client()
+        client = db.get_client()
         
         # Get the journal entry
         result = await client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
@@ -236,7 +236,7 @@ async def get_ai_analysis(
     """
     try:
         # Get the database client
-        client = await db.get_client()
+        client = db.get_client()
         
         # Get the journal entry
         result = await client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
@@ -289,7 +289,7 @@ async def get_journal_entries(
     Get paginated list of user's journal entries
     """
     try:
-        client = await db.get_client()
+        client = db.get_client()
         
         # Validate parameters
         if page < 1:
@@ -414,7 +414,7 @@ async def get_journal_entry(
 ):
     """Get a single journal entry by ID"""
     try:
-        client = await db.get_client()
+        client = db.get_client()
         result = await client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
         
         if not result.data:
@@ -439,7 +439,7 @@ async def update_journal_entry(
 ):
     """Update an existing journal entry"""
     try:
-        client = await db.get_client()
+        client = db.get_client()
         
         # Prepare update data, excluding None values
         update_data = entry.dict(exclude_unset=True)
@@ -468,7 +468,7 @@ async def delete_journal_entry(
 ):
     """Delete a journal entry"""
     try:
-        client = await db.get_client()
+        client = db.get_client()
         result = await client.table("journal_entries").delete().eq("id", entry_id).eq("user_id", current_user["id"]).execute()
         
         if not result.data:
