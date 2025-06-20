@@ -1,34 +1,34 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import JournalEntry from "./pages/JournalEntry";
-import PulseResponse from "./pages/PulseResponse";
-import Insights from "./pages/Insights";
-import Profile from "./pages/Profile";
-import NotFound from "./pages/NotFound";
-import { BottomNav } from "@/components/BottomNav";
+import './App.css'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import Index from './pages/Index'
+import JournalEntry from './pages/JournalEntry'
+import PulseResponse from './pages/PulseResponse'
+import Insights from './pages/Insights'
+import Profile from './pages/Profile'
+import NotFound from './pages/NotFound'
+import { BottomNav } from './components/BottomNav'
+import { Toaster } from './components/ui/toaster'
 
-const App = () => (
-  <TooltipProvider>
-    <Toaster />
-    <Sonner />
-    <BrowserRouter>
-      <div className="relative">
+// Import Builder.io registry for visual editing
+import '../builder-registry'
+
+function App() {
+  return (
+    <Router>
+      <div className="min-h-screen bg-gray-50">
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/new-entry" element={<JournalEntry />} />
-          <Route path="/pulse/:entryId" element={<PulseResponse />} />
+          <Route path="/journal" element={<JournalEntry />} />
+          <Route path="/pulse" element={<PulseResponse />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/profile" element={<Profile />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
         <BottomNav />
+        <Toaster />
       </div>
-    </BrowserRouter>
-  </TooltipProvider>
-);
+    </Router>
+  )
+}
 
-export default App;
+export default App
