@@ -214,26 +214,27 @@ class UserTierService:
         return can_use, tier_info
     
     async def increment_usage(self, user_id: str) -> None:
-        """Increment user's daily AI usage"""
+        """Increment daily usage for a user"""
         try:
-            query = """
-                UPDATE users 
-                SET daily_ai_usage = daily_ai_usage + 1
-                WHERE id = $1
-            """
-            await self.db.execute(query, user_id)
+            # Get current usage first
+            result = self.db.get_client().table("users").select("daily_ai_usage").eq("id", user_id).execute()
+            if result.data:
+                current_usage = result.data[0]["daily_ai_usage"] or 0
+                # Update with incremented value
+                self.db.get_client().table("users").update({
+                    "daily_ai_usage": current_usage + 1
+                }).eq("id", user_id).execute()
         except Exception as e:
             print(f"Error incrementing usage for user {user_id}: {e}")
     
     async def reset_daily_usage(self, user_id: str) -> None:
         """Reset daily usage for a user"""
         try:
-            query = """
-                UPDATE users 
-                SET daily_ai_usage = 0, daily_usage_reset_at = CURRENT_DATE
-                WHERE id = $1
-            """
-            await self.db.execute(query, user_id)
+            # Use Supabase table update instead of raw SQL
+            self.db.get_client().table("users").update({
+                "daily_ai_usage": 0,
+                "daily_usage_reset_at": datetime.utcnow().date().isoformat()
+            }).eq("id", user_id).execute()
         except Exception as e:
             print(f"Error resetting usage for user {user_id}: {e}")
 
@@ -284,7 +285,6 @@ class ContextBuilderService:
             entries = []
             if result.data:
                 for entry in result.data:
-                    # Ensure updated_at field exists
                     if 'updated_at' not in entry:
                         entry['updated_at'] = entry.get('created_at', datetime.utcnow().isoformat())
                     entries.append(JournalEntryResponse(**entry))

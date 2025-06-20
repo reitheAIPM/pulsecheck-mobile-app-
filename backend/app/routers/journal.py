@@ -244,7 +244,11 @@ async def get_ai_analysis(
             history_result = db.get_client().table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(5).execute()
             
             if history_result.data:
-                user_history = [JournalEntryResponse(**entry) for entry in history_result.data]
+                user_history = []
+                for entry in history_result.data:
+                    if 'updated_at' not in entry:
+                        entry['updated_at'] = entry.get('created_at', datetime.utcnow().isoformat())
+                    user_history.append(JournalEntryResponse(**entry))
         
         # Generate comprehensive AI analysis (fallback to standard for now)
         analysis = pulse_ai.analyze_journal_entry(journal_entry, user_history)
