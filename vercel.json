@@ -1,32 +1,7 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "spark-realm (1)/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "spark-realm (1)/dist",
-        "buildCommand": "cd spark-realm (1) && npm run build"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/assets/(.*)",
-      "headers": { "cache-control": "public, max-age=31536000, immutable" },
-      "dest": "/spark-realm (1)/dist/assets/$1"
-    },
-    {
-      "src": "/favicon.ico",
-      "dest": "/spark-realm (1)/dist/favicon.ico"
-    },
-    {
-      "src": "/test.html",
-      "dest": "/spark-realm (1)/dist/test.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/spark-realm (1)/dist/index.html"
-    }
+  "buildCommand": "cd spark-realm (1) && npm install && npm run build",
+  "outputDirectory": "spark-realm (1)/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 } 
