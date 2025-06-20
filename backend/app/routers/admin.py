@@ -27,34 +27,19 @@ async def get_daily_beta_metrics(
 ):
     """
     Get daily beta metrics for monitoring
-    
-    Returns:
-    - Daily active users
-    - AI interactions count
-    - Average tokens per interaction
-    - Total daily cost
-    - Average confidence score
-    - Error rates
     """
     try:
         # Use today if no date specified
         target_date = date_filter or date.today().isoformat()
         
-        # Try to get daily metrics from the view with fallback
-        try:
-            query = """
-                SELECT * FROM beta_daily_metrics 
-                WHERE metric_date = $1
-            """
-            result = await db.fetch_one(query, target_date)
-        except Exception as view_error:
-            print(f"Daily metrics view failed: {view_error}")
-            # Return default data if view doesn't exist
-            result = None
+        # Use RPC function to get daily metrics
+        result = db.get_client().rpc('get_daily_metrics', {'target_date': target_date}).execute()
         
-        if not result:
+        if result.data and len(result.data) > 0:
+            return result.data[0]
+        else:
             return {
-                "date": target_date,
+                "metric_date": target_date,
                 "daily_active_users": 0,
                 "total_ai_interactions": 0,
                 "avg_tokens_per_interaction": 0,
@@ -64,8 +49,6 @@ async def get_daily_beta_metrics(
                 "error_count": 0,
                 "error_rate_percent": 0
             }
-        
-        return dict(result)
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching daily metrics: {str(e)}")
@@ -119,41 +102,21 @@ async def get_user_engagement_metrics(
     Get user engagement metrics for beta analysis
     """
     try:
-        # Validate sort field
-        valid_sorts = [
-            "total_journal_entries", "total_ai_interactions", 
-            "avg_ai_quality", "total_cost_incurred", "active_days"
-        ]
-        if sort_by not in valid_sorts:
-            sort_by = "total_journal_entries"
-        
-        # Try main view first, fall back to simple view if needed
-        try:
-            query = f"""
-                SELECT * FROM beta_user_engagement
-                ORDER BY {sort_by} DESC
-                LIMIT $1
-            """
-            results = await db.fetch_all(query, limit)
-        except Exception as view_error:
-            # Fall back to simple view
-            print(f"Main view failed, using fallback: {view_error}")
-            query = """
-                SELECT * FROM beta_user_engagement_simple
-                LIMIT $1
-            """
-            results = await db.fetch_all(query, limit)
+        # Use RPC function to get user engagement data
+        result = db.get_client().rpc('get_user_engagement_metrics', {'row_limit': limit}).execute()
         
         # Calculate summary stats
-        if results:
-            total_users = len(results)
-            active_users = len([r for r in results if r.get('engagement_status') == 'active'])
-            at_risk_users = len([r for r in results if r.get('engagement_status') == 'at_risk'])
-            churned_users = len([r for r in results if r.get('engagement_status') == 'churned'])
+        users_data = result.data if result.data else []
+        
+        if users_data:
+            total_users = len(users_data)
+            active_users = len([r for r in users_data if r.get('engagement_status') == 'active'])
+            at_risk_users = len([r for r in users_data if r.get('engagement_status') == 'at_risk'])
+            churned_users = len([r for r in users_data if r.get('engagement_status') == 'churned'])
             
-            avg_entries = sum(r.get('total_journal_entries', 0) or 0 for r in results) / total_users
-            avg_ai_interactions = sum(r.get('total_ai_interactions', 0) or 0 for r in results) / total_users
-            total_cost = sum(float(r.get('total_cost_incurred', 0) or 0) for r in results)
+            avg_entries = sum(r.get('total_journal_entries', 0) or 0 for r in users_data) / total_users
+            avg_ai_interactions = sum(r.get('total_ai_interactions', 0) or 0 for r in users_data) / total_users
+            total_cost = sum(float(r.get('total_cost_incurred', 0) or 0) for r in users_data)
         else:
             total_users = active_users = at_risk_users = churned_users = 0
             avg_entries = avg_ai_interactions = total_cost = 0
@@ -168,7 +131,7 @@ async def get_user_engagement_metrics(
                 "avg_ai_interactions_per_user": round(avg_ai_interactions, 1),
                 "total_cost_all_users": round(total_cost, 4)
             },
-            "users": [dict(row) for row in results]
+            "users": users_data
         }
         
     except Exception as e:
@@ -184,29 +147,11 @@ async def get_feedback_analytics(
     Get AI feedback analytics for quality assessment
     """
     try:
-        # Try to get feedback summary with fallback
-        try:
-            query = """
-                SELECT 
-                    feedback_type,
-                    user_tier,
-                    COUNT(*) as feedback_count,
-                    AVG(confidence_score) as avg_confidence,
-                    AVG(response_time_ms) as avg_response_time
-                FROM ai_feedback
-                WHERE created_at >= CURRENT_DATE - INTERVAL '%s days'
-                GROUP BY feedback_type, user_tier
-                ORDER BY feedback_count DESC
-            """ % days_back
-            
-            results = await db.fetch_all(query)
-        except Exception as table_error:
-            print(f"AI feedback table access failed: {table_error}")
-            # Return empty results if table doesn't exist
-            results = []
+        # Use RPC function to get feedback analytics
+        result = db.get_client().rpc('get_feedback_analytics', {'days_back': days_back}).execute()
         
         # Calculate overall sentiment
-        feedback_data = [dict(row) for row in results]
+        feedback_data = result.data if result.data else []
         
         positive_count = sum(r['feedback_count'] for r in feedback_data if r['feedback_type'] == 'thumbs_up')
         negative_count = sum(r['feedback_count'] for r in feedback_data if r['feedback_type'] == 'thumbs_down')
@@ -215,14 +160,12 @@ async def get_feedback_analytics(
         sentiment_score = (positive_count / total_feedback * 100) if total_feedback > 0 else 0
         
         return {
-            "period_days": days_back,
-            "overall_sentiment": {
-                "positive_feedback": positive_count,
-                "negative_feedback": negative_count,
-                "total_feedback": total_feedback,
-                "sentiment_score_percent": round(sentiment_score, 1)
-            },
-            "detailed_feedback": feedback_data
+            "analysis_period_days": days_back,
+            "total_feedback": total_feedback,
+            "positive_feedback": positive_count,
+            "negative_feedback": negative_count,
+            "sentiment_score": round(sentiment_score, 1),
+            "feedback_breakdown": feedback_data
         }
         
     except Exception as e:
