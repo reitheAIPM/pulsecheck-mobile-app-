@@ -40,13 +40,17 @@ async def get_daily_beta_metrics(
         # Use today if no date specified
         target_date = date_filter or date.today().isoformat()
         
-        # Get daily metrics from the view
-        query = """
-            SELECT * FROM beta_daily_metrics 
-            WHERE metric_date = $1
-        """
-        
-        result = await db.fetch_one(query, target_date)
+        # Try to get daily metrics from the view with fallback
+        try:
+            query = """
+                SELECT * FROM beta_daily_metrics 
+                WHERE metric_date = $1
+            """
+            result = await db.fetch_one(query, target_date)
+        except Exception as view_error:
+            print(f"Daily metrics view failed: {view_error}")
+            # Return default data if view doesn't exist
+            result = None
         
         if not result:
             return {
@@ -123,25 +127,33 @@ async def get_user_engagement_metrics(
         if sort_by not in valid_sorts:
             sort_by = "total_journal_entries"
         
-        # Get user engagement data
-        query = f"""
-            SELECT * FROM beta_user_engagement
-            ORDER BY {sort_by} DESC
-            LIMIT $1
-        """
-        
-        results = await db.fetch_all(query, limit)
+        # Try main view first, fall back to simple view if needed
+        try:
+            query = f"""
+                SELECT * FROM beta_user_engagement
+                ORDER BY {sort_by} DESC
+                LIMIT $1
+            """
+            results = await db.fetch_all(query, limit)
+        except Exception as view_error:
+            # Fall back to simple view
+            print(f"Main view failed, using fallback: {view_error}")
+            query = """
+                SELECT * FROM beta_user_engagement_simple
+                LIMIT $1
+            """
+            results = await db.fetch_all(query, limit)
         
         # Calculate summary stats
         if results:
             total_users = len(results)
-            active_users = len([r for r in results if r['engagement_status'] == 'active'])
-            at_risk_users = len([r for r in results if r['engagement_status'] == 'at_risk'])
-            churned_users = len([r for r in results if r['engagement_status'] == 'churned'])
+            active_users = len([r for r in results if r.get('engagement_status') == 'active'])
+            at_risk_users = len([r for r in results if r.get('engagement_status') == 'at_risk'])
+            churned_users = len([r for r in results if r.get('engagement_status') == 'churned'])
             
-            avg_entries = sum(r['total_journal_entries'] or 0 for r in results) / total_users
-            avg_ai_interactions = sum(r['total_ai_interactions'] or 0 for r in results) / total_users
-            total_cost = sum(float(r['total_cost_incurred'] or 0) for r in results)
+            avg_entries = sum(r.get('total_journal_entries', 0) or 0 for r in results) / total_users
+            avg_ai_interactions = sum(r.get('total_ai_interactions', 0) or 0 for r in results) / total_users
+            total_cost = sum(float(r.get('total_cost_incurred', 0) or 0) for r in results)
         else:
             total_users = active_users = at_risk_users = churned_users = 0
             avg_entries = avg_ai_interactions = total_cost = 0
@@ -172,21 +184,26 @@ async def get_feedback_analytics(
     Get AI feedback analytics for quality assessment
     """
     try:
-        # Get feedback summary
-        query = """
-            SELECT 
-                feedback_type,
-                user_tier,
-                COUNT(*) as feedback_count,
-                AVG(confidence_score) as avg_confidence,
-                AVG(response_time_ms) as avg_response_time
-            FROM ai_feedback
-            WHERE created_at >= CURRENT_DATE - INTERVAL '%s days'
-            GROUP BY feedback_type, user_tier
-            ORDER BY feedback_count DESC
-        """ % days_back
-        
-        results = await db.fetch_all(query)
+        # Try to get feedback summary with fallback
+        try:
+            query = """
+                SELECT 
+                    feedback_type,
+                    user_tier,
+                    COUNT(*) as feedback_count,
+                    AVG(confidence_score) as avg_confidence,
+                    AVG(response_time_ms) as avg_response_time
+                FROM ai_feedback
+                WHERE created_at >= CURRENT_DATE - INTERVAL '%s days'
+                GROUP BY feedback_type, user_tier
+                ORDER BY feedback_count DESC
+            """ % days_back
+            
+            results = await db.fetch_all(query)
+        except Exception as table_error:
+            print(f"AI feedback table access failed: {table_error}")
+            # Return empty results if table doesn't exist
+            results = []
         
         # Calculate overall sentiment
         feedback_data = [dict(row) for row in results]
