@@ -1,201 +1,156 @@
-# PulseCheck - AI-Powered Wellness Companion
+# PulseCheck - Wellness App for Tech Workers
 
-PulseCheck is an AI-powered mobile app designed to help tech workers prevent burnout through daily wellness check-ins and personalized insights from "Pulse," an emotionally intelligent AI companion.
+A modern wellness application designed specifically for tech workers, featuring AI-powered insights and social media-style journaling.
 
-## 🎯 Core Features
+## 🚀 Current Status: MVP Complete with Modern UI
 
-- **Daily Wellness Check-ins**: Track mood, energy, stress levels with intuitive sliders
-- **Pulse AI Companion**: Get personalized insights and gentle guidance
-- **Pattern Recognition**: AI analyzes trends to provide meaningful wellness insights
-- **Tech Worker Focused**: Understands industry-specific stressors and challenges
-- **Privacy-First**: Your wellness data stays secure
+**Frontend**: Modern React 18 + TypeScript + Vite application built with Builder.io  
+**Backend**: FastAPI with Supabase database, deployed on Railway  
+**AI Integration**: OpenAI-powered wellness insights and analysis  
 
-## 🏗️ Project Structure
+## ✨ Features
 
-```
-PulseCheck/
-├── backend/                 # FastAPI Python backend
-│   ├── app/
-│   │   ├── core/           # Configuration and database
-│   │   ├── models/         # Pydantic data models
-│   │   ├── routers/        # API endpoints
-│   │   └── services/       # Business logic (Pulse AI)
-│   ├── main.py             # FastAPI app entry point
-│   └── requirements.txt    # Python dependencies
-├── frontend/               # React Native (Expo) mobile app
-│   ├── src/
-│   │   ├── screens/        # App screens
-│   │   ├── services/       # API communication
-│   │   └── types/          # TypeScript types
-│   └── App.tsx             # Main app component
-└── ai/                     # AI documentation and guides
-```
+### Core Functionality
+- **Social Media-Style Journaling**: Twitter/Instagram-inspired wellness feed
+- **AI-Powered Insights**: Personalized wellness analysis and recommendations
+- **Mood Tracking**: Visual mood, energy, and stress level tracking
+- **Analytics Dashboard**: Comprehensive wellness statistics and trends
+- **Modern UI**: Beautiful, responsive design with TailwindCSS
+
+### Technical Features
+- **Real-time API Integration**: Full backend connectivity with error handling
+- **Responsive Design**: Works seamlessly on desktop and mobile
+- **Type Safety**: Full TypeScript implementation
+- **Modern Stack**: React 18, Vite, TailwindCSS, Radix UI
+
+## 🛠️ Tech Stack
+
+### Frontend (Builder.io Application)
+- **React 18** with TypeScript
+- **Vite** for fast development and building
+- **TailwindCSS** for styling
+- **Radix UI** for accessible components
+- **React Router** for navigation
+- **Builder.io** for visual editing
+
+### Backend
+- **FastAPI** (Python)
+- **Supabase** (PostgreSQL database)
+- **Railway** (deployment)
+- **OpenAI API** (AI insights)
 
 ## 🚀 Quick Start
 
-### Backend Setup (FastAPI)
+### Frontend Development
+```bash
+cd "spark-realm (1)"
+npm install
+npm run dev
+```
+Visit http://localhost:8080/
 
-1. **Install Python 3.8+**
-   ```bash
-   # Windows: Download from python.org
-   # macOS: brew install python
-   # Linux: sudo apt install python3 python3-pip
-   ```
+### Backend Development
+```bash
+cd backend
+pip install -r requirements.txt
+python main.py
+```
 
-2. **Set up the backend**
-   ```bash
-   cd backend
-   python -m venv venv
-   
-   # Windows
-   venv\Scripts\activate
-   
-   # macOS/Linux
-   source venv/bin/activate
-   
-   pip install -r requirements.txt
-   ```
+## 📁 Project Structure
 
-3. **Configure environment variables**
-   ```bash
-   cp env.example .env
-   # Edit .env with your API keys (see Environment Setup below)
-   ```
+```
+PulseCheck/
+├── spark-realm (1)/          # Main frontend (Builder.io app)
+│   ├── src/
+│   │   ├── pages/            # Application screens
+│   │   ├── components/       # Reusable UI components
+│   │   └── lib/              # Utilities and helpers
+│   └── package.json
+├── backend/                  # FastAPI backend
+│   ├── app/
+│   │   ├── routers/          # API endpoints
+│   │   ├── models/           # Data models
+│   │   └── services/         # Business logic
+│   └── main.py
+├── archived-react-native-setup/  # Previous React Native implementation
+└── README.md
+```
 
-4. **Run the backend**
-   ```bash
-   python main.py
-   # or
-   uvicorn main:app --reload
-   ```
+## 🎨 Design System
 
-   Backend will be available at `http://localhost:8000`
+The application uses a modern design system with:
+- **Color Palette**: Primary blue (#4A90E2), success green (#4CAF50), warning amber (#FFC107)
+- **Typography**: Clean, readable fonts with proper hierarchy
+- **Components**: Consistent card-based layout with subtle shadows
+- **Icons**: Lucide React icons throughout the interface
 
-### Frontend Setup (React Native)
+## 🔧 Development
 
-1. **Install Node.js 16+**
-   ```bash
-   # Download from nodejs.org or use a package manager
-   ```
+### Adding New Features
+1. **Frontend**: Use Builder.io for visual editing or modify components in `src/components/`
+2. **Backend**: Add new endpoints in `backend/app/routers/`
+3. **Database**: Update models in `backend/app/models/`
 
-2. **Set up the frontend**
-   ```bash
-   cd frontend
-   npm install
-   ```
+### API Integration
+The frontend connects to the backend API at `https://pulsecheck-mobile-app-production.up.railway.app`
 
-3. **Run the app**
-   ```bash
-   # Start Metro bundler
-   npm start
-   
-   # Or run on specific platform
-   npm run ios      # iOS simulator (macOS only)
-   npm run android  # Android emulator
-   npm run web      # Web browser
-   ```
+### Builder.io Integration
+- Visual component editing
+- Content management
+- A/B testing capabilities
+- Real-time preview
 
-## 🔧 Environment Setup
+## 📊 Current Features
 
-### Required API Keys
+### ✅ Implemented
+- [x] Modern React frontend with Builder.io
+- [x] Social media-style journal feed
+- [x] AI-powered wellness insights
+- [x] Mood and energy tracking
+- [x] Analytics dashboard
+- [x] Responsive design
+- [x] Full backend API integration
+- [x] Error handling and fallbacks
+- [x] TypeScript type safety
 
-1. **OpenAI API Key** (for Pulse AI)
-   - Sign up at [OpenAI](https://openai.com)
-   - Get API key from dashboard
-   - Add to `.env`: `OPENAI_API_KEY=your_key_here`
+### 🚧 In Progress
+- [ ] User authentication
+- [ ] Advanced analytics
+- [ ] Mobile app deployment
+- [ ] Push notifications
 
-2. **Supabase** (for database)
-   - Create project at [Supabase](https://supabase.com)
-   - Get URL and anon key from dashboard
-   - Add to `.env`:
-     ```
-     SUPABASE_URL=your_supabase_url
-     SUPABASE_KEY=your_supabase_anon_key
-     ```
+## 🚀 Deployment
 
-3. **Generate Secret Key**
-   ```bash
-   # Generate a secure secret key
-   openssl rand -hex 32
-   # Add to .env: SECRET_KEY=generated_key
-   ```
+### Frontend
+- Development: `npm run dev`
+- Build: `npm run build`
+- Deploy: Connect to Builder.io for visual deployment
 
-### Database Setup (Supabase) - ✅ COMPLETED
-
-**Schema Successfully Deployed:**
-
-✅ **Database Status**: All beta optimization tables successfully created and deployed
-✅ **Tables**: Core app tables + user_tiers, ai_usage_logs, user_feedback, usage_quotas  
-✅ **Views**: daily_usage_stats, user_tier_stats, feedback_summary
-✅ **Functions**: get_user_tier, log_ai_usage
-
-The database schema has been fully deployed and is ready for production use. All admin endpoints and beta optimization features are now supported.
-
-📖 **See `DEPLOYMENT_INSTRUCTIONS.md` for reference and troubleshooting.**
-
-## 📱 MVP Features (Current)
-
-### ✅ Completed
-- [x] FastAPI backend with journal endpoints
-- [x] Pulse AI service with OpenAI integration  
-- [x] React Native app with navigation
-- [x] Home dashboard with wellness stats
-- [x] Journal entry screen with mood/energy/stress tracking
-- [x] Pulse response screen with AI insights
-- [x] TypeScript types and API service
-- [x] **Supabase database integration** - ✅ Schema deployed
-- [x] **Beta optimization features** - ✅ Admin endpoints, user tiers, usage tracking
-- [x] **Production deployment** - ✅ Railway backend live
-
-### 🎯 Ready for Next Phase
-- [ ] User authentication flow
-- [ ] Data persistence and sync  
-- [ ] AI insight quality improvements
-- [ ] Frontend integration testing
-- [ ] User onboarding flow
-- [ ] Mobile app deployment (iOS/Android)
-
-### 📋 Next Sprint
-- [ ] Journal history screen
-- [ ] Detailed analytics/insights screen
-- [ ] User profile and settings
-- [ ] Push notifications for daily check-ins
-- [ ] Streak tracking and gamification
-
-## 🧠 Pulse AI Personality
-
-Pulse is designed to be:
-- **Gentle & Supportive**: Never clinical, always caring
-- **Tech-Savvy**: Understands developer/designer challenges
-- **Pattern-Aware**: Recognizes wellness trends over time
-- **Actionable**: Provides specific, doable suggestions
-- **Reflective**: Asks thoughtful follow-up questions
-
-## 🔒 Privacy & Security
-
-- All wellness data encrypted in transit and at rest
-- No data sharing with third parties
-- User controls their data completely
-- Local storage for sensitive information
-- GDPR/CCPA compliant design
-
-## 📊 Success Metrics
-
-- **60% next-day retention** - Users return for daily check-ins
-- **70% helpful AI ratings** - Pulse insights are genuinely useful
-- **3+ weekly interactions** - Sustainable engagement patterns
-- **Reduced burnout indicators** - Measurable wellness improvements
+### Backend
+- Production: Deployed on Railway
+- Environment: Supabase database
+- API: https://pulsecheck-mobile-app-production.up.railway.app
 
 ## 🤝 Contributing
 
-This is currently a personal project, but feedback and suggestions are welcome!
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-## 📄 License
+## 📝 License
 
-See LICENSE file for details.
+This project is licensed under the MIT License.
+
+## 🙏 Acknowledgments
+
+- Builder.io for the amazing visual development platform
+- Radix UI for accessible component primitives
+- TailwindCSS for the utility-first CSS framework
+- OpenAI for AI-powered insights
 
 ---
 
-**Built with ❤️ for the tech community**
-
-*Helping developers, designers, and tech workers maintain their wellness and prevent burnout through AI-powered insights and gentle daily check-ins.* 
+**Last Updated**: June 20, 2025  
+**Version**: 2.0.0 (Builder.io Frontend) 

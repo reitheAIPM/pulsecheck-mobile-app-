@@ -221,15 +221,47 @@ async def get_journal_entries(
     Get paginated list of user's journal entries
     """
     try:
+        # Validate parameters
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 10
+            
         # Calculate offset
         offset = (page - 1) * per_page
         
-        # Get entries with pagination
-        result = db.get_client().table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).range(offset, offset + per_page - 1).execute()
-        
-        # Get total count
+        # Get total count first
         count_result = db.get_client().table("journal_entries").select("id", count="exact").eq("user_id", current_user["id"]).execute()
         total = count_result.count if count_result.count else 0
+        
+        # If no entries, return empty response
+        if total == 0:
+            return JournalEntriesResponse(
+                entries=[],
+                total=0,
+                page=page,
+                per_page=per_page,
+                has_next=False,
+                has_prev=False
+            )
+        
+        # Validate range boundaries
+        if offset >= total:
+            # Page is beyond available data, return empty
+            return JournalEntriesResponse(
+                entries=[],
+                total=total,
+                page=page,
+                per_page=per_page,
+                has_next=False,
+                has_prev=page > 1
+            )
+        
+        # Calculate end boundary (ensure it doesn't exceed total)
+        end_boundary = min(offset + per_page - 1, total - 1)
+        
+        # Get entries with pagination
+        result = db.get_client().table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).range(offset, end_boundary).execute()
         
         # Convert to response models
         entries = [JournalEntryResponse(**entry) for entry in result.data] if result.data else []
