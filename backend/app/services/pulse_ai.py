@@ -27,8 +27,18 @@ class PulseAI:
     """
     
     def __init__(self, db=None):
-        openai.api_key = settings.openai_api_key
-        self.client = openai.OpenAI(api_key=settings.openai_api_key)
+        # Initialize OpenAI client only if API key is available
+        self.client = None
+        if hasattr(settings, 'openai_api_key') and settings.openai_api_key:
+            try:
+                openai.api_key = settings.openai_api_key
+                self.client = openai.OpenAI(api_key=settings.openai_api_key)
+                logger.info("OpenAI client initialized successfully")
+            except Exception as e:
+                logger.warning(f"Failed to initialize OpenAI client: {e}")
+                self.client = None
+        else:
+            logger.warning("OpenAI API key not configured - AI features will use fallback responses")
         
         # Beta optimization integration
         self.beta_service = BetaOptimizationService(db, self.client) if db else None
@@ -234,6 +244,11 @@ Remember: You're like a caring friend checking in on their social media post, no
         """
         Generate cost-optimized Pulse AI response to a journal entry
         """
+        # Check if OpenAI is configured
+        if not hasattr(self, 'client') or not self.client or not settings.openai_api_key:
+            logger.warning("OpenAI not configured - using fallback response")
+            return self._create_smart_fallback_response(journal_entry)
+        
         try:
             start_time = datetime.now()
             

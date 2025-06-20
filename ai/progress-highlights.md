@@ -518,4 +518,8 @@ This v2.0.0 release represents a **major architectural evolution** that:
 2. **Verify Builder.io integration** works in production
 3. **Add user authentication** and backend integration
 4. **Implement journal entry functionality**
-5. **Add mood tracking features** 
+5. **Add mood tracking features**
+
+- 🩺 **Lesson Learned**: Health check passed, but production endpoint failed due to missing schema element (`updated_at`). Health check should be extended to validate schema and critical columns, not just service status.
+
+- 🚨 **OpenAI Disabled:** Project is progressing with OpenAI intentionally disabled for billing setup. All AI endpoints are expected to fallback gracefully until billing is enabled. Non-AI features are fully testable and should be prioritized for development and QA. 

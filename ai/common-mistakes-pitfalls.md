@@ -234,4 +234,24 @@
 *This document will be updated throughout development as we encounter and learn from real implementation challenges.*
 
 **Current Status**: Anticipated pitfalls based on industry research  
-**Next Update**: After first user testing session 
+**Next Update**: After first user testing session
+
+## 🩺 Health Check Coverage
+
+**❌ Mistake**: Health check endpoint only verifies service is running, not schema or critical columns
+**✅ Solution**: Health check should validate:
+- Environment variable loading
+- Database connection
+- Presence of required tables and columns (e.g., `updated_at` in `journal_entries`)
+- Service imports and critical dependencies
+
+**Why It Matters**: A passing health check can mask deeper issues if it doesn't validate schema. Always ensure health checks are comprehensive enough to catch missing columns or misconfigurations that would cause 500 errors in production endpoints.
+
+## 🧠 OpenAI Disabled During MVP
+
+**Scenario:** OpenAI API key is not set due to billing setup or cost control during MVP.
+
+**Best Practice:**
+- All AI endpoints must fallback gracefully to default responses (e.g., generic insight/action/question) and never raise 500 errors.
+- Log a warning, not an error, when OpenAI is unavailable.
+- Document this state clearly in health checks and user-facing messages. 

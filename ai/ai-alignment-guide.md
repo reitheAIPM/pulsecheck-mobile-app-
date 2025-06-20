@@ -1,3 +1,9 @@
+## 🚨 OpenAI Status: Intentionally Disabled
+
+**Note:** OpenAI integration is currently disabled while billing is being set up. All AI endpoints should gracefully fallback to default responses and not cause errors. Once billing is enabled, set the `OPENAI_API_KEY` in the backend environment to activate real AI features.
+
+---
+
 # AI Alignment Guide - PulseCheck Project
 
 ## 🎯 **CRITICAL: READ THIS FIRST**
@@ -70,10 +76,15 @@ Environment Variables: ✅ All configured
 
 ### **OpenAI Configuration**
 ```
-OPENAI_API_KEY=[configured in Railway]
+OPENAI_API_KEY=[not set - intentionally disabled for now]
 Model: gpt-3.5-turbo (cost-optimized)
-Status: ✅ Working (may need billing check)
+Status: ❌ Disabled (waiting for billing setup)
 ```
+
+**To enable OpenAI:**
+1. Add your API key to Railway environment variables as `OPENAI_API_KEY`.
+2. Restart the backend service.
+3. AI endpoints will automatically use real AI responses.
 
 ---
 
@@ -191,6 +202,11 @@ python test_deployment.py
 - Use PostgreSQL syntax that doesn't work in Supabase
 - Create multiple "fixes" that cause more problems
 - Overcomplicate simple solutions
+
+### **OpenAI-specific Rules**
+- If OpenAI is not configured, always return a clear fallback response (do not raise errors).
+- Log a warning, not an error, when AI is unavailable.
+- All non-AI features must remain fully functional and testable.
 
 ---
 

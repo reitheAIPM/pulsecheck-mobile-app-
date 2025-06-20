@@ -636,6 +636,10 @@ User feedback on AI responses for quality tracking
 
 ---
 
+## 🩺 Health Check Endpoint
+
+**Note**: Health check should validate not only service status, but also database schema and the presence of required columns (e.g., `updated_at` in `journal_entries`). This prevents false positives where the service is running but production endpoints fail due to schema issues.
+
 *This document serves as the single source of truth for PulseCheck development. Update it whenever adding new processes, endpoints, or changing existing functionality.*
 
 **Status**: Foundation Complete - Ready for Core Feature Implementation  
