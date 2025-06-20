@@ -34,9 +34,9 @@ def main():
     tests = [
         ("/", "Backend Health Check"),
         ("/docs", "API Documentation"),
-        ("/admin/analytics", "Admin Analytics (Beta Feature)"),
-        ("/admin/user-tiers", "User Tiers (Beta Feature)"),
-        ("/admin/feedback-summary", "Feedback Summary (Beta Feature)"),
+        ("/api/v1/admin/beta-metrics/daily", "Admin Analytics (Beta Feature)"),
+        ("/api/v1/admin/beta-metrics/users", "User Tiers (Beta Feature)"),
+        ("/api/v1/admin/beta-metrics/feedback", "Feedback Summary (Beta Feature)"),
     ]
     
     passed = 0
