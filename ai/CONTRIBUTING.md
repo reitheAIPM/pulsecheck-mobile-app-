@@ -396,4 +396,60 @@ function App() {
 - **Loading States**: Show appropriate loading states during navigation
 - **Error Boundaries**: Include error boundaries to catch and handle navigation errors
 
+---
+
+## 🚀 Vercel Deployment Best Practices
+
+### Directory Naming & Build Configuration
+- **Avoid special characters in directory names**: Directories with spaces, parentheses, or special characters can cause build failures
+- **Use build scripts for complex builds**: When dealing with subdirectories or complex build commands, create dedicated build scripts
+- **Proper quoting in shell commands**: Always quote directory names that contain spaces or special characters
+
+### Common Vercel Deployment Issues
+
+#### 1. Build Command Failures with Special Characters
+**❌ Problem**: `Command "cd spark-realm (1) && npm install && npm run build" exited with 2`
+**✅ Solution**: Use a build script to handle directory names with spaces/parentheses
+
+```bash
+# build.sh
+#!/bin/bash
+cd "spark-realm (1)"
+npm install
+npm run build
+```
+
+```json
+// vercel.json
+{
+  "buildCommand": "chmod +x build.sh && ./build.sh",
+  "outputDirectory": "spark-realm (1)/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
+
+#### 2. Output Directory Not Found
+**❌ Problem**: "No Output Directory named 'dist' found after the Build completed"
+**✅ Solution**: Ensure `outputDirectory` points to the correct path relative to project root
+
+#### 3. SPA Routing 404 Errors
+**❌ Problem**: 404 errors on client-side routes
+**✅ Solution**: Use rewrites to direct all requests to index.html
+
+### Vercel Configuration Checklist
+- [ ] Build command properly handles directory changes
+- [ ] Output directory path is correct
+- [ ] SPA routing is configured with rewrites
+- [ ] No conflicting configuration files (remove duplicate vercel.json files)
+- [ ] Build script has proper permissions (`chmod +x`)
+
+### Debugging Vercel Deployments
+1. **Check build logs** for specific error messages
+2. **Verify file paths** in configuration
+3. **Test build commands locally** before deploying
+4. **Remove conflicting config files** (now.json, netlify.toml, etc.)
+5. **Use simple, explicit configurations** over complex ones
+
 --- 

@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Heart, Sparkles, Brain } from "lucide-react";
+import { Plus, Heart, Sparkles, Brain, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { JournalCard } from "@/components/JournalCard";
+import { apiService } from "@/services/api";
 
 // Mock data for development
 const mockEntries = [
@@ -48,6 +49,24 @@ const mockEntries = [
 const Index = () => {
   const navigate = useNavigate();
   const [entries, setEntries] = useState(mockEntries);
+  const [apiStatus, setApiStatus] = useState<'loading' | 'connected' | 'error'>('loading');
+  const [apiUrl, setApiUrl] = useState('');
+
+  useEffect(() => {
+    // Test API connection on component mount
+    const testApiConnection = async () => {
+      try {
+        setApiUrl(apiService.getBaseUrl());
+        const isConnected = await apiService.testConnection();
+        setApiStatus(isConnected ? 'connected' : 'error');
+      } catch (error) {
+        console.error('API connection test failed:', error);
+        setApiStatus('error');
+      }
+    };
+
+    testApiConnection();
+  }, []);
 
   const handlePulseClick = (entryId: string) => {
     navigate(`/pulse/${entryId}`);
@@ -55,6 +74,28 @@ const Index = () => {
 
   const handleNewEntry = () => {
     navigate("/new-entry");
+  };
+
+  const getApiStatusIcon = () => {
+    switch (apiStatus) {
+      case 'loading':
+        return <Loader2 className="w-4 h-4 animate-spin" />;
+      case 'connected':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'error':
+        return <XCircle className="w-4 h-4 text-red-500" />;
+    }
+  };
+
+  const getApiStatusText = () => {
+    switch (apiStatus) {
+      case 'loading':
+        return 'Testing connection...';
+      case 'connected':
+        return 'Backend connected';
+      case 'error':
+        return 'Backend disconnected';
+    }
   };
 
   return (
@@ -85,6 +126,21 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="max-w-lg mx-auto px-4 py-6">
+        {/* API Status Indicator */}
+        <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-2 text-sm">
+            {getApiStatusIcon()}
+            <span className={apiStatus === 'connected' ? 'text-green-600' : apiStatus === 'error' ? 'text-red-600' : 'text-muted-foreground'}>
+              {getApiStatusText()}
+            </span>
+          </div>
+          {apiStatus === 'error' && (
+            <p className="text-xs text-muted-foreground mt-1">
+              API URL: {apiUrl}
+            </p>
+          )}
+        </div>
+
         {/* Welcome Message */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-md text-sm font-medium mb-3">

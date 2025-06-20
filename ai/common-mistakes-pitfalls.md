@@ -196,6 +196,41 @@
 **✅ Solution**: Implement error boundaries to catch and handle component rendering failures  
 **Key Insight**: Without error boundaries, a single component failure can break the entire app
 
+## 🚀 Deployment & Hosting Pitfalls
+
+### Vercel Deployment Issues
+
+#### 1. Directory Names with Special Characters
+**❌ Mistake**: Using directory names with spaces, parentheses, or special characters  
+**✅ Solution**: Use build scripts to handle complex directory names properly  
+**Key Insight**: Shell commands fail when directory names contain spaces/parentheses without proper quoting  
+
+**❌ Mistake**: Complex inline build commands in vercel.json  
+**✅ Solution**: Create dedicated build scripts for complex build processes  
+**Key Insight**: Build scripts are more reliable and easier to debug than inline commands  
+
+#### 2. Conflicting Configuration Files
+**❌ Mistake**: Multiple deployment configuration files (vercel.json, now.json, netlify.toml)  
+**✅ Solution**: Use only one configuration file per deployment platform  
+**Key Insight**: Multiple config files can cause conflicts and unexpected behavior  
+
+#### 3. Incorrect Output Directory Paths
+**❌ Mistake**: Wrong outputDirectory path in vercel.json  
+**✅ Solution**: Ensure path is relative to project root and points to actual build output  
+**Key Insight**: Vercel looks for the output directory relative to the project root, not the build context  
+
+#### 4. Missing SPA Routing Configuration
+**❌ Mistake**: No rewrites configuration for React Router applications  
+**✅ Solution**: Add rewrites to direct all requests to index.html  
+**Key Insight**: Single Page Applications need server-side routing to work correctly  
+
+### Prevention Strategies
+1. **Test build commands locally** before deploying
+2. **Use simple, explicit configurations** over complex ones
+3. **Remove conflicting configuration files** when switching platforms
+4. **Create build scripts** for complex build processes
+5. **Verify file paths** in configuration files
+
 *This document will be updated throughout development as we encounter and learn from real implementation challenges.*
 
 **Current Status**: Anticipated pitfalls based on industry research  
