@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # CORS Configuration
-    allowed_origins: str = "http://localhost:3000,http://localhost:19006"
+    allowed_origins: str = "http://localhost:3000,http://localhost:19006,http://localhost:5173"
     
     # Server Configuration
     host: str = "0.0.0.0"
