@@ -1,36 +1,19 @@
 {
-  "buildCommand": "cd \"spark-realm (1)\" && npm run build",
-  "outputDirectory": "spark-realm (1)/dist",
-  "framework": "vite",
-  "installCommand": "cd \"spark-realm (1)\" && npm install",
-  "devCommand": "cd \"spark-realm (1)\" && npm run dev",
-  "rewrites": [
-    { 
-      "source": "/assets/(.*)", 
-      "destination": "/spark-realm (1)/dist/assets/$1" 
-    },
-    { 
-      "source": "/(.*)", 
-      "destination": "/spark-realm (1)/dist/index.html" 
+  "version": 2,
+  "builds": [
+    {
+      "src": "spark-realm (1)/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist",
+        "buildCommand": "npm run build"
+      }
     }
   ],
-  "headers": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
-        }
-      ]
+      "src": "/(.*)",
+      "dest": "/spark-realm (1)/dist/index.html"
     }
   ]
 } 

@@ -161,3 +161,4 @@ model_cache/
 # Temporary files
 tmp/
 temp/ 
+.vercel
