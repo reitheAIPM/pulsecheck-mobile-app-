@@ -258,9 +258,9 @@ async def get_system_health(
                 health_score -= 25
             
             health_score = max(0, health_score)
-        
-        return {
-            "health_score": health_score,
+            
+            return {
+                "health_score": health_score,
                 "system_stats": {
                     "total_users": stats.get('total_users', 0),
                     "total_journal_entries": stats.get('total_journal_entries', 0),
@@ -268,8 +268,8 @@ async def get_system_health(
                     "total_feedback": stats.get('total_feedback', 0),
                     "views_operational": stats.get('views_exist', False)
                 },
-            "status": "healthy" if health_score >= 80 else "warning" if health_score >= 60 else "critical"
-        }
+                "status": "healthy" if health_score >= 80 else "warning" if health_score >= 60 else "critical"
+            }
         else:
             return {
                 "health_score": 50,
