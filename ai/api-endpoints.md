@@ -428,6 +428,214 @@ const apiClient = {
 
 ---
 
+## 🔧 Admin Analytics Endpoints
+
+*Enterprise-grade monitoring and analytics for production management*
+
+### GET `/admin/beta-metrics/daily`
+Get daily beta metrics for monitoring
+*Requires Admin Authentication*
+```
+Query Parameters:
+- date_filter (optional): Date in YYYY-MM-DD format (defaults to today)
+```
+
+**Response:**
+```json
+{
+  "metric_date": "2024-12-19",
+  "daily_active_users": 42,
+  "total_ai_interactions": 156,
+  "avg_tokens_per_interaction": 125.5,
+  "total_daily_cost": 0.078,
+  "avg_confidence_score": 0.85,
+  "avg_response_time_ms": 850,
+  "error_count": 2,
+  "error_rate_percent": 1.28
+}
+```
+
+### GET `/admin/beta-metrics/users`
+Get user engagement metrics for beta analysis
+*Requires Admin Authentication*
+```
+Query Parameters:
+- limit (default: 20): Number of users to return
+- sort_by (default: "total_journal_entries"): Sort field
+```
+
+**Response:**
+```json
+{
+  "summary": {
+    "total_users": 127,
+    "active_users": 89,
+    "at_risk_users": 23,
+    "churned_users": 15,
+    "avg_entries_per_user": 8.4,
+    "avg_ai_interactions_per_user": 12.7,
+    "total_cost_all_users": 4.23
+  },
+  "users": [
+    {
+      "user_id": "uuid",
+      "email": "user@example.com",
+      "total_journal_entries": 24,
+      "total_ai_interactions": 31,
+      "avg_ai_quality": 0.82,
+      "total_cost_incurred": 0.15,
+      "active_days": 18,
+      "engagement_status": "active",
+      "user_tier": "beta",
+      "user_since": "2024-11-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+### GET `/admin/beta-metrics/feedback`
+Get AI feedback analytics for quality assessment
+*Requires Admin Authentication*
+```
+Query Parameters:
+- days_back (default: 7): Number of days to analyze
+```
+
+**Response:**
+```json
+{
+  "analysis_period_days": 7,
+  "total_feedback": 89,
+  "positive_feedback": 76,
+  "negative_feedback": 13,
+  "sentiment_score": 85.4,
+  "feedback_breakdown": [
+    {
+      "feedback_type": "thumbs_up",
+      "user_tier": "beta",
+      "feedback_count": 45,
+      "avg_confidence": 0.87,
+      "avg_response_time": 1250
+    }
+  ]
+}
+```
+
+### GET `/admin/beta-metrics/weekly`
+Get weekly aggregated beta metrics
+*Requires Admin Authentication*
+```
+Query Parameters:
+- weeks_back (default: 4): Number of weeks to include
+```
+
+### GET `/admin/beta-metrics/costs`
+Get detailed cost analytics for budget planning
+*Requires Admin Authentication*
+```
+Query Parameters:
+- days_back (default: 30): Number of days to analyze
+```
+
+### GET `/admin/beta-metrics/health`
+Get overall system health metrics
+*Requires Admin Authentication*
+
+**Response:**
+```json
+{
+  "health_score": 92,
+  "last_24h_metrics": {
+    "total_requests": 1247,
+    "error_rate_percent": 0.8,
+    "avg_response_time_ms": 1150,
+    "avg_confidence_score": 0.84
+  },
+  "user_tier_distribution": [
+    {"tier": "beta", "user_count": 89},
+    {"tier": "free", "user_count": 38}
+  ],
+  "status": "healthy"
+}
+```
+
+### POST `/admin/beta-metrics/reset-usage`
+Manually reset daily usage counters (for testing)
+*Requires Admin Authentication*
+
+### GET `/admin/beta-metrics/export`
+Export beta data for external analysis
+*Requires Admin Authentication*
+```
+Query Parameters:
+- format (default: "json"): Export format (json or csv)
+- days_back (default: 7): Number of days to export
+```
+
+---
+
+## 🏗️ Database Architecture & RPC Functions
+
+### Supabase RPC Functions
+
+The admin endpoints utilize custom PostgreSQL functions for efficient data access:
+
+#### `get_daily_metrics(target_date)`
+Returns daily analytics metrics for a specific date
+
+#### `get_user_engagement_metrics(row_limit)`
+Returns user engagement analysis with fallback to simple view
+
+#### `get_feedback_analytics(days_back)`
+Returns AI feedback analytics for quality assessment
+
+#### `get_admin_stats()`
+Returns basic admin statistics and system health
+
+### Database Views
+
+#### `beta_daily_metrics`
+Aggregated daily metrics for monitoring dashboard
+
+#### `beta_user_engagement`
+Complex user engagement analysis with tier classification
+
+#### `beta_user_engagement_simple`
+Fallback view for basic user engagement metrics
+
+#### `ai_feedback`
+User feedback on AI responses for quality tracking
+
+---
+
+## 💡 Admin Dashboard Features
+
+### Real-time Monitoring
+- Daily active users tracking
+- AI interaction volume and success rates
+- Cost monitoring with granular breakdown
+- Error rate tracking and alerts
+
+### User Analytics
+- Engagement status classification (active/at-risk/churned)
+- User tier distribution and behavior patterns
+- Cost per user and ROI analysis
+- Retention and churn prediction
+
+### Quality Assurance
+- AI response quality metrics
+- Confidence score tracking
+- Response time performance
+- User feedback sentiment analysis
+
+### Operational Intelligence
+- System health monitoring
+- Performance metrics and alerting
+- Budget tracking and projections
+- Export capabilities for external analysis
+
+---
+
 *This document serves as the single source of truth for PulseCheck development. Update it whenever adding new processes, endpoints, or changing existing functionality.*
 
 **Status**: Foundation Complete - Ready for Core Feature Implementation  
