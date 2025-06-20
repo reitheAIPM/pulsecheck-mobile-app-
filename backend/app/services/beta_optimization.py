@@ -279,14 +279,17 @@ class ContextBuilderService:
     async def _get_recent_entries(self, user_id: str, limit: int) -> List[JournalEntryResponse]:
         """Get recent journal entries for user"""
         try:
-            query = """
-                SELECT * FROM journal_entries 
-                WHERE user_id = $1 
-                ORDER BY created_at DESC 
-                LIMIT $2 OFFSET 1
-            """
-            results = await self.db.fetch_all(query, user_id, limit)
-            return [JournalEntry(**row) for row in results]
+            result = self.db.get_client().table("journal_entries").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute()
+            
+            entries = []
+            if result.data:
+                for entry in result.data:
+                    # Ensure updated_at field exists
+                    if 'updated_at' not in entry:
+                        entry['updated_at'] = entry.get('created_at', datetime.utcnow().isoformat())
+                    entries.append(JournalEntryResponse(**entry))
+            
+            return entries
         except Exception as e:
             print(f"Error getting recent entries: {e}")
             return []
@@ -348,19 +351,23 @@ class CostTracker:
     async def log_usage(self, usage_log: AIUsageLog) -> None:
         """Log AI usage with cost tracking"""
         try:
-            query = """
-                INSERT INTO ai_usage_logs 
-                (user_id, journal_entry_id, prompt_tokens, response_tokens, total_tokens, 
-                 model_used, response_time_ms, confidence_score, cost_usd, context_type, 
-                 success, error_message)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            """
-            await self.db.execute(
-                query, usage_log.user_id, usage_log.journal_entry_id,
-                usage_log.prompt_tokens, usage_log.response_tokens, usage_log.total_tokens,
-                usage_log.model_used, usage_log.response_time_ms, usage_log.confidence_score,
-                usage_log.cost_usd, usage_log.context_type, usage_log.success, usage_log.error_message
-            )
+            # Use Supabase table insert instead of raw SQL
+            usage_data = {
+                "user_id": usage_log.user_id,
+                "journal_entry_id": usage_log.journal_entry_id,
+                "prompt_tokens": usage_log.prompt_tokens,
+                "response_tokens": usage_log.response_tokens,
+                "total_tokens": usage_log.total_tokens,
+                "model_used": usage_log.model_used,
+                "response_time_ms": usage_log.response_time_ms,
+                "confidence_score": usage_log.confidence_score,
+                "cost_usd": usage_log.cost_usd,
+                "context_type": usage_log.context_type,
+                "success": usage_log.success,
+                "error_message": usage_log.error_message
+            }
+            
+            self.db.get_client().table("ai_usage_logs").insert(usage_data).execute()
         except Exception as e:
             print(f"Error logging AI usage: {e}")
 
@@ -383,19 +390,20 @@ class FeedbackService:
                             user_tier: str = 'free') -> None:
         """Submit user feedback for AI response"""
         try:
-            query = """
-                INSERT INTO ai_feedback 
-                (user_id, journal_entry_id, feedback_type, feedback_text, 
-                 response_content, prompt_content, confidence_score, 
-                 response_time_ms, user_tier)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            """
+            # Use Supabase table insert instead of raw SQL
+            feedback_data = {
+                "user_id": user_id,
+                "journal_entry_id": journal_entry_id,
+                "feedback_type": feedback_type,
+                "feedback_text": feedback_text,
+                "response_content": ai_response_content,
+                "prompt_content": prompt_content,
+                "confidence_score": confidence_score,
+                "response_time_ms": response_time_ms,
+                "user_tier": user_tier
+            }
             
-            await self.db.execute(
-                query, user_id, journal_entry_id, feedback_type, feedback_text,
-                ai_response_content, prompt_content, confidence_score,
-                response_time_ms, user_tier
-            )
+            self.db.get_client().table("ai_feedback").insert(feedback_data).execute()
         except Exception as e:
             print(f"Error submitting feedback: {e}")
 

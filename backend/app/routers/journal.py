@@ -137,8 +137,11 @@ async def get_pulse_response(
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
         
-        # Convert to model
-        journal_entry = JournalEntryResponse(**result.data[0])
+        entry_data = result.data[0]
+        # Ensure updated_at field exists
+        if 'updated_at' not in entry_data:
+            entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow().isoformat())
+        journal_entry = JournalEntryResponse(**entry_data)
         
         # Use beta-optimized AI response generation
         pulse_response, success, error_message = await pulse_ai.generate_beta_optimized_response(
@@ -229,7 +232,11 @@ async def get_ai_analysis(
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
         
-        journal_entry = JournalEntryResponse(**result.data[0])
+        entry_data = result.data[0]
+        # Ensure updated_at field exists
+        if 'updated_at' not in entry_data:
+            entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow().isoformat())
+        journal_entry = JournalEntryResponse(**entry_data)
         
         # Get user history if requested (simplified for beta)
         user_history = None
@@ -296,14 +303,17 @@ async def get_journal_entries(
                 has_prev=page > 1
             )
         
-        # Calculate end boundary (ensure it doesn't exceed total)
-        end_boundary = min(offset + per_page - 1, total - 1)
+        # Get entries with pagination - use proper range
+        result = db.get_client().table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).range(offset, offset + per_page - 1).execute()
         
-        # Get entries with pagination
-        result = db.get_client().table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).range(offset, end_boundary).execute()
-        
-        # Convert to response models
-        entries = [JournalEntryResponse(**entry) for entry in result.data] if result.data else []
+        # Convert to response models and handle missing updated_at field
+        entries = []
+        if result.data:
+            for entry in result.data:
+                # Ensure updated_at field exists
+                if 'updated_at' not in entry:
+                    entry['updated_at'] = entry.get('created_at', datetime.utcnow().isoformat())
+                entries.append(JournalEntryResponse(**entry))
         
         return JournalEntriesResponse(
             entries=entries,
@@ -387,7 +397,12 @@ async def get_journal_entry(
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
         
-        return JournalEntryResponse(**result.data[0])
+        entry_data = result.data[0]
+        # Ensure updated_at field exists
+        if 'updated_at' not in entry_data:
+            entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow().isoformat())
+        
+        return JournalEntryResponse(**entry_data)
         
     except HTTPException:
         raise
