@@ -162,3 +162,25 @@ model_cache/
 tmp/
 temp/ 
 .vercel
+
+# Development & Debug Files (prevent clutter)
+debug_*.py
+test_*.json
+*_test_results.json
+quick_*.py
+temp_*.sql
+fix_*.sql
+debug_*.sql
+*.debug
+*.test
+*_backup.*
+
+# Deployment artifacts
+deploy_*.py
+setup_*.py
+*_deployment.log
+
+# Archive directories
+archived-*/
+old-*/
+backup-*/

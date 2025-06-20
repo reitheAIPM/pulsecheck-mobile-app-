@@ -3,6 +3,11 @@
 -- ================================================
 -- Based on your existing schema, you only need these functions
 
+-- Drop existing functions first to avoid conflicts
+DROP FUNCTION IF EXISTS public.get_user_engagement_metrics(integer);
+DROP FUNCTION IF EXISTS public.get_daily_metrics(integer);
+DROP FUNCTION IF EXISTS public.get_feedback_summary(integer);
+
 -- Create the missing admin function that the backend expects
 CREATE OR REPLACE FUNCTION public.get_user_engagement_metrics(row_limit integer DEFAULT 50)
 RETURNS TABLE (
@@ -194,7 +199,7 @@ BEGIN
     RAISE NOTICE '';
     RAISE NOTICE '🎉 MINIMAL FIX COMPLETED!';
     RAISE NOTICE '';
-    RAISE NOTICE '✅ Added missing admin functions:';
+    RAISE NOTICE '✅ Dropped and recreated admin functions:';
     RAISE NOTICE '- get_user_engagement_metrics()';
     RAISE NOTICE '- get_daily_metrics()';
     RAISE NOTICE '- get_feedback_summary()';
@@ -203,7 +208,6 @@ BEGIN
     RAISE NOTICE '';
     RAISE NOTICE '🎯 Admin endpoints should now work!';
     RAISE NOTICE '';
-    RAISE NOTICE '📋 NEXT: The journal entries issue is a code problem,';
-    RAISE NOTICE 'not a database problem. Check the backend code.';
+    RAISE NOTICE '📋 Test with: python test_end_to_end_production.py';
     RAISE NOTICE '';
 END $$; 

@@ -89,6 +89,7 @@ class ApiService {
         'Accept': 'application/json',
         'User-Agent': 'PulseCheck-Web/1.0',
       },
+      withCredentials: false, // Disable credentials for CORS
     });
 
     // Request interceptor for adding auth headers (when we implement auth)
@@ -136,14 +137,20 @@ class ApiService {
 
   // Journal endpoints
   async createJournalEntry(entry: JournalEntryCreate): Promise<JournalEntry> {
+    console.log('Creating journal entry:', entry);
+    console.log('Full URL will be:', `${this.baseURL}/api/v1/journal/entries`);
     const response: AxiosResponse<JournalEntry> = await this.client.post('/api/v1/journal/entries', entry);
+    console.log('Journal entry created successfully:', response.data);
     return response.data;
   }
 
   async getJournalEntries(limit: number = 30, offset: number = 0): Promise<JournalEntry[]> {
+    console.log('Fetching journal entries, limit:', limit, 'offset:', offset);
+    console.log('Full URL will be:', `${this.baseURL}/api/v1/journal/entries`);
     const response: AxiosResponse<JournalEntry[]> = await this.client.get('/api/v1/journal/entries', {
       params: { limit, offset }
     });
+    console.log('Journal entries fetched:', response.data.length, 'entries');
     return response.data;
   }
 

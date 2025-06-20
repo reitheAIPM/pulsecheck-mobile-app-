@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+"""
+PulseCheck API - AI-powered burnout prevention for tech workers
+FastAPI backend with Supabase integration and OpenAI-powered insights
+
+Version: 2.1.0-cors-fix
+Last Updated: 2025-01-20 - CORS fix for localhost:5173
+"""
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
