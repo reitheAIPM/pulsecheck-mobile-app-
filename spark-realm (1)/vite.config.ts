@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react()],
-    base: "./", // Set base path to relative for Vercel deployment
+    // Remove specific base path - let Vercel handle it
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
@@ -21,12 +21,10 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: "dist",
-      // Add rollup options to generate proper paths for assets
-      rollupOptions: {
-        output: {
-          manualChunks: undefined
-        }
-      }
+      // Ensure the build generates static assets that work with HashRouter
+      assetsDir: "assets",
+      // Generate clean URLs
+      sourcemap: false,
     },
     server: {
       port: 5173,
