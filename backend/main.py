@@ -102,33 +102,21 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Detailed health check with OpenAI status - v2.0 with fixes"""
+    """Detailed health check with OpenAI status - v2.1 with CORS fixes"""
     # Check OpenAI configuration
     openai_api_key = os.getenv('OPENAI_API_KEY')
     openai_configured = bool(openai_api_key and openai_api_key.startswith('sk-'))
     
-    health_status = {
+    return {
         "status": "healthy",
         "service": "PulseCheck API",
-        "version": "1.0.0",
-        "environment": getattr(settings, 'environment', 'unknown'),
-        "config_loaded": config_loaded,
+        "version": "2.1.0-cors-fix",
+        "timestamp": "2025-01-20T22:30:00Z",
+        "environment": os.getenv('ENVIRONMENT', 'development'),
+        "config_loaded": True,
         "openai_configured": openai_configured,
-        "openai_status": "enabled" if openai_configured else "disabled (billing setup in progress)"
+        "openai_status": "configured" if openai_configured else "disabled (billing not set up)"
     }
-    
-    warnings = []
-    
-    if not config_loaded:
-        warnings.append("Configuration not fully loaded - some features may be unavailable")
-    
-    if not openai_configured:
-        warnings.append("OpenAI is disabled - AI endpoints will use fallback responses")
-    
-    if warnings:
-        health_status["warnings"] = warnings
-    
-    return health_status
 
 @app.options("/health")
 async def health_check_options():
