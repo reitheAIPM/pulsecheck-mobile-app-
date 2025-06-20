@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd spark-realm (1) && npm install && npm run build",
+  "buildCommand": "chmod +x build.sh && ./build.sh",
   "outputDirectory": "spark-realm (1)/dist",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
