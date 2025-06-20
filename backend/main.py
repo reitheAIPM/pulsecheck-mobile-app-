@@ -4,6 +4,8 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 # Load environment variables
 load_dotenv()
@@ -57,9 +59,22 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=86400,  # Cache preflight requests for 24 hours
 )
+
+# Add security headers middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 @app.get("/")
 async def root():
@@ -84,6 +99,24 @@ async def health_check():
         ]
     
     return health_status
+
+@app.get("/docs")
+async def api_documentation():
+    """Simple API documentation endpoint"""
+    return {
+        "message": "PulseCheck API Documentation",
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "/health - Health check endpoint",
+            "root": "/ - API status endpoint",
+            "journal": "/api/v1/journal/* - Journal entry management",
+            "auth": "/api/v1/auth/* - Authentication endpoints",
+            "checkins": "/api/v1/checkins/* - Check-in endpoints",
+            "admin": "/api/v1/admin/* - Admin analytics endpoints"
+        },
+        "swagger_ui": "/docs" if config_loaded else "Not available (config not loaded)",
+        "openapi_spec": "/openapi.json" if config_loaded else "Not available (config not loaded)"
+    }
 
 # Include routers only if configuration is loaded
 if config_loaded:

@@ -137,7 +137,8 @@ Remember: You're like a caring friend checking in on their social media post, no
                     confidence_score=1.0,
                     response_time_ms=0,
                     follow_up_question="",
-                    insights=[]
+                    suggested_actions=[],
+                    insight=None
                 ), False, "Rate limit exceeded"
             
             # Prepare optimized context
@@ -172,8 +173,20 @@ Remember: You're like a caring friend checking in on their social media post, no
             
             response_time_ms = int((time.time() - start_time) * 1000)
             
-            # Parse response
-            pulse_message = response.choices[0].message.content
+            # Robustly check OpenAI response
+            pulse_message = None
+            try:
+                if response and hasattr(response, 'choices') and response.choices and hasattr(response.choices[0], 'message') and hasattr(response.choices[0].message, 'content'):
+                    pulse_message = response.choices[0].message.content
+            except Exception as e:
+                logger.error(f"Malformed OpenAI response: {e}")
+                pulse_message = None
+            
+            if not pulse_message or not isinstance(pulse_message, str) or len(pulse_message.strip()) < 10:
+                logger.error(f"OpenAI returned empty or invalid message: {pulse_message}")
+                fallback = self._create_smart_fallback_response(journal_entry)
+                return fallback, False, "AI returned empty or invalid message"
+            
             pulse_response = self._parse_pulse_response(pulse_message, response_time_ms)
             
             # Log usage for analytics
@@ -239,11 +252,23 @@ Remember: You're like a caring friend checking in on their social media post, no
             
             response_time = (datetime.now() - start_time).total_seconds() * 1000
             
+            # Robustly check OpenAI response
+            pulse_message = None
+            try:
+                if response and hasattr(response, 'choices') and response.choices and hasattr(response.choices[0], 'message') and hasattr(response.choices[0].message, 'content'):
+                    pulse_message = response.choices[0].message.content
+            except Exception as e:
+                logger.error(f"Malformed OpenAI response: {e}")
+                pulse_message = None
+            
+            if not pulse_message or not isinstance(pulse_message, str) or len(pulse_message.strip()) < 10:
+                logger.error(f"OpenAI returned empty or invalid message: {pulse_message}")
+                return self._create_smart_fallback_response(journal_entry)
+            
             # Track costs (optional monitoring)
             self._track_usage(response.usage.total_tokens if hasattr(response, 'usage') else 200)
             
             # Parse Pulse response
-            pulse_message = response.choices[0].message.content
             return self._parse_pulse_response(pulse_message, response_time)
             
         except Exception as e:
@@ -351,6 +376,28 @@ Stress: {stress_desc} ({journal_entry.stress_level}/10)"""
     
     def _parse_pulse_response(self, message: str, response_time: float) -> PulseResponse:
         """Parse Pulse AI response with improved confidence scoring"""
+        
+        # Robust null checking - this is the critical fix
+        if not message or not isinstance(message, str):
+            logger.error(f"Invalid message received in _parse_pulse_response: {message}")
+            # Return a safe fallback response
+            return PulseResponse(
+                message="Thank you for sharing. I'm here to support you on your wellness journey.",
+                follow_up_question="What's on your mind right now?",
+                response_time_ms=int(response_time),
+                confidence_score=0.5
+            )
+        
+        # Ensure message is a string and has content
+        message = str(message).strip()
+        if len(message) < 10:
+            logger.warning(f"Message too short in _parse_pulse_response: '{message}'")
+            return PulseResponse(
+                message="Thank you for sharing. I'm here to support you on your wellness journey.",
+                follow_up_question="What's on your mind right now?",
+                response_time_ms=int(response_time),
+                confidence_score=0.5
+            )
         
         # Simple quality indicators for confidence scoring
         confidence = 0.7  # Base confidence for GPT-3.5-turbo

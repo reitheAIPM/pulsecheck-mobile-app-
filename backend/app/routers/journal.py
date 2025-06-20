@@ -19,8 +19,47 @@ def get_pulse_ai_service(db: Database = Depends(get_database)):
 
 @router.get("/test")
 async def test_journal_router():
-    """Simple test endpoint to verify journal router is working"""
-    return {"message": "Journal router is working!", "timestamp": datetime.utcnow()}
+    """Test endpoint to verify router is working"""
+    return {"message": "Journal router is working", "status": "ok"}
+
+@router.get("/test-ai")
+async def test_ai_response():
+    """Test AI response generation with mock data"""
+    try:
+        from ..models.journal import JournalEntryResponse
+        
+        # Create a mock journal entry for testing
+        mock_entry = JournalEntryResponse(
+            id="test-id",
+            user_id="user_123",
+            content="This is a test journal entry for debugging the AI response issue.",
+            mood_level=7,
+            energy_level=6,
+            stress_level=4,
+            work_challenges=["Debugging AI issues"],
+            work_hours=8,
+            created_at="2024-01-01T00:00:00Z"
+        )
+        
+        # Get PulseAI service
+        from ..services.pulse_ai import pulse_ai
+        
+        # Generate response
+        response = pulse_ai.generate_pulse_response(mock_entry)
+        
+        return {
+            "message": "AI test successful",
+            "response": response.dict(),
+            "status": "ok"
+        }
+        
+    except Exception as e:
+        return {
+            "message": "AI test failed",
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "status": "error"
+        }
 
 # Mock user dependency for MVP (will implement proper auth later)
 async def get_current_user():
