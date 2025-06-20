@@ -1,124 +1,107 @@
 {
-  "start_time": "2025-06-20T13:50:26.338385",
+  "start_time": "2025-06-20T17:15:22.639295",
   "tests": {
     "Backend Health Check": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:50:26.459745",
+      "timestamp": "2025-06-20T17:15:22.789454",
       "details": {
-        "response_time_ms": 119.784,
+        "response_time_ms": 148.823,
         "service": "PulseCheck API",
-        "version": "1.0.0",
+        "version": "2.1.0-cors-fix",
         "environment": "development",
         "config_loaded": true
       }
     },
     "API Endpoint: Root Endpoint": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:50:26.484027",
+      "timestamp": "2025-06-20T17:15:22.815545",
       "details": {
         "method": "GET",
         "endpoint": "/",
         "status_code": 200,
-        "response_time_ms": 23.398
+        "response_time_ms": 25.465999999999998
       }
     },
     "API Endpoint: API Documentation": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:50:26.505406",
+      "timestamp": "2025-06-20T17:15:22.838874",
       "details": {
         "method": "GET",
         "endpoint": "/docs",
         "status_code": 200,
-        "response_time_ms": 20.697
+        "response_time_ms": 22.844
       }
     },
     "API Endpoint: Get Journal Entries": {
-      "status": "PASS",
-      "timestamp": "2025-06-20T13:50:26.720962",
+      "status": "FAIL",
+      "timestamp": "2025-06-20T17:15:22.957906",
       "details": {
         "method": "GET",
         "endpoint": "/api/v1/journal/entries",
-        "status_code": 200,
-        "response_time_ms": 215.014
+        "status_code": 500,
+        "response": "{\"detail\":\"Error fetching journal entries: object APIResponse[TypeVar] can't be used in 'await' expression\"}"
       }
     },
     "Journal Entry Creation": {
-      "status": "PASS",
-      "timestamp": "2025-06-20T13:50:26.796580",
-      "details": {
-        "entry_id": "5d57babe-c7a6-4d4a-9c8b-041a34c10ae2",
-        "response_time_ms": 74.11,
-        "content_length": 142,
-        "status_code": 200
-      }
-    },
-    "Journal Entry Retrieval": {
-      "status": "PASS",
-      "timestamp": "2025-06-20T13:50:26.861060",
-      "details": {
-        "entry_id": "5d57babe-c7a6-4d4a-9c8b-041a34c10ae2",
-        "response_time_ms": 63.60300000000001
-      }
-    },
-    "AI Response Generation": {
       "status": "FAIL",
-      "timestamp": "2025-06-20T13:50:26.974270",
+      "timestamp": "2025-06-20T17:15:22.993433",
       "details": {
-        "error": "object of type 'NoneType' has no len()",
-        "error_type": "TypeError"
+        "status_code": 500,
+        "response": "{\"detail\":\"Error creating journal entry: Object of type datetime is not JSON serializable\"}"
       }
     },
     "Performance Under Load": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:50:27.089113",
+      "timestamp": "2025-06-20T17:15:23.159326",
       "details": {
         "total_requests": 10,
         "successful_requests": 10,
         "success_rate": "100.00%",
-        "total_time_seconds": 0.11444902420043945,
-        "avg_response_time_ms": 52.88770000000001
+        "total_time_seconds": 0.16544604301452637,
+        "avg_response_time_ms": 66.1913
       }
     },
     "Error Handling - Invalid Endpoint": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:50:27.112115",
+      "timestamp": "2025-06-20T17:15:23.189352",
       "details": {
-        "status_code": 404,
+        "status_code": 405,
         "expected_error": true
       }
     },
     "Error Handling - Invalid Entry ID": {
       "status": "PASS",
-      "timestamp": "2025-06-20T13:50:27.218102",
+      "timestamp": "2025-06-20T17:15:23.248996",
       "details": {
         "status_code": 500,
         "expected_error": true
       }
     },
     "Security - CORS Headers": {
-      "status": "WARN",
-      "timestamp": "2025-06-20T13:50:27.242852",
+      "status": "PASS",
+      "timestamp": "2025-06-20T17:15:23.271859",
       "details": {
-        "cors_headers_present": false
+        "cors_headers_present": true,
+        "cors_value": "*"
       }
     },
     "Security - Security Headers": {
-      "status": "WARN",
-      "timestamp": "2025-06-20T13:50:27.266137",
+      "status": "PASS",
+      "timestamp": "2025-06-20T17:15:23.295725",
       "details": {
-        "security_headers_present": 0,
+        "security_headers_present": 3,
         "headers": {
-          "X-Content-Type-Options": null,
-          "X-Frame-Options": null,
-          "X-XSS-Protection": null
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "DENY",
+          "X-XSS-Protection": "1; mode=block"
         }
       }
     }
   },
   "summary": {
-    "total_tests": 12,
-    "passed": 9,
-    "failed": 1,
-    "warnings": 2
+    "total_tests": 10,
+    "passed": 8,
+    "failed": 2,
+    "warnings": 0
   }
 }
