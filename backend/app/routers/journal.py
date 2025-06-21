@@ -91,9 +91,9 @@ async def create_journal_entry(
             "id": str(uuid.uuid4()),
             "user_id": current_user["id"],
             "content": entry.content,
-            "mood_score": int(entry.mood_level) if entry.mood_level is not None else None,
-            "energy_score": int(entry.energy_level) if entry.energy_level is not None else None,
-            "stress_score": int(entry.stress_level) if entry.stress_level is not None else None,
+            "mood_level": int(entry.mood_level) if entry.mood_level is not None else None,
+            "energy_level": int(entry.energy_level) if entry.energy_level is not None else None,
+            "stress_level": int(entry.stress_level) if entry.stress_level is not None else None,
             "sleep_hours": entry.sleep_hours,
             "work_hours": entry.work_hours,
             "tags": entry.tags or [],
@@ -112,13 +112,7 @@ async def create_journal_entry(
         # Convert to response model (map database column names to model field names)
         created_entry = result.data[0]
         
-        # Map database column names to model field names
-        if "mood_score" in created_entry:
-            created_entry["mood_level"] = created_entry.pop("mood_score")
-        if "energy_score" in created_entry:
-            created_entry["energy_level"] = created_entry.pop("energy_score")
-        if "stress_score" in created_entry:
-            created_entry["stress_level"] = created_entry.pop("stress_score")
+        # No column mapping needed - database uses mood_level, energy_level, stress_level
         
         return JournalEntryResponse(**created_entry)
         
@@ -158,14 +152,6 @@ async def get_pulse_response(
         if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
             entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow())
         
-        # Map database column names to model field names
-        if "mood_score" in entry_data:
-            entry_data["mood_level"] = entry_data.pop("mood_score")
-        if "energy_score" in entry_data:
-            entry_data["energy_level"] = entry_data.pop("energy_score")
-        if "stress_score" in entry_data:
-            entry_data["stress_level"] = entry_data.pop("stress_score")
-            
         journal_entry = JournalEntryResponse(**entry_data)
         
         # Use beta-optimized AI response generation
@@ -265,14 +251,6 @@ async def get_ai_analysis(
         if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
             entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow())
         
-        # Map database column names to model field names
-        if "mood_score" in entry_data:
-            entry_data["mood_level"] = entry_data.pop("mood_score")
-        if "energy_score" in entry_data:
-            entry_data["energy_level"] = entry_data.pop("energy_score")
-        if "stress_score" in entry_data:
-            entry_data["stress_level"] = entry_data.pop("stress_score")
-            
         journal_entry = JournalEntryResponse(**entry_data)
         
         # Get user history if requested (simplified for beta)
@@ -286,14 +264,6 @@ async def get_ai_analysis(
                     # Ensure updated_at field exists for each history entry
                     if 'updated_at' not in entry or entry['updated_at'] is None:
                         entry['updated_at'] = entry.get('created_at', datetime.utcnow())
-                    
-                    # Map database column names to model field names for history
-                    if "mood_score" in entry:
-                        entry["mood_level"] = entry.pop("mood_score")
-                    if "energy_score" in entry:
-                        entry["energy_level"] = entry.pop("energy_score")
-                    if "stress_score" in entry:
-                        entry["stress_level"] = entry.pop("stress_score")
                     
                     user_history.append(JournalEntryResponse(**entry))
 
@@ -371,14 +341,6 @@ async def get_journal_entries(
                 if 'updated_at' not in entry or entry['updated_at'] is None:
                     entry['updated_at'] = entry.get('created_at', datetime.utcnow())
                 
-                # Map database column names to model field names
-                if "mood_score" in entry:
-                    entry["mood_level"] = entry.pop("mood_score")
-                if "energy_score" in entry:
-                    entry["energy_level"] = entry.pop("energy_score")
-                if "stress_score" in entry:
-                    entry["stress_level"] = entry.pop("stress_score")
-                    
                 entries.append(JournalEntryResponse(**entry))
 
         return JournalEntriesResponse(
@@ -421,10 +383,10 @@ async def get_journal_stats(
         # Calculate statistics
         total_entries = len(entries)
         
-        # Calculate averages (using correct database column names)
-        avg_mood = sum(entry["mood_score"] for entry in entries) / total_entries
-        avg_energy = sum(entry["energy_score"] for entry in entries) / total_entries
-        avg_stress = sum(entry["stress_score"] for entry in entries) / total_entries
+        # Calculate averages
+        avg_mood = sum(entry["mood_level"] for entry in entries) / total_entries
+        avg_energy = sum(entry["energy_level"] for entry in entries) / total_entries
+        avg_stress = sum(entry["stress_level"] for entry in entries) / total_entries
         
         # Calculate streaks (simplified for MVP)
         current_streak = 1  # Simplified - would calculate actual consecutive days
@@ -467,14 +429,6 @@ async def get_journal_entry(
         if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
             entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow())
         
-        # Map database column names to model field names
-        if "mood_score" in entry_data:
-            entry_data["mood_level"] = entry_data.pop("mood_score")
-        if "energy_score" in entry_data:
-            entry_data["energy_level"] = entry_data.pop("energy_score")
-        if "stress_score" in entry_data:
-            entry_data["stress_level"] = entry_data.pop("stress_score")
-            
         return JournalEntryResponse(**entry_data)
         
     except Exception as e:
