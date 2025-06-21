@@ -99,8 +99,8 @@ async def create_journal_entry(
             "tags": entry.tags or [],
             "work_challenges": entry.work_challenges or [],
             "gratitude_items": entry.gratitude_items or [],
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
         }
         
         # Insert into Supabase using sync client
@@ -498,7 +498,7 @@ async def update_journal_entry(
             raise HTTPException(status_code=400, detail="No fields to update")
             
         # Add updated_at timestamp
-        update_data["updated_at"] = datetime.utcnow()
+        update_data["updated_at"] = datetime.utcnow().isoformat()
         
         result = client.table("journal_entries").update(update_data).eq("id", entry_id).eq("user_id", current_user["id"]).execute()
         
