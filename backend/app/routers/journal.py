@@ -103,8 +103,8 @@ async def create_journal_entry(
             "updated_at": datetime.utcnow()
         }
         
-        # Insert into Supabase using async client
-        result = await client.table("journal_entries").insert(entry_data).execute()
+        # Insert into Supabase using sync client
+        result = client.table("journal_entries").insert(entry_data).execute()
         
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create journal entry")
@@ -148,7 +148,7 @@ async def get_pulse_response(
         client = db.get_client()
         
         # Get the journal entry
-        result = await client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
+        result = client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
@@ -255,7 +255,7 @@ async def get_ai_analysis(
         client = db.get_client()
         
         # Get the journal entry
-        result = await client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
+        result = client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
@@ -278,7 +278,7 @@ async def get_ai_analysis(
         # Get user history if requested (simplified for beta)
         user_history = None
         if include_history:
-            history_result = await client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(5).execute()
+            history_result = client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(5).execute()
             
             if history_result.data:
                 user_history = []
@@ -334,7 +334,7 @@ async def get_journal_entries(
         offset = (page - 1) * per_page
         
         # Get total count first
-        count_result = await client.table("journal_entries").select("id", count="exact").eq("user_id", current_user["id"]).execute()
+        count_result = client.table("journal_entries").select("id", count="exact").eq("user_id", current_user["id"]).execute()
         total = count_result.count if count_result.count else 0
         
         # If no entries, return empty response
@@ -361,7 +361,7 @@ async def get_journal_entries(
             )
         
         # Get entries with pagination - use proper range
-        result = await client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).range(offset, offset + per_page - 1).execute()
+        result = client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).range(offset, offset + per_page - 1).execute()
         
         # Convert to response models and handle missing updated_at field
         entries = []
@@ -457,7 +457,7 @@ async def get_journal_entry(
     """Get a single journal entry by ID"""
     try:
         client = db.get_client()
-        result = await client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
+        result = client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
@@ -500,7 +500,7 @@ async def update_journal_entry(
         # Add updated_at timestamp
         update_data["updated_at"] = datetime.utcnow()
         
-        result = await client.table("journal_entries").update(update_data).eq("id", entry_id).eq("user_id", current_user["id"]).execute()
+        result = client.table("journal_entries").update(update_data).eq("id", entry_id).eq("user_id", current_user["id"]).execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found or no changes made")
@@ -519,7 +519,7 @@ async def delete_journal_entry(
     """Delete a journal entry"""
     try:
         client = db.get_client()
-        result = await client.table("journal_entries").delete().eq("id", entry_id).eq("user_id", current_user["id"]).execute()
+        result = client.table("journal_entries").delete().eq("id", entry_id).eq("user_id", current_user["id"]).execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
