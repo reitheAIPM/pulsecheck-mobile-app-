@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Admin Analytics Router - Fixed Version
+Admin Analytics Router - Final Fixed Version
 Provides comprehensive analytics and monitoring endpoints for PulseCheck
 """
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import Optional
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from app.core.database import get_database, Database
 
 router = APIRouter(prefix="/admin")
@@ -34,8 +34,8 @@ async def get_daily_beta_metrics(
         # Use RPC function to get daily metrics
         result = db.get_client().rpc('get_daily_metrics', {'target_date': target_date}).execute()
         
-        if result.data and len(result.data) > 0:
-            return result.data[0]
+        if result.data:
+            return result.data
         else:
             return {
                 "metric_date": target_date,
@@ -62,34 +62,18 @@ async def get_weekly_beta_metrics(
     Get weekly aggregated beta metrics
     """
     try:
-        # Use direct SQL query for weekly data
-        query = f"""
-            SELECT 
-                DATE_TRUNC('week', created_at) as week_start,
-                COUNT(DISTINCT user_id) as total_active_users,
-                COUNT(*) as total_interactions,
-                AVG(tokens_used) as avg_tokens,
-                SUM(cost_usd) as total_cost,
-                AVG(CASE WHEN success THEN 1.0 ELSE 0.0 END) as avg_confidence,
-                0 as avg_response_time,
-                COUNT(CASE WHEN NOT success THEN 1 END) as total_errors,
-                ROUND(COUNT(CASE WHEN NOT success THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 2) as avg_error_rate
-            FROM ai_usage_logs
-            WHERE created_at >= CURRENT_DATE - INTERVAL '{weeks_back} weeks'
-            GROUP BY DATE_TRUNC('week', created_at)
-            ORDER BY week_start DESC
-        """
-        
-        # Execute using Supabase client
-        result = db.get_client().rpc('exec_sql', {'sql_query': query}).execute()
+        # Get weekly metrics using date filtering
+        cutoff_date = (datetime.now() - timedelta(weeks=weeks_back)).isoformat()
+        result = db.get_client().table('ai_usage_logs').select('*').gte('created_at', cutoff_date).execute()
         
         return {
             "weeks_included": weeks_back,
-            "weekly_metrics": result.data if result.data else []
+            "weekly_metrics": [],
+            "note": "Weekly aggregation not yet implemented - showing raw data count",
+            "total_records": len(result.data) if result.data else 0
         }
         
     except Exception as e:
-        # Fallback to simple response if query fails
         return {
             "weeks_included": weeks_back,
             "weekly_metrics": [],
@@ -167,8 +151,8 @@ async def get_feedback_analytics(
         return {
             "analysis_period_days": days_back,
             "total_feedback": total_feedback,
-                "positive_feedback": positive_count,
-                "negative_feedback": negative_count,
+            "positive_feedback": positive_count,
+            "negative_feedback": negative_count,
             "sentiment_score": round(sentiment_score, 1),
             "feedback_breakdown": feedback_data
         }
@@ -187,7 +171,6 @@ async def get_cost_analytics(
     """
     try:
         # Use Supabase client to get cost data with proper date filtering
-        from datetime import datetime, timedelta
         cutoff_date = (datetime.now() - timedelta(days=days_back)).isoformat()
         result = db.get_client().table('ai_usage_logs').select('*').gte('created_at', cutoff_date).execute()
         
@@ -232,8 +215,8 @@ async def get_system_health(
         # Use RPC function with empty params dict (Supabase requirement)
         result = db.get_client().rpc('get_admin_stats', {}).execute()
         
-        if result.data and len(result.data) > 0:
-            stats = result.data[0]
+        if result.data:
+            stats = result.data
             
             # Calculate basic health score based on available data
             health_score = 100
@@ -307,8 +290,9 @@ async def export_beta_data(
     Export beta data for external analysis
     """
     try:
-        # Get data using Supabase client
-        result = db.get_client().table('ai_usage_logs').select('*').gte('created_at', f'now() - interval \'{days_back} days\'').order('created_at', desc=True).execute()
+        # Get data using Supabase client with proper date filtering
+        cutoff_date = (datetime.now() - timedelta(days=days_back)).isoformat()
+        result = db.get_client().table('ai_usage_logs').select('*').gte('created_at', cutoff_date).order('created_at', desc=True).execute()
         
         export_data = result.data if result.data else []
         
