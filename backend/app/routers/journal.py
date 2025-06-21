@@ -157,6 +157,14 @@ async def get_pulse_response(
         # Ensure updated_at field exists before creating response
         if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
             entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow())
+        
+        # Map database column names to model field names
+        if "mood_score" in entry_data:
+            entry_data["mood_level"] = entry_data.pop("mood_score")
+        if "energy_score" in entry_data:
+            entry_data["energy_level"] = entry_data.pop("energy_score")
+        if "stress_score" in entry_data:
+            entry_data["stress_level"] = entry_data.pop("stress_score")
             
         journal_entry = JournalEntryResponse(**entry_data)
         
@@ -256,6 +264,14 @@ async def get_ai_analysis(
         # Ensure updated_at field exists before creating response
         if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
             entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow())
+        
+        # Map database column names to model field names
+        if "mood_score" in entry_data:
+            entry_data["mood_level"] = entry_data.pop("mood_score")
+        if "energy_score" in entry_data:
+            entry_data["energy_level"] = entry_data.pop("energy_score")
+        if "stress_score" in entry_data:
+            entry_data["stress_level"] = entry_data.pop("stress_score")
             
         journal_entry = JournalEntryResponse(**entry_data)
         
@@ -270,6 +286,15 @@ async def get_ai_analysis(
                     # Ensure updated_at field exists for each history entry
                     if 'updated_at' not in entry or entry['updated_at'] is None:
                         entry['updated_at'] = entry.get('created_at', datetime.utcnow())
+                    
+                    # Map database column names to model field names for history
+                    if "mood_score" in entry:
+                        entry["mood_level"] = entry.pop("mood_score")
+                    if "energy_score" in entry:
+                        entry["energy_level"] = entry.pop("energy_score")
+                    if "stress_score" in entry:
+                        entry["stress_level"] = entry.pop("stress_score")
+                    
                     user_history.append(JournalEntryResponse(**entry))
 
         # Generate analysis
@@ -345,6 +370,15 @@ async def get_journal_entries(
                 # Ensure updated_at field exists. This is the critical fix.
                 if 'updated_at' not in entry or entry['updated_at'] is None:
                     entry['updated_at'] = entry.get('created_at', datetime.utcnow())
+                
+                # Map database column names to model field names
+                if "mood_score" in entry:
+                    entry["mood_level"] = entry.pop("mood_score")
+                if "energy_score" in entry:
+                    entry["energy_level"] = entry.pop("energy_score")
+                if "stress_score" in entry:
+                    entry["stress_level"] = entry.pop("stress_score")
+                    
                 entries.append(JournalEntryResponse(**entry))
 
         return JournalEntriesResponse(
@@ -387,10 +421,10 @@ async def get_journal_stats(
         # Calculate statistics
         total_entries = len(entries)
         
-        # Calculate averages
-        avg_mood = sum(entry["mood_level"] for entry in entries) / total_entries
-        avg_energy = sum(entry["energy_level"] for entry in entries) / total_entries
-        avg_stress = sum(entry["stress_level"] for entry in entries) / total_entries
+        # Calculate averages (using correct database column names)
+        avg_mood = sum(entry["mood_score"] for entry in entries) / total_entries
+        avg_energy = sum(entry["energy_score"] for entry in entries) / total_entries
+        avg_stress = sum(entry["stress_score"] for entry in entries) / total_entries
         
         # Calculate streaks (simplified for MVP)
         current_streak = 1  # Simplified - would calculate actual consecutive days
@@ -432,6 +466,14 @@ async def get_journal_entry(
         entry_data = result.data
         if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
             entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow())
+        
+        # Map database column names to model field names
+        if "mood_score" in entry_data:
+            entry_data["mood_level"] = entry_data.pop("mood_score")
+        if "energy_score" in entry_data:
+            entry_data["energy_level"] = entry_data.pop("energy_score")
+        if "stress_score" in entry_data:
+            entry_data["stress_level"] = entry_data.pop("stress_score")
             
         return JournalEntryResponse(**entry_data)
         

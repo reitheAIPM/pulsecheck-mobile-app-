@@ -46,9 +46,9 @@ class StressLevel(int, Enum):
 class JournalEntryBase(BaseModel):
     """Base journal entry schema"""
     content: str = Field(..., min_length=10, max_length=2000)
-    mood_level: MoodLevel
-    energy_level: EnergyLevel
-    stress_level: StressLevel
+    mood_level: int = Field(..., ge=1, le=10)  # Accept integers directly
+    energy_level: int = Field(..., ge=1, le=10)  # Accept integers directly
+    stress_level: int = Field(..., ge=1, le=10)  # Accept integers directly
     sleep_hours: Optional[float] = Field(None, ge=0, le=24)
     work_hours: Optional[float] = Field(None, ge=0, le=24)
     
@@ -66,9 +66,9 @@ class JournalEntryCreate(JournalEntryBase):
 class JournalEntryUpdate(BaseModel):
     """Schema for updating journal entries"""
     content: Optional[str] = Field(None, min_length=10, max_length=2000)
-    mood_level: Optional[MoodLevel] = None
-    energy_level: Optional[EnergyLevel] = None
-    stress_level: Optional[StressLevel] = None
+    mood_level: Optional[int] = Field(None, ge=1, le=10)  # Accept integers directly
+    energy_level: Optional[int] = Field(None, ge=1, le=10)  # Accept integers directly
+    stress_level: Optional[int] = Field(None, ge=1, le=10)  # Accept integers directly
     sleep_hours: Optional[float] = Field(None, ge=0, le=24)
     work_hours: Optional[float] = Field(None, ge=0, le=24)
     tags: Optional[List[str]] = None
