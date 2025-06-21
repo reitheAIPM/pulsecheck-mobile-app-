@@ -86,14 +86,14 @@ async def create_journal_entry(
         # Get the database client
         client = db.get_client()
         
-        # Create journal entry data
+        # Create journal entry data (using correct database column names: score not level)
         entry_data = {
             "id": str(uuid.uuid4()),
             "user_id": current_user["id"],
             "content": entry.content,
-            "mood_level": int(entry.mood_level) if entry.mood_level is not None else None,
-            "energy_level": int(entry.energy_level) if entry.energy_level is not None else None,
-            "stress_level": int(entry.stress_level) if entry.stress_level is not None else None,
+            "mood_score": int(entry.mood_level) if entry.mood_level is not None else None,
+            "energy_score": int(entry.energy_level) if entry.energy_level is not None else None,
+            "stress_score": int(entry.stress_level) if entry.stress_level is not None else None,
             "sleep_hours": entry.sleep_hours,
             "work_hours": entry.work_hours,
             "tags": entry.tags or [],
@@ -109,8 +109,16 @@ async def create_journal_entry(
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create journal entry")
         
-        # Convert to response model
+        # Convert to response model (map database column names to model field names)
         created_entry = result.data[0]
+        
+        # Map database column names to model field names
+        if "mood_score" in created_entry:
+            created_entry["mood_level"] = created_entry.pop("mood_score")
+        if "energy_score" in created_entry:
+            created_entry["energy_level"] = created_entry.pop("energy_score")
+        if "stress_score" in created_entry:
+            created_entry["stress_level"] = created_entry.pop("stress_score")
         
         return JournalEntryResponse(**created_entry)
         
