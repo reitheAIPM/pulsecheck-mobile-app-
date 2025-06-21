@@ -167,8 +167,8 @@ async def get_feedback_analytics(
         return {
             "analysis_period_days": days_back,
             "total_feedback": total_feedback,
-            "positive_feedback": positive_count,
-            "negative_feedback": negative_count,
+                "positive_feedback": positive_count,
+                "negative_feedback": negative_count,
             "sentiment_score": round(sentiment_score, 1),
             "feedback_breakdown": feedback_data
         }
@@ -186,8 +186,10 @@ async def get_cost_analytics(
     Get detailed cost analytics for budget planning
     """
     try:
-        # Use Supabase client to get cost data
-        result = db.get_client().table('ai_usage_logs').select('*').gte('created_at', f'now() - interval \'{days_back} days\'').execute()
+        # Use Supabase client to get cost data with proper date filtering
+        from datetime import datetime, timedelta
+        cutoff_date = (datetime.now() - timedelta(days=days_back)).isoformat()
+        result = db.get_client().table('ai_usage_logs').select('*').gte('created_at', cutoff_date).execute()
         
         # Calculate basic stats from raw data
         raw_data = result.data if result.data else []
@@ -227,8 +229,8 @@ async def get_system_health(
     Get overall system health metrics for beta monitoring
     """
     try:
-        # Use RPC function with no params (function takes no arguments)
-        result = db.get_client().rpc('get_admin_stats').execute()
+        # Use RPC function with empty params dict (Supabase requirement)
+        result = db.get_client().rpc('get_admin_stats', {}).execute()
         
         if result.data and len(result.data) > 0:
             stats = result.data[0]
