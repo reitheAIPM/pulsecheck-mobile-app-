@@ -83,7 +83,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="PulseCheck API",
     description="AI-powered wellness journal for tech workers",
-    version="1.0.0",
+    version="1.0.1",
     lifespan=lifespan
 )
 
