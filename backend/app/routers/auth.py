@@ -58,14 +58,13 @@ async def get_current_user(
     return user
 
 # Initialize services
-auth_service = AuthService()
 subscription_service = SubscriptionService()
 
 @router.post("/register", response_model=UserResponse)
 async def register_user(user: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
     try:
-        return auth_service.create_user(db, user)
+        return await UserService.create_user(db, user)
     except Exception as e:
         log_error(e, ErrorSeverity.HIGH, ErrorCategory.API_ENDPOINT, {
             "operation": "register_user",
@@ -80,7 +79,21 @@ async def register_user(user: UserCreate, db: Session = Depends(get_db)):
 async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     """Login user and return access token"""
     try:
-        return auth_service.authenticate_user(db, form_data.username, form_data.password)
+        user = await AuthService.authenticate_user(db, form_data.username, form_data.password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials"
+            )
+        
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = AuthService.create_access_token(
+            data={"sub": str(user.id)}, expires_delta=access_token_expires
+        )
+        
+        return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
     except Exception as e:
         log_error(e, ErrorSeverity.MEDIUM, ErrorCategory.API_ENDPOINT, {
             "operation": "login_user",
@@ -92,19 +105,19 @@ async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Sessi
         )
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user(current_user: UserTable = Depends(auth_service.get_current_user)):
+async def get_current_user_info(current_user: UserTable = Depends(get_current_user)):
     """Get current user information"""
     return current_user
 
 @router.put("/me", response_model=UserResponse)
 async def update_current_user(
     user_update: UserUpdate,
-    current_user: UserTable = Depends(auth_service.get_current_user),
+    current_user: UserTable = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Update current user information"""
     try:
-        return auth_service.update_user(db, current_user.id, user_update)
+        return await UserService.update_user(db, current_user.id, user_update)
     except Exception as e:
         log_error(e, ErrorSeverity.MEDIUM, ErrorCategory.API_ENDPOINT, {
             "operation": "update_current_user",
@@ -118,7 +131,7 @@ async def update_current_user(
 # New beta testing endpoints
 @router.get("/subscription-status", response_model=SubscriptionStatus)
 async def get_subscription_status(
-    current_user: UserTable = Depends(auth_service.get_current_user)
+    current_user: UserTable = Depends(get_current_user)
 ):
     """
     Get user's subscription status and available features
@@ -140,7 +153,7 @@ async def get_subscription_status(
 @router.post("/toggle-beta-premium")
 async def toggle_beta_premium(
     enabled: bool,
-    current_user: UserTable = Depends(auth_service.get_current_user),
+    current_user: UserTable = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -184,7 +197,7 @@ async def toggle_beta_premium(
 @router.post("/make-beta-tester/{user_id}")
 async def make_user_beta_tester(
     user_id: str,
-    current_user: UserTable = Depends(auth_service.get_current_user),
+    current_user: UserTable = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -225,7 +238,7 @@ async def make_user_beta_tester(
 
 @router.get("/usage-analytics")
 async def get_usage_analytics(
-    current_user: UserTable = Depends(auth_service.get_current_user)
+    current_user: UserTable = Depends(get_current_user)
 ):
     """
     Get user's AI usage analytics
