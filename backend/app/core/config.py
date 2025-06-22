@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # CORS Configuration
-    allowed_origins: str = "http://localhost:3000,http://localhost:19006,http://localhost:5173,http://localhost:5174,https://pulsecheck-mobile-9883ycydx-reitheaipms-projects.vercel.app"
+    allowed_origins: str = "http://localhost:3000,http://localhost:19006,http://localhost:5173,http://localhost:5174,https://pulsecheck-mobile-9883ycydx-reitheaipms-projects.vercel.app,https://pulsecheck-mobile-1pozgd468-reitheaipms-projects.vercel.app,https://*.vercel.app"
     
     # Server Configuration
     host: str = "0.0.0.0"

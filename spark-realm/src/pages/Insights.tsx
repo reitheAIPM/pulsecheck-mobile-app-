@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   TrendingUp,
   Calendar,
-  Brain,
+  BookOpen,
   Heart,
   Target,
   Award,
@@ -115,7 +115,7 @@ const Insights = () => {
       case 'pulse':
         return <Sparkles className="h-4 w-4" />;
       case 'sage':
-        return <Brain className="h-4 w-4" />;
+        return <BookOpen className="h-4 w-4" />;
       default:
         return <Sparkles className="h-4 w-4" />;
     }
@@ -141,7 +141,7 @@ const Insights = () => {
     {
       title: "AI Engagement",
       description: `Pattern confidence: ${userPatterns ? Math.round(userPatterns.pattern_confidence * 100) : 75}%`,
-      icon: Brain,
+      icon: BookOpen,
       color: "text-purple-600",
     },
   ];
@@ -321,7 +321,7 @@ const Insights = () => {
         {/* AI Insights */}
         <div className="space-y-3">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Brain className="w-5 h-5" />
+            <BookOpen className="w-5 h-5" />
             AI Insights
           </h2>
 

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
-import { Sparkles, Brain, Zap, Anchor, Crown, Users, Settings } from 'lucide-react';
+import { Sparkles, BookOpen, Zap, Anchor, Crown, Users, Settings } from 'lucide-react';
 
 interface AITeamManagerProps {
   userId: string;
@@ -31,7 +31,7 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
       case 'pulse':
         return <Sparkles className="h-5 w-5" />;
       case 'sage':
-        return <Brain className="h-5 w-5" />;
+        return <BookOpen className="h-5 w-5" />;
       case 'spark':
         return <Zap className="h-5 w-5" />;
       case 'anchor':
