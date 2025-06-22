@@ -110,23 +110,27 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
         # Set the actual origin or * if not found
         actual_origin = origin if origin in allowed_origins else "*"
         
-        # Handle preflight OPTIONS requests
+        # Handle ALL OPTIONS requests - critical for Railway health checks
         if request.method == "OPTIONS":
-            # Create explicit 200 OK response for OPTIONS
+            # Always return 200 OK for OPTIONS requests
             response = Response(
                 status_code=200,
                 content="OK",
                 media_type="text/plain"
             )
-            response.headers["Access-Control-Allow-Origin"] = actual_origin
+            
+            # Use wildcard for Railway health checks (no origin header)
+            cors_origin = actual_origin if origin else "*"
+            
+            response.headers["Access-Control-Allow-Origin"] = cors_origin
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept"
             response.headers["Access-Control-Expose-Headers"] = "Content-Type, Content-Length"
             response.headers["Access-Control-Max-Age"] = "86400"
             response.headers["Content-Length"] = "2"
             
             # Log successful OPTIONS handling
-            logger.info(f"CORS OPTIONS request handled for origin: {origin}")
+            logger.info(f"✅ CORS OPTIONS request handled successfully - Origin: {origin or 'none'} - Path: {request.url.path}")
             return response
         
         # Process the request
@@ -550,18 +554,8 @@ async def record_ai_debugging_attempt(error_id: str, attempt_details: Dict[str, 
         log_error(e, ErrorSeverity.MEDIUM, ErrorCategory.API_ENDPOINT, {"endpoint": "record_ai_attempt"})
         return {"error": "Failed to record AI debugging attempt"}
 
-# Add global OPTIONS handler for all routes - MUST be before routers
-@app.options("/{full_path:path}")
-async def global_options_handler(full_path: str):
-    """Handle all OPTIONS requests for Railway health check compatibility"""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
-        }
-    )
+# Note: OPTIONS requests are handled by CustomCORSMiddleware above
+# No need for additional OPTIONS handler as it causes conflicts
 
 # Include routers
 app.include_router(auth.router, prefix="/api/v1")
