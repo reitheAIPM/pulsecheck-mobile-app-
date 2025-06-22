@@ -92,53 +92,14 @@ app.add_middleware(
     allowed_hosts=["*"]  # Configure appropriately for production
 )
 
-# Custom CORS middleware to handle dynamic Vercel domains
-@app.middleware("http")
-async def cors_middleware(request: Request, call_next):
-    """Custom CORS middleware to handle Vercel domains dynamically"""
-    # Get the origin from the request
-    origin = request.headers.get("origin")
-    
-    # Check if origin is allowed
-    allowed_origins = settings.allowed_origins_list
-    is_allowed = False
-    
-    if origin:
-        # Check exact matches first
-        if origin in allowed_origins:
-            is_allowed = True
-        # Check for Vercel domains (any subdomain of vercel.app)
-        elif origin.endswith(".vercel.app") and origin.startswith("https://"):
-            is_allowed = True
-        # Check for localhost with any port
-        elif origin.startswith("http://localhost:") or origin.startswith("https://localhost:"):
-            is_allowed = True
-    
-    # Handle preflight requests first
-    if request.method == "OPTIONS":
-        if is_allowed and origin:
-            headers = {
-                "Access-Control-Allow-Origin": origin,
-                "Access-Control-Allow-Credentials": "true",
-                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-                "Access-Control-Allow-Headers": "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, User-Agent",
-                "Access-Control-Max-Age": "86400"
-            }
-            return Response(status_code=200, headers=headers)
-        else:
-            return Response(status_code=200)
-    
-    # Process the actual request
-    response = await call_next(request)
-    
-    # Add CORS headers to the response
-    if is_allowed and origin:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        response.headers["Access-Control-Allow-Headers"] = "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, User-Agent"
-    
-    return response
+# CORS middleware - allow all Vercel domains
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for now
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.middleware("http")
 async def monitoring_middleware(request: Request, call_next):
