@@ -41,6 +41,7 @@ except Exception as e:
 from app.routers import auth, checkins, journal, admin
 from app.routers.adaptive_ai import router as adaptive_ai_router
 from app.core.monitoring import monitor, log_error, log_performance, check_health, ErrorSeverity, ErrorCategory
+from app.core.database import engine, Base
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
