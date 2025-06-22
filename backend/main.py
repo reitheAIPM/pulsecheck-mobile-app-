@@ -7,10 +7,10 @@ Version: 2.1.0-cors-fix
 Last Updated: 2025-01-20 - CORS fix for localhost:5173
 """
 
-from fastapi import FastAPI, Request, Response, HTTPException
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 import time
 import logging
 from contextlib import asynccontextmanager
@@ -92,14 +92,46 @@ app.add_middleware(
     allowed_hosts=["*"]  # Configure appropriately for production
 )
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Custom CORS middleware to handle dynamic Vercel domains
+@app.middleware("http")
+async def cors_middleware(request: Request, call_next):
+    """Custom CORS middleware to handle Vercel domains dynamically"""
+    response = await call_next(request)
+    
+    # Get the origin from the request
+    origin = request.headers.get("origin")
+    
+    # Check if origin is allowed
+    allowed_origins = settings.allowed_origins_list
+    is_allowed = False
+    
+    if origin:
+        # Check exact matches first
+        if origin in allowed_origins:
+            is_allowed = True
+        # Check for Vercel domains (any subdomain of vercel.app)
+        elif origin.endswith(".vercel.app") and origin.startswith("https://"):
+            is_allowed = True
+        # Check for localhost with any port
+        elif origin.startswith("http://localhost:") or origin.startswith("https://localhost:"):
+            is_allowed = True
+    
+    if is_allowed and origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    
+    # Handle preflight requests
+    if request.method == "OPTIONS":
+        if is_allowed and origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+        return Response(status_code=200)
+    
+    return response
 
 @app.middleware("http")
 async def monitoring_middleware(request: Request, call_next):
