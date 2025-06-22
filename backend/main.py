@@ -238,11 +238,11 @@ async def general_exception_handler(request: Request, exc: Exception):
             }
         )
 
-# CORS middleware - must be added last to run first
+# CORS middleware - configured for Vercel compatibility
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for Vercel compatibility
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,  # Cannot use credentials with wildcard origin
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"]
