@@ -3,8 +3,8 @@
 PulseCheck API - AI-powered burnout prevention for tech workers
 FastAPI backend with Supabase integration and OpenAI-powered insights
 
-Version: 2.1.0-cors-fix
-Last Updated: 2025-01-20 - CORS fix for localhost:5173
+Version: 2.1.2-cors-fix-v3
+Last Updated: 2025-01-25 - Enhanced CORS handling for Vercel domains
 """
 
 from fastapi import FastAPI, Request, HTTPException
@@ -83,20 +83,65 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="PulseCheck API",
     description="AI-powered wellness journal for tech workers",
-    version="1.0.1",
+    version="2.1.2",
     lifespan=lifespan
 )
 
-# CORS middleware - MUST be first to work properly
-# Use wildcard for Vercel compatibility (no credentials with wildcard)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for Vercel compatibility
-    allow_credentials=False,  # Cannot use credentials with wildcard
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
-    allow_headers=["*"],
-    expose_headers=["*"]
-)
+# Custom CORS middleware for dynamic Vercel domains
+class CustomCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        origin = request.headers.get("origin", "")
+        
+        # Define allowed origins - explicitly include Vercel domains
+        allowed_origins = [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:19006",
+            "https://pulse-check.vercel.app",
+            "https://pulsecheck-web.vercel.app",
+            "https://pulsecheck-app.vercel.app",
+            "https://pulsecheck-mobile.vercel.app"
+        ]
+        
+        # Allow any Vercel preview domains
+        if origin and (".vercel.app" in origin or "localhost" in origin):
+            allowed_origins.append(origin)
+        
+        # Set the actual origin or * if not found
+        actual_origin = origin if origin in allowed_origins else "*"
+        
+        # Handle preflight OPTIONS requests
+        if request.method == "OPTIONS":
+            # Create explicit 200 OK response for OPTIONS
+            response = Response(
+                status_code=200,
+                content="OK",
+                media_type="text/plain"
+            )
+            response.headers["Access-Control-Allow-Origin"] = actual_origin
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+            response.headers["Access-Control-Expose-Headers"] = "Content-Type, Content-Length"
+            response.headers["Access-Control-Max-Age"] = "86400"
+            response.headers["Content-Length"] = "2"
+            
+            # Log successful OPTIONS handling
+            logger.info(f"CORS OPTIONS request handled for origin: {origin}")
+            return response
+        
+        # Process the request
+        response = await call_next(request)
+        
+        # Add CORS headers to all responses
+        response.headers["Access-Control-Allow-Origin"] = actual_origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+        response.headers["Access-Control-Expose-Headers"] = "Content-Type, Content-Length"
+        
+        return response
+
+# Add custom CORS middleware - this handles all CORS logic
+app.add_middleware(CustomCORSMiddleware)
 
 # Security middleware
 app.add_middleware(

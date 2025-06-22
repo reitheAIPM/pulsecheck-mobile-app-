@@ -1,8 +1,8 @@
 export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
@@ -18,33 +18,53 @@ export default async function handler(req, res) {
     // Construct the full URL
     const url = `${backendUrl}${path}`;
     
-    console.log('Proxying request:', req.method, url);
+    console.log(`Proxying ${req.method} request to: ${url}`);
+    
+    // Prepare headers - forward important ones but avoid conflicts
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'PulseCheck-Web-Proxy/1.0'
+    };
+    
+    // Add Authorization header if present
+    if (req.headers.authorization) {
+      headers.Authorization = req.headers.authorization;
+    }
+    
+    // Parse request body for non-GET requests
+    let bodyData;
+    if (req.method !== 'GET' && req.body) {
+      bodyData = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    }
     
     // Forward the request to Railway backend
     const response = await fetch(url, {
       method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        // Don't forward all headers to avoid conflicts
-        'Accept': 'application/json'
-      },
-      body: req.method !== 'GET' && req.body ? JSON.stringify(req.body) : undefined
+      headers: headers,
+      body: bodyData
     });
     
-    const data = await response.text();
+    // Get response data
+    const contentType = response.headers.get('content-type') || '';
+    let data;
     
-    // Forward the response
-    res.status(response.status);
-    
-    // Try to parse as JSON, fallback to text
-    try {
-      res.json(JSON.parse(data));
-    } catch {
-      res.send(data);
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+      res.status(response.status).json(data);
+    } else {
+      data = await response.text();
+      res.status(response.status).send(data);
     }
+    
+    console.log(`Proxy response: ${response.status} ${response.statusText}`);
     
   } catch (error) {
     console.error('Proxy error:', error);
-    res.status(500).json({ error: 'Proxy failed', message: error.message });
+    res.status(500).json({ 
+      error: 'Proxy request failed', 
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 } 
