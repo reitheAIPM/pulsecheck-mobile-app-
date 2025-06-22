@@ -57,7 +57,8 @@ async def get_current_user(
         raise credentials_exception
     return user
 
-# Initialize subscription service
+# Initialize services
+auth_service = AuthService()
 subscription_service = SubscriptionService()
 
 @router.post("/register", response_model=UserResponse)
