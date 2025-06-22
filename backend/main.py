@@ -87,6 +87,27 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# CORS middleware - MUST be first to work properly
+# Include all known Vercel deployment URLs
+vercel_origins = [
+    "https://pulsecheck-mobile-743jnmyh8-reitheaipms-projects.vercel.app",
+    "https://pulsecheck-mobile-bcz4oqco5-reitheaipms-projects.vercel.app",
+    "https://pulsecheck-mobile-9883ycydx-reitheaipms-projects.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://localhost:3000",
+    "https://localhost:5173"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=vercel_origins,  # Specific Vercel origins only
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
+    allow_headers=["*"],
+    expose_headers=["*"]
+)
+
 # Security middleware
 app.add_middleware(
     TrustedHostMiddleware,
@@ -238,26 +259,13 @@ async def general_exception_handler(request: Request, exc: Exception):
             }
         )
 
-# CORS middleware - configured for Vercel compatibility
-# Include all known Vercel deployment URLs
-vercel_origins = [
-    "https://pulsecheck-mobile-743jnmyh8-reitheaipms-projects.vercel.app",
-    "https://pulsecheck-mobile-bcz4oqco5-reitheaipms-projects.vercel.app",
-    "https://pulsecheck-mobile-9883ycydx-reitheaipms-projects.vercel.app",
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "https://localhost:3000",
-    "https://localhost:5173"
-]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=vercel_origins,  # Specific Vercel origins only
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
-    allow_headers=["*"],
-    expose_headers=["*"]
-)
+
+# Simple CORS test endpoint
+@app.get("/cors-test")
+async def cors_test():
+    """Simple endpoint to test CORS headers"""
+    return {"message": "CORS test successful", "timestamp": time.time()}
 
 # Health check endpoint
 @app.get("/health")
@@ -519,7 +527,7 @@ async def root():
     """Root endpoint with basic info"""
     return {
         "message": "PulseCheck API",
-        "version": "1.0.0",
+        "version": "1.0.1-cors-test",
         "status": "running",
         "timestamp": time.time()
     }
