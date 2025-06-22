@@ -264,7 +264,7 @@ class UserTierService:
             # Use Supabase table update instead of raw SQL
             self.db.get_client().table("users").update({
                 "daily_ai_usage": 0,
-                "daily_usage_reset_at": datetime.utcnow().date().isoformat()
+                "daily_usage_reset_at": datetime.now(timezone.utc).date().isoformat()
             }).eq("id", user_id).execute()
         except Exception as e:
             print(f"Error resetting usage for user {user_id}: {e}")
@@ -388,7 +388,7 @@ class CostTracker:
                 "context_type": usage_log.context_type,
                 "success": usage_log.success,
                 "error_message": usage_log.error_message,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat()
             }
             
             # Use Supabase client method instead of SQLAlchemy
@@ -427,7 +427,7 @@ class FeedbackService:
                 "confidence_score": confidence_score,
                 "response_time_ms": response_time_ms,
                 "user_tier": user_tier,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat()
             }
             
             # Use Supabase client method instead of SQLAlchemy

@@ -4,6 +4,9 @@ import json
 import logging
 from datetime import datetime, timedelta
 import time
+import re
+import hashlib
+import os
 
 from app.core.config import settings
 from app.models.journal import JournalEntryResponse
@@ -24,6 +27,8 @@ class PulseAI:
     - Usage tracking and rate limiting
     - Cost optimization and analytics
     - User feedback collection
+    
+    Enhanced with comprehensive error handling and safety measures
     """
     
     def __init__(self, db=None):
@@ -54,6 +59,124 @@ class PulseAI:
         # Cost tracking (optional - for monitoring)
         self.daily_token_count = 0
         self.daily_cost_estimate = 0.0
+        
+        # Safety and error handling settings
+        self.max_retries = 3
+        self.retry_delay = 1.0  # seconds
+        self.content_safety_patterns = self._load_safety_patterns()
+        self.emergency_mode = False
+        
+        # Data protection settings
+        self.backup_enabled = True
+        self.max_response_length = 1000  # characters
+        self.min_response_length = 10  # characters
+        
+        logger.info("PulseAI initialized with enhanced error handling and safety measures")
+    
+    def _load_safety_patterns(self) -> Dict[str, List[str]]:
+        """Load content safety patterns to prevent inappropriate responses"""
+        return {
+            "harmful_content": [
+                r"kill yourself",
+                r"hurt yourself", 
+                r"end it all",
+                r"give up",
+                r"you're worthless",
+                r"you're useless",
+                r"no one cares",
+                r"you should die"
+            ],
+            "medical_advice": [
+                r"take medication",
+                r"prescribe",
+                r"diagnose",
+                r"you have",
+                r"you are",
+                r"you're",
+                r"medical condition",
+                r"mental illness"
+            ],
+            "inappropriate_tone": [
+                r"fuck you",
+                r"you're stupid",
+                r"you're dumb",
+                r"shut up",
+                r"go away"
+            ]
+        }
+    
+    def _check_content_safety(self, content: str) -> Tuple[bool, str, str]:
+        """
+        Check content for safety issues
+        Returns: (is_safe, issue_type, problematic_content)
+        """
+        if not content or not isinstance(content, str):
+            return False, "invalid_content", "Content is empty or invalid"
+        
+        content_lower = content.lower()
+        
+        # Check for harmful content
+        for pattern in self.content_safety_patterns["harmful_content"]:
+            if re.search(pattern, content_lower):
+                return False, "harmful_content", pattern
+        
+        # Check for medical advice
+        for pattern in self.content_safety_patterns["medical_advice"]:
+            if re.search(pattern, content_lower):
+                return False, "medical_advice", pattern
+        
+        # Check for inappropriate tone
+        for pattern in self.content_safety_patterns["inappropriate_tone"]:
+            if re.search(pattern, content_lower):
+                return False, "inappropriate_tone", pattern
+        
+        # Check response length
+        if len(content) > self.max_response_length:
+            return False, "too_long", f"Response too long ({len(content)} chars)"
+        
+        if len(content) < self.min_response_length:
+            return False, "too_short", f"Response too short ({len(content)} chars)"
+        
+        return True, "", ""
+    
+    def _create_backup(self, data: Dict[str, Any], backup_type: str) -> str:
+        """Create backup of critical data"""
+        try:
+            if not self.backup_enabled:
+                return ""
+            
+            timestamp = datetime.now().isoformat()
+            backup_id = hashlib.md5(f"{timestamp}_{backup_type}".encode()).hexdigest()[:8]
+            
+            backup_data = {
+                "backup_id": backup_id,
+                "timestamp": timestamp,
+                "backup_type": backup_type,
+                "data": data
+            }
+            
+            # In production, this would save to secure cloud storage
+            # For now, we'll log it for debugging
+            logger.info(f"Backup created: {backup_id} for {backup_type}")
+            
+            return backup_id
+            
+        except Exception as e:
+            logger.error(f"Backup creation failed: {e}")
+            return ""
+    
+    def _emergency_fallback(self, journal_entry: JournalEntryResponse, error_type: str) -> PulseResponse:
+        """Emergency fallback when all else fails"""
+        logger.warning(f"Using emergency fallback for error: {error_type}")
+        
+        return PulseResponse(
+            message="I'm here to listen and support you. Sometimes taking a moment to breathe can help. What's on your mind?",
+            confidence_score=0.5,
+            response_time_ms=0,
+            follow_up_question="How are you feeling right now?",
+            suggested_actions=["Take a few deep breaths", "Step away from your screen for 5 minutes"],
+            insight="You're not alone in feeling this way."
+        )
     
     def _load_personality_prompt(self) -> str:
         """Load optimized Pulse AI personality for social media-style wellness journal"""
@@ -79,6 +202,9 @@ RESPONSE RULES:
 - Only respond to what the user shared
 - Use "I notice" not "You are"
 - Mention specific tech challenges when relevant
+- NEVER give medical advice or diagnose
+- NEVER suggest harmful actions
+- ALWAYS be supportive and caring
 
 TECH CONTEXT:
 - Coding stress, deadlines, debugging frustration
@@ -104,6 +230,12 @@ Remember: You're like a caring friend checking in on their social media post, no
         Analyze a journal entry and generate comprehensive AI insights
         """
         try:
+            # Create backup before processing
+            backup_id = self._create_backup({
+                "journal_entry": journal_entry.dict() if hasattr(journal_entry, 'dict') else str(journal_entry),
+                "user_history_count": len(user_history) if user_history else 0
+            }, "journal_analysis")
+            
             # For cost optimization, use the same efficient response generation
             pulse_response = self.generate_pulse_response(journal_entry)
             
@@ -120,6 +252,13 @@ Remember: You're like a caring friend checking in on their social media post, no
             
         except Exception as e:
             logger.error(f"Error in AI analysis: {e}")
+            # Create backup of error state
+            self._create_backup({
+                "error": str(e),
+                "journal_entry": str(journal_entry),
+                "timestamp": datetime.now().isoformat()
+            }, "analysis_error")
+            
             return self._create_fallback_response(journal_entry)
     
     async def generate_beta_optimized_response(
@@ -154,19 +293,38 @@ Remember: You're like a caring friend checking in on their social media post, no
             # Prepare optimized context
             context, tier_info = self.beta_service.prepare_ai_context(user_id, journal_entry)
             
-            # Generate response with optimized context
+            # Generate response with optimized context and retry logic
             start_time = time.time()
             prompt = self._build_context_aware_prompt(context, tier_info)
             
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.personality_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=min(self.max_tokens, tier_info.max_tokens_per_request),
-                temperature=self.temperature
-            )
+            # Retry logic with exponential backoff
+            last_error = None
+            for attempt in range(self.max_retries):
+                try:
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": self.personality_prompt},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_tokens=min(self.max_tokens, tier_info.max_tokens_per_request),
+                        temperature=self.temperature
+                    )
+                    
+                    # If we get here, the request was successful
+                    break
+                    
+                except Exception as e:
+                    last_error = e
+                    logger.warning(f"OpenAI request attempt {attempt + 1} failed: {e}")
+                    
+                    if attempt < self.max_retries - 1:
+                        time.sleep(self.retry_delay * (2 ** attempt))  # Exponential backoff
+                    else:
+                        # All retries failed, use fallback
+                        logger.error(f"All {self.max_retries} OpenAI requests failed")
+                        fallback = self._create_smart_fallback_response(journal_entry)
+                        return fallback, False, f"OpenAI service unavailable: {str(last_error)}"
             
             response_time_ms = int((time.time() - start_time) * 1000)
             
@@ -183,6 +341,13 @@ Remember: You're like a caring friend checking in on their social media post, no
                 logger.error(f"OpenAI returned empty or invalid message: {pulse_message}")
                 fallback = self._create_smart_fallback_response(journal_entry)
                 return fallback, False, "AI returned empty or invalid message"
+            
+            # Content safety check
+            is_safe, issue_type, problematic_content = self._check_content_safety(pulse_message)
+            if not is_safe:
+                logger.warning(f"Content safety issue detected: {issue_type} - {problematic_content}")
+                fallback = self._create_smart_fallback_response(journal_entry)
+                return fallback, False, f"Content safety issue: {issue_type}"
             
             pulse_response = self._parse_pulse_response(pulse_message, response_time_ms)
             
@@ -231,28 +396,52 @@ Remember: You're like a caring friend checking in on their social media post, no
         """
         Generate cost-optimized Pulse AI response to a journal entry
         """
-        # Check if OpenAI is configured
-        if not hasattr(self, 'client') or not self.client or not settings.openai_api_key:
-            logger.warning("OpenAI not configured - using fallback response")
-            return self._create_smart_fallback_response(journal_entry)
-        
         try:
-            start_time = datetime.now()
+            # Check if OpenAI is configured
+            if not self.client:
+                logger.warning("OpenAI client not available, using fallback response")
+                return self._create_smart_fallback_response(journal_entry)
             
-            # Build ultra-efficient prompt
+            # Create backup before processing
+            backup_id = self._create_backup({
+                "journal_entry": journal_entry.dict() if hasattr(journal_entry, 'dict') else str(journal_entry),
+                "user_context": user_context
+            }, "pulse_response")
+            
+            # Build efficient prompt
             prompt = self._build_efficient_prompt(journal_entry, user_context)
             
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.personality_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=self.max_tokens,
-                temperature=self.temperature
-            )
+            # Generate response with retry logic
+            start_time = time.time()
+            last_error = None
             
-            response_time = (datetime.now() - start_time).total_seconds() * 1000
+            for attempt in range(self.max_retries):
+                try:
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": self.personality_prompt},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_tokens=self.max_tokens,
+                        temperature=self.temperature
+                    )
+                    
+                    # If we get here, the request was successful
+                    break
+                    
+                except Exception as e:
+                    last_error = e
+                    logger.warning(f"OpenAI request attempt {attempt + 1} failed: {e}")
+                    
+                    if attempt < self.max_retries - 1:
+                        time.sleep(self.retry_delay * (2 ** attempt))  # Exponential backoff
+                    else:
+                        # All retries failed, use fallback
+                        logger.error(f"All {self.max_retries} OpenAI requests failed")
+                        return self._create_smart_fallback_response(journal_entry)
+            
+            response_time_ms = int((time.time() - start_time) * 1000)
             
             # Robustly check OpenAI response
             pulse_message = None
@@ -267,84 +456,124 @@ Remember: You're like a caring friend checking in on their social media post, no
                 logger.error(f"OpenAI returned empty or invalid message: {pulse_message}")
                 return self._create_smart_fallback_response(journal_entry)
             
-            # Track costs (optional monitoring)
-            self._track_usage(response.usage.total_tokens if hasattr(response, 'usage') else 200)
+            # Content safety check
+            is_safe, issue_type, problematic_content = self._check_content_safety(pulse_message)
+            if not is_safe:
+                logger.warning(f"Content safety issue detected: {issue_type} - {problematic_content}")
+                return self._create_smart_fallback_response(journal_entry)
             
-            # Parse Pulse response
-            return self._parse_pulse_response(pulse_message, response_time)
+            # Parse and return response
+            pulse_response = self._parse_pulse_response(pulse_message, response_time_ms)
+            
+            # Track usage for cost monitoring
+            if hasattr(response, 'usage'):
+                self._track_usage(response.usage.total_tokens)
+            
+            return pulse_response
             
         except Exception as e:
-            logger.error(f"Error generating Pulse response: {e}")
-            return self._create_smart_fallback_response(journal_entry)
+            logger.error(f"Error in pulse response generation: {e}")
+            
+            # Create backup of error state
+            self._create_backup({
+                "error": str(e),
+                "journal_entry": str(journal_entry),
+                "timestamp": datetime.now().isoformat()
+            }, "pulse_response_error")
+            
+            return self._emergency_fallback(journal_entry, str(e))
     
     def _build_context_aware_prompt(self, context: AIContext, tier_info) -> str:
-        """Build context-aware prompt using beta optimization data"""
-        if self.beta_service:
-            return self.beta_service.get_context_prompt(context)
-        else:
-            # Fallback to basic prompt
-            return self._build_efficient_prompt(context.current_entry)
+        """Build context-aware prompt for beta-optimized responses"""
+        try:
+            return f"""User Journal Entry: {context.current_entry_text}
+
+User Context: {context.user_context_summary}
+
+Previous Patterns: {context.pattern_summary}
+
+Generate a supportive, personalized response as Pulse. Focus on the user's current state and patterns."""
+        except Exception as e:
+            logger.error(f"Error building context-aware prompt: {e}")
+            return f"User Journal Entry: {context.current_entry_text if context else 'No content available'}"
     
     def _build_efficient_prompt(
         self, 
         journal_entry: JournalEntryResponse,
         user_context: Optional[Dict[str, Any]] = None
     ) -> str:
-        """Build token-efficient prompt that maximizes quality per dollar"""
-        
-        # Extract key info efficiently
-        mood_desc = self._mood_to_word(journal_entry.mood_level)
-        energy_desc = self._energy_to_word(journal_entry.energy_level)
-        stress_desc = self._stress_to_word(journal_entry.stress_level)
-        
-        # Build ultra-concise prompt
-        prompt = f"""Entry: "{journal_entry.content[:400]}"  
-Mood: {mood_desc} ({journal_entry.mood_level}/10)
-Energy: {energy_desc} ({journal_entry.energy_level}/10)  
-Stress: {stress_desc} ({journal_entry.stress_level}/10)"""
-        
-        # Add work context if available (cost-efficient)
-        if journal_entry.work_challenges:
-            challenges = ', '.join(journal_entry.work_challenges[:2])  # Limit to save tokens
-            prompt += f"\nWork challenges: {challenges}"
-        
-        if journal_entry.work_hours and journal_entry.work_hours > 8:
-            prompt += f"\nWork hours: {journal_entry.work_hours}h"
+        """
+        Build efficient prompt for cost-optimized responses
+        """
+        try:
+            # Extract key information efficiently
+            mood_word = self._mood_to_word(journal_entry.mood_score)
+            energy_word = self._energy_to_word(journal_entry.energy_score)
+            stress_word = self._stress_to_word(journal_entry.stress_score)
             
-        return prompt
+            # Truncate journal content to save tokens
+            journal_content = journal_entry.content[:400] if journal_entry.content else ""
+            
+            # Build context string if available
+            context_str = ""
+            if user_context:
+                context_str = f"\nContext: {user_context.get('summary', '')}"
+            
+            return f"""Mood: {mood_word} ({journal_entry.mood_score}/10)
+Energy: {energy_word} ({journal_entry.energy_score}/10)
+Stress: {stress_word} ({journal_entry.stress_score}/10)
+Journal: {journal_content}{context_str}
+
+Respond as Pulse with empathy and support."""
+            
+        except Exception as e:
+            logger.error(f"Error building efficient prompt: {e}")
+            return "User is journaling. Respond as Pulse with empathy and support."
     
     def _mood_to_word(self, level: int) -> str:
-        """Convert mood level to descriptive word (token efficient)"""
-        if level >= 8: return "great"
-        elif level >= 6: return "good" 
-        elif level >= 4: return "okay"
-        elif level >= 2: return "low"
-        else: return "rough"
+        """Convert mood score to descriptive word"""
+        try:
+            if level >= 8: return "excellent"
+            elif level >= 6: return "good"
+            elif level >= 4: return "okay"
+            elif level >= 2: return "low"
+            else: return "very low"
+        except Exception:
+            return "unknown"
     
     def _energy_to_word(self, level: int) -> str:
-        """Convert energy level to descriptive word (token efficient)"""
-        if level >= 8: return "energized"
-        elif level >= 6: return "steady"
-        elif level >= 4: return "moderate" 
-        elif level >= 2: return "tired"
-        else: return "drained"
+        """Convert energy score to descriptive word"""
+        try:
+            if level >= 8: return "high"
+            elif level >= 6: return "moderate"
+            elif level >= 4: return "low"
+            elif level >= 2: return "very low"
+            else: return "exhausted"
+        except Exception:
+            return "unknown"
     
     def _stress_to_word(self, level: int) -> str:
-        """Convert stress level to descriptive word (token efficient)"""
-        if level >= 8: return "overwhelmed"
-        elif level >= 6: return "stressed"
-        elif level >= 4: return "manageable"
-        elif level >= 2: return "calm"
-        else: return "relaxed"
+        """Convert stress score to descriptive word"""
+        try:
+            if level >= 8: return "very high"
+            elif level >= 6: return "high"
+            elif level >= 4: return "moderate"
+            elif level >= 2: return "low"
+            else: return "minimal"
+        except Exception:
+            return "unknown"
     
     def _track_usage(self, tokens: int):
-        """Optional cost tracking for monitoring"""
-        self.daily_token_count += tokens
-        # GPT-3.5-turbo pricing: ~$0.002 per 1K tokens
-        self.daily_cost_estimate += (tokens / 1000) * 0.002
-        
-        if self.daily_token_count % 1000 == 0:  # Log every 1000 tokens
-            logger.info(f"Daily usage: {self.daily_token_count} tokens, ~${self.daily_cost_estimate:.4f}")
+        """Track token usage for cost monitoring"""
+        try:
+            self.daily_token_count += tokens
+            self.daily_cost_estimate = self.daily_token_count * 0.000002  # Rough estimate
+            
+            # Log every 1000 tokens
+            if self.daily_token_count % 1000 < tokens:
+                logger.info(f"Daily usage: {self.daily_token_count} tokens, ~${self.daily_cost_estimate:.4f}")
+        except Exception as e:
+            logger.error(f"Error tracking usage: {e}")
     
     async def submit_feedback(
         self, 
@@ -355,163 +584,264 @@ Stress: {stress_desc} ({journal_entry.stress_level}/10)"""
         ai_response: Optional[PulseResponse] = None,
         prompt_content: Optional[str] = None
     ) -> bool:
-        """Submit feedback to the database using the BetaOptimizationService"""
-        
-        if not self.beta_service:
-            logger.warning("Feedback submitted but beta service not available for logging.")
-            return False
-        
+        """
+        Submit user feedback for AI response quality improvement
+        """
         try:
-            # Get tier info for logging
-            _, tier_info, _ = self.beta_service.can_user_access_ai(user_id)
+            # Create backup of feedback data
+            backup_id = self._create_backup({
+                "user_id": user_id,
+                "journal_entry_id": journal_entry_id,
+                "feedback_type": feedback_type,
+                "feedback_text": feedback_text,
+                "ai_response": ai_response.dict() if ai_response and hasattr(ai_response, 'dict') else str(ai_response),
+                "prompt_content": prompt_content
+            }, "user_feedback")
             
-            self.beta_service.feedback_service.submit_feedback(
-                user_id=user_id,
-                journal_entry_id=journal_entry_id,
-                feedback_type=feedback_type,
-                feedback_text=feedback_text,
-                ai_response_content=ai_response.message if ai_response else None,
-                prompt_content=prompt_content,
-                confidence_score=ai_response.confidence_score if ai_response else None,
-                response_time_ms=ai_response.response_time_ms if ai_response else None,
-                user_tier=tier_info.tier_name
-            )
-            return True
+            # Submit to beta service if available
+            if self.beta_service:
+                success = await self.beta_service.submit_user_feedback(
+                    user_id=user_id,
+                    journal_entry_id=journal_entry_id,
+                    feedback_type=feedback_type,
+                    feedback_text=feedback_text,
+                    ai_response=ai_response,
+                    prompt_content=prompt_content
+                )
+                return success
+            else:
+                logger.warning("Beta service not available for feedback submission")
+                return False
+                
         except Exception as e:
-            logger.error(f"Error submitting feedback via beta service: {e}")
+            logger.error(f"Error submitting feedback: {e}")
+            
+            # Create backup of error state
+            self._create_backup({
+                "error": str(e),
+                "user_id": user_id,
+                "journal_entry_id": journal_entry_id,
+                "feedback_type": feedback_type,
+                "timestamp": datetime.now().isoformat()
+            }, "feedback_error")
+            
             return False
     
     def _parse_pulse_response(self, message: str, response_time: float) -> PulseResponse:
-        """Parse Pulse AI response with improved confidence scoring"""
-        
-        # Robust null checking - this is the critical fix
-        if not message or not isinstance(message, str):
-            logger.error(f"Invalid message received in _parse_pulse_response: {message}")
-            # Return a safe fallback response
-            return PulseResponse(
-                message="Thank you for sharing. I'm here to support you on your wellness journey.",
-                follow_up_question="What's on your mind right now?",
-                response_time_ms=int(response_time),
-                confidence_score=0.5
-            )
-        
-        # Ensure message is a string and has content
-        message = str(message).strip()
-        if len(message) < 10:
-            logger.warning(f"Message too short in _parse_pulse_response: '{message}'")
-            return PulseResponse(
-                message="Thank you for sharing. I'm here to support you on your wellness journey.",
-                follow_up_question="What's on your mind right now?",
-                response_time_ms=int(response_time),
-                confidence_score=0.5
-            )
-        
-        # Simple quality indicators for confidence scoring
-        confidence = 0.7  # Base confidence for GPT-3.5-turbo
-        
-        # Boost confidence for quality indicators
-        if len(message) > 100 and len(message) < 400:  # Good length
-            confidence += 0.1
-        if "?" in message:  # Has follow-up question
-            confidence += 0.05
-        if any(word in message.lower() for word in ['notice', 'seems', 'might', 'could']):  # Gentle language
-            confidence += 0.05
-        if any(word in message.lower() for word in ['code', 'debug', 'deploy', 'meeting', 'deadline']):  # Tech context
-            confidence += 0.1
+        """
+        Parse OpenAI response into structured PulseResponse
+        """
+        try:
+            # Clean and validate message
+            if not message or not isinstance(message, str):
+                logger.error("Invalid message for parsing")
+                return self._emergency_fallback(None, "invalid_message")
             
-        confidence = min(confidence, 0.95)  # Cap at 95%
-        
-        # Extract follow-up question
-        sentences = message.split('?')
-        follow_up = None
-        if len(sentences) > 1 and sentences[-1].strip():
-            # Last question is likely the follow-up
-            follow_up = sentences[-1].strip()
-        elif '?' in message:
-            # Find the question
-            question_part = message[message.rfind('?')-50:message.rfind('?')+1]
-            follow_up = question_part.strip()
-        
-        return PulseResponse(
-            message=message.strip(),
-            follow_up_question=follow_up,
-            response_time_ms=int(response_time),
-            confidence_score=round(confidence, 2)
-        )
+            message = message.strip()
+            
+            # Content safety check
+            is_safe, issue_type, problematic_content = self._check_content_safety(message)
+            if not is_safe:
+                logger.warning(f"Content safety issue in parsed response: {issue_type}")
+                return self._emergency_fallback(None, f"content_safety_{issue_type}")
+            
+            # Extract follow-up question (look for question marks)
+            follow_up_question = ""
+            sentences = message.split('.')
+            for sentence in sentences:
+                if '?' in sentence and len(sentence.strip()) > 10:
+                    follow_up_question = sentence.strip()
+                    break
+            
+            # Generate suggested actions based on content
+            suggested_actions = []
+            if 'stress' in message.lower() or 'overwhelm' in message.lower():
+                suggested_actions.append("Take 3 deep breaths")
+            if 'tired' in message.lower() or 'exhaust' in message.lower():
+                suggested_actions.append("Step away from your screen for 5 minutes")
+            if 'work' in message.lower() or 'deadline' in message.lower():
+                suggested_actions.append("Break your task into smaller steps")
+            
+            # Default actions if none found
+            if not suggested_actions:
+                suggested_actions = ["Take a moment to breathe", "Be kind to yourself today"]
+            
+            # Calculate confidence score based on response quality
+            confidence_score = 0.7  # Base confidence
+            if len(message) > 50:
+                confidence_score += 0.1
+            if follow_up_question:
+                confidence_score += 0.1
+            if len(suggested_actions) > 0:
+                confidence_score += 0.1
+            confidence_score = min(confidence_score, 1.0)
+            
+            return PulseResponse(
+                message=message,
+                confidence_score=confidence_score,
+                response_time_ms=int(response_time * 1000),
+                follow_up_question=follow_up_question,
+                suggested_actions=suggested_actions,
+                insight="I'm here to support you through this."
+            )
+            
+        except Exception as e:
+            logger.error(f"Error parsing pulse response: {e}")
+            return self._emergency_fallback(None, f"parse_error_{str(e)}")
     
     def _create_smart_fallback_response(self, journal_entry: JournalEntryResponse) -> PulseResponse:
-        """Create intelligent fallback based on user data"""
-        
-        # Smart fallback based on mood/stress levels
-        if journal_entry.stress_level >= 7:
-            message = "I can sense you're dealing with a lot right now. High stress can be overwhelming, especially in tech work. Would taking a few minutes to step away from your screen help right now?"
-        elif journal_entry.mood_level <= 3:
-            message = "It sounds like you're having a tough time. Low mood days happen to all of us, and it's okay to acknowledge that. What's one small thing that usually helps you feel a bit better?"
-        elif journal_entry.energy_level <= 3:
-            message = "I notice your energy feels really low today. That can make everything feel harder, especially debugging or problem-solving. Have you been able to get enough rest lately?"
-        else:
-            message = "Thank you for sharing what's on your mind. I'm here to support you through whatever you're experiencing. What feels most important to focus on right now?"
-        
-        return PulseResponse(
-            message=message,
-            confidence_score=0.6,  # Moderate confidence for smart fallback
-            response_time_ms=50
-        )
+        """
+        Create intelligent fallback response when AI is unavailable
+        """
+        try:
+            if not journal_entry:
+                return self._emergency_fallback(None, "no_journal_entry")
+            
+            # Analyze the entry to create contextual fallback
+            mood_score = journal_entry.mood_score if hasattr(journal_entry, 'mood_score') else 5
+            energy_score = journal_entry.energy_score if hasattr(journal_entry, 'energy_score') else 5
+            stress_score = journal_entry.stress_score if hasattr(journal_entry, 'stress_score') else 5
+            
+            # Determine appropriate fallback based on scores
+            if stress_score >= 7:
+                message = "I can see you're feeling quite stressed right now. Remember to breathe and take things one step at a time. You're doing better than you think."
+                actions = ["Take 3 deep breaths", "Step away for 5 minutes"]
+            elif mood_score <= 3:
+                message = "It sounds like you're having a tough time. I want you to know that it's okay to feel this way, and you're not alone in this."
+                actions = ["Be kind to yourself", "Reach out to someone you trust"]
+            elif energy_score <= 3:
+                message = "You seem to be feeling quite low on energy today. Sometimes the best thing we can do is give ourselves permission to rest."
+                actions = ["Take a short break", "Hydrate and stretch"]
+            else:
+                message = "Thank you for sharing your thoughts with me. I'm here to listen and support you through whatever you're going through."
+                actions = ["Take a moment to reflect", "Be gentle with yourself"]
+            
+            return PulseResponse(
+                message=message,
+                confidence_score=0.6,
+                response_time_ms=0,
+                follow_up_question="How are you feeling right now?",
+                suggested_actions=actions,
+                insight="Sometimes just being heard can make a difference."
+            )
+            
+        except Exception as e:
+            logger.error(f"Error creating smart fallback: {e}")
+            return self._emergency_fallback(journal_entry, f"fallback_error_{str(e)}")
     
     def _calculate_wellness_score(self, entry: JournalEntryResponse) -> float:
-        """Calculate wellness score from entry data (no AI cost)"""
-        mood_weight = 0.4
-        energy_weight = 0.3
-        stress_weight = 0.3  # Inverted
-        
-        stress_inverted = 10 - entry.stress_level
-        score = (entry.mood_level * mood_weight + 
-                entry.energy_level * energy_weight + 
-                stress_inverted * stress_weight)
-        
-        return round(score, 1)
+        """Calculate overall wellness score from entry metrics"""
+        try:
+            if not entry:
+                return 5.0
+            
+            mood = entry.mood_score if hasattr(entry, 'mood_score') else 5
+            energy = entry.energy_score if hasattr(entry, 'energy_score') else 5
+            stress = entry.stress_score if hasattr(entry, 'stress_score') else 5
+            
+            # Invert stress score (lower stress = higher wellness)
+            stress_wellness = 10 - stress
+            
+            # Calculate weighted average
+            wellness_score = (mood * 0.4 + energy * 0.3 + stress_wellness * 0.3)
+            
+            return max(0.0, min(10.0, wellness_score))
+            
+        except Exception as e:
+            logger.error(f"Error calculating wellness score: {e}")
+            return 5.0
     
     def _assess_burnout_risk(self, entry: JournalEntryResponse) -> str:
-        """Assess burnout risk without AI cost"""
-        if entry.stress_level >= 8 and entry.energy_level <= 3:
-            return "high"
-        elif entry.stress_level >= 6 and entry.mood_level <= 4:
-            return "moderate"
-        elif entry.stress_level >= 7 or (entry.mood_level <= 3 and entry.energy_level <= 3):
-            return "moderate"
-        else:
-            return "low"
+        """Assess burnout risk based on entry metrics"""
+        try:
+            if not entry:
+                return "unknown"
+            
+            mood = entry.mood_score if hasattr(entry, 'mood_score') else 5
+            energy = entry.energy_score if hasattr(entry, 'energy_score') else 5
+            stress = entry.stress_score if hasattr(entry, 'stress_score') else 5
+            
+            # Burnout indicators
+            low_mood = mood <= 3
+            low_energy = energy <= 3
+            high_stress = stress >= 7
+            
+            if low_mood and low_energy and high_stress:
+                return "high"
+            elif (low_mood and low_energy) or (low_energy and high_stress) or (low_mood and high_stress):
+                return "moderate"
+            elif low_mood or low_energy or high_stress:
+                return "low"
+            else:
+                return "minimal"
+                
+        except Exception as e:
+            logger.error(f"Error assessing burnout risk: {e}")
+            return "unknown"
     
     def _suggest_immediate_action(self, entry: JournalEntryResponse) -> str:
-        """Suggest immediate action without AI cost"""
-        if entry.stress_level >= 7:
-            return "Take 5 deep breaths and step away from your screen"
-        elif entry.energy_level <= 3:
-            return "Take a 10-minute walk or stretch break"
-        elif entry.mood_level <= 4:
-            return "Do something small that usually makes you smile"
-        else:
-            return "Check in with yourself again in a few hours"
+        """Suggest immediate action based on entry content"""
+        try:
+            if not entry:
+                return "Take a moment to breathe deeply"
+            
+            stress = entry.stress_score if hasattr(entry, 'stress_score') else 5
+            energy = entry.energy_score if hasattr(entry, 'energy_score') else 5
+            
+            if stress >= 7:
+                return "Try a 2-minute breathing exercise"
+            elif energy <= 3:
+                return "Step away from your screen for 5 minutes"
+            else:
+                return "Take a moment to reflect on your feelings"
+                
+        except Exception as e:
+            logger.error(f"Error suggesting immediate action: {e}")
+            return "Take a moment to breathe deeply"
     
     def _suggest_long_term_action(self, entry: JournalEntryResponse) -> str:
-        """Suggest long-term action without AI cost"""
-        if entry.work_hours and entry.work_hours > 10:
-            return "Consider setting boundaries around work hours"
-        elif entry.stress_level >= 6:
-            return "Build a daily stress management routine"
-        else:
-            return "Keep tracking your patterns to build self-awareness"
+        """Suggest long-term action based on entry patterns"""
+        try:
+            if not entry:
+                return "Consider establishing a regular journaling habit"
+            
+            stress = entry.stress_score if hasattr(entry, 'stress_score') else 5
+            mood = entry.mood_score if hasattr(entry, 'mood_score') else 5
+            
+            if stress >= 7:
+                return "Consider setting boundaries around work hours"
+            elif mood <= 3:
+                return "Think about activities that bring you joy"
+            else:
+                return "Continue building self-awareness through journaling"
+                
+        except Exception as e:
+            logger.error(f"Error suggesting long-term action: {e}")
+            return "Consider establishing a regular journaling habit"
     
     def _create_fallback_response(self, journal_entry: JournalEntryResponse) -> AIAnalysisResponse:
-        """Create fallback response when AI fails"""
-        return AIAnalysisResponse(
-            insights=[],
-            overall_wellness_score=5.0,
-            burnout_risk_level="moderate",
-            pulse_message="Thank you for sharing. I'm here to support you on your wellness journey.",
-            immediate_actions=["Take some deep breaths"],
-            long_term_suggestions=["Consider establishing a daily wellness routine"]
-        )
+        """Create fallback AI analysis response"""
+        try:
+            return AIAnalysisResponse(
+                insights=[],
+                overall_wellness_score=self._calculate_wellness_score(journal_entry),
+                burnout_risk_level=self._assess_burnout_risk(journal_entry),
+                pulse_message="I'm here to listen and support you. What's on your mind?",
+                pulse_question="How are you feeling right now?",
+                immediate_actions=[self._suggest_immediate_action(journal_entry)],
+                long_term_suggestions=[self._suggest_long_term_action(journal_entry)]
+            )
+        except Exception as e:
+            logger.error(f"Error creating fallback response: {e}")
+            return AIAnalysisResponse(
+                insights=[],
+                overall_wellness_score=5.0,
+                burnout_risk_level="unknown",
+                pulse_message="I'm here to listen and support you.",
+                pulse_question="How are you feeling?",
+                immediate_actions=["Take a moment to breathe"],
+                long_term_suggestions=["Consider regular journaling"]
+            )
 
 # Global Pulse AI instance
 pulse_ai = PulseAI() 

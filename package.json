@@ -1,0 +1,10 @@
+{
+  "name": "pulsecheck-root",
+  "scripts": {
+    "build": "cd spark-realm && npm run build",
+    "dev": "cd spark-realm && npm run dev"
+  },
+  "devDependencies": {
+    "supabase": "^2.26.9"
+  }
+}

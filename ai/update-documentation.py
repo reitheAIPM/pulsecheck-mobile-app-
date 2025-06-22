@@ -33,7 +33,7 @@ DOCUMENTATION_STRUCTURE = {
             "frontend-development-guide.md", "frontend-testing-guide.md", 
             "builder-integration-guide.md"
         ]
-    },
+    },J
     "contributing": {
         "file": "ai/CONTRIBUTING.md",
         "description": "AI behavior guidelines and project context",

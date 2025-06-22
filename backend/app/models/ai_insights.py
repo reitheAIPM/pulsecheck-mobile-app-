@@ -46,17 +46,27 @@ class AIInsightCreate(AIInsightBase):
     user_id: str
 
 # AI Insight Response Schema
-class AIInsightResponse(AIInsightBase):
-    """Schema for AI insight API responses"""
-    id: str
-    user_id: str
-    journal_entry_id: str
-    created_at: datetime
+class AIInsightResponse(BaseModel):
+    """AI insight response with adaptive features"""
+    insight: str = Field(..., description="Main insight from AI")
+    suggested_action: str = Field(..., description="Suggested action for user")
+    follow_up_question: Optional[str] = Field(None, description="Follow-up question for deeper reflection")
+    confidence_score: float = Field(..., ge=0.0, le=1.0, description="AI confidence in response")
     
-    # User interaction
-    is_helpful: Optional[bool] = None
-    user_feedback: Optional[str] = None
-    feedback_at: Optional[datetime] = None
+    # Adaptive AI fields
+    pattern_insights: Optional[Dict[str, Any]] = Field(None, description="Insights about user patterns")
+    persona_used: Optional[str] = Field(None, description="AI persona used for response")
+    adaptation_level: Optional[str] = Field(None, description="Level of personalization applied")
+    topic_flags: Optional[List[str]] = Field(None, description="Topics detected in journal content")
+    
+    # Response metadata
+    response_length: Optional[str] = Field(None, description="Length category: short/medium/long")
+    tone_used: Optional[str] = Field(None, description="Tone used in response")
+    focus_areas: Optional[List[str]] = Field(None, description="Areas focused on in response")
+    avoid_areas: Optional[List[str]] = Field(None, description="Areas avoided in response")
+    
+    # Timestamp
+    generated_at: datetime = Field(default_factory=datetime.utcnow, description="When response was generated")
 
 # Pulse AI Response Schema (for real-time chat)
 class PulseResponse(BaseModel):
@@ -103,4 +113,99 @@ class InsightFeedback(BaseModel):
     insight_id: str
     is_helpful: bool
     feedback_text: Optional[str] = Field(None, max_length=500)
-    improvement_suggestions: Optional[List[str]] = Field(default_factory=list) 
+    improvement_suggestions: Optional[List[str]] = Field(default_factory=list)
+
+class UserPatternSummary(BaseModel):
+    """Summary of user patterns for frontend display"""
+    writing_style: str = Field(..., description="User's writing style preference")
+    common_topics: List[str] = Field(..., description="Topics user frequently discusses")
+    mood_trends: Dict[str, float] = Field(..., description="Average mood scores")
+    interaction_preferences: Dict[str, bool] = Field(..., description="User's interaction preferences")
+    response_preferences: Dict[str, str] = Field(..., description="User's response preferences")
+    
+    # Pattern confidence
+    pattern_confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence in pattern analysis")
+    entries_analyzed: int = Field(..., description="Number of entries used for analysis")
+    
+    # Last updated
+    last_updated: datetime = Field(default_factory=datetime.utcnow, description="When patterns were last updated")
+
+class PersonaRecommendation(BaseModel):
+    """Persona recommendation for user"""
+    persona_id: str = Field(..., description="Persona identifier")
+    persona_name: str = Field(..., description="Persona display name")
+    description: str = Field(..., description="Persona description")
+    recommended: bool = Field(..., description="Whether persona is recommended for user")
+    recommendation_reason: Optional[str] = Field(None, description="Why this persona is recommended")
+    
+    # Persona availability
+    available: bool = Field(..., description="Whether persona is available to user")
+    requires_premium: bool = Field(False, description="Whether persona requires premium subscription")
+    
+    # Usage stats
+    times_used: int = Field(0, description="Number of times user has used this persona")
+    last_used: Optional[datetime] = Field(None, description="When persona was last used")
+
+class AdaptiveContext(BaseModel):
+    """Context for adaptive AI responses"""
+    user_id: str = Field(..., description="User identifier")
+    current_mood: Optional[float] = Field(None, description="Current mood score")
+    current_energy: Optional[float] = Field(None, description="Current energy score")
+    current_stress: Optional[float] = Field(None, description="Current stress score")
+    
+    # Contextual factors
+    time_of_day: Optional[int] = Field(None, description="Hour of day (0-23)")
+    day_of_week: Optional[int] = Field(None, description="Day of week (0=Monday, 6=Sunday)")
+    entry_length: Optional[int] = Field(None, description="Length of current entry")
+    
+    # Topics and themes
+    current_topics: List[str] = Field(default_factory=list, description="Topics in current entry")
+    emotional_state: Optional[str] = Field(None, description="Current emotional state")
+    
+    # Adaptation preferences
+    suggested_tone: Optional[str] = Field(None, description="Suggested tone for response")
+    suggested_length: Optional[str] = Field(None, description="Suggested response length")
+    focus_areas: List[str] = Field(default_factory=list, description="Areas to focus on")
+    avoid_areas: List[str] = Field(default_factory=list, description="Areas to avoid")
+    interaction_style: Optional[str] = Field(None, description="Preferred interaction style")
+
+class PatternAnalysisRequest(BaseModel):
+    """Request for pattern analysis"""
+    user_id: str = Field(..., description="User to analyze")
+    include_history: bool = Field(True, description="Whether to include historical analysis")
+    force_refresh: bool = Field(False, description="Force refresh of cached patterns")
+    analysis_depth: str = Field("standard", description="Depth of analysis: basic/standard/deep")
+
+class PatternAnalysisResponse(BaseModel):
+    """Response from pattern analysis"""
+    user_id: str = Field(..., description="User analyzed")
+    patterns: UserPatternSummary = Field(..., description="User pattern summary")
+    adaptive_context: AdaptiveContext = Field(..., description="Current adaptive context")
+    persona_recommendations: List[PersonaRecommendation] = Field(..., description="Recommended personas")
+    
+    # Analysis metadata
+    analysis_completed_at: datetime = Field(default_factory=datetime.utcnow, description="When analysis completed")
+    analysis_duration_ms: Optional[int] = Field(None, description="Time taken for analysis")
+    cache_used: bool = Field(..., description="Whether cached patterns were used")
+
+class AdaptiveResponseRequest(BaseModel):
+    """Request for adaptive AI response"""
+    user_id: str = Field(..., description="User requesting response")
+    journal_content: str = Field(..., description="Journal entry content")
+    persona: Optional[str] = Field("pulse", description="Preferred AI persona")
+    force_persona: bool = Field(False, description="Force use of specified persona")
+    
+    # Context options
+    include_pattern_analysis: bool = Field(True, description="Whether to include pattern analysis")
+    response_preferences: Optional[Dict[str, Any]] = Field(None, description="User's response preferences")
+
+class AdaptiveResponseResponse(BaseModel):
+    """Response from adaptive AI service"""
+    ai_insight: AIInsightResponse = Field(..., description="AI insight response")
+    pattern_analysis: Optional[PatternAnalysisResponse] = Field(None, description="Pattern analysis results")
+    persona_used: PersonaRecommendation = Field(..., description="Persona that was used")
+    
+    # Response metadata
+    adaptation_applied: bool = Field(..., description="Whether adaptation was applied")
+    adaptation_confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence in adaptation")
+    response_generated_at: datetime = Field(default_factory=datetime.utcnow, description="When response was generated") 

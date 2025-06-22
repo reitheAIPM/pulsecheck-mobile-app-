@@ -1,0 +1,505 @@
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Send, Lightbulb, Heart, Settings, Mic, MicOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { MoodTracker } from "@/components/MoodTracker";
+import PersonaSelector from "@/components/PersonaSelector";
+import EmojiReactionSystem from "@/components/EmojiReactionSystem";
+import { apiService, PersonaRecommendation } from "@/services/api";
+
+// Universal journal prompt for multi-theme approach
+const UNIVERSAL_PROMPT = "What's on your mind today? Nothing is off-limits.";
+
+// Focus areas for multi-theme journaling
+const FOCUS_AREAS = [
+  { id: "work_stress", label: "Work Stress", emoji: "💼" },
+  { id: "anxiety", label: "Anxiety", emoji: "😰" },
+  { id: "relationships", label: "Relationships", emoji: "❤️" },
+  { id: "health", label: "Health & Wellness", emoji: "🏃‍♀️" },
+  { id: "creativity", label: "Creativity", emoji: "🎨" },
+  { id: "motivation", label: "Motivation", emoji: "💪" },
+  { id: "sleep", label: "Sleep", emoji: "😴" },
+  { id: "purpose", label: "Life Purpose", emoji: "🌟" },
+  { id: "loneliness", label: "Loneliness", emoji: "🤗" },
+  { id: "grief", label: "Grief & Loss", emoji: "🕊️" },
+  { id: "planning", label: "Planning & Goals", emoji: "📋" },
+  { id: "reflection", label: "General Reflection", emoji: "💭" }
+];
+
+const JournalEntry = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [content, setContent] = useState("");
+  const [mood, setMood] = useState(5);
+  const [energy, setEnergy] = useState(5);
+  const [stress, setStress] = useState(5);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPersonaSelector, setShowPersonaSelector] = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState("pulse");
+  const [personas, setPersonas] = useState<PersonaRecommendation[]>([]);
+  const [loadingPersonas, setLoadingPersonas] = useState(false);
+  const [selectedFocusAreas, setSelectedFocusAreas] = useState<string[]>([]);
+  const [showFocusAreas, setShowFocusAreas] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [showVoiceInput, setShowVoiceInput] = useState(false);
+  const [premiumEnabled, setPremiumEnabled] = useState(false);
+  const [detectedTopics, setDetectedTopics] = useState<string[]>([]);
+  const [selectedEmoji, setSelectedEmoji] = useState<any>(null);
+  const [showEmojiReactions, setShowEmojiReactions] = useState(false);
+
+  // Mock user ID - in a real app, this would come from authentication
+  const userId = "user_123";
+
+  useEffect(() => {
+    loadPersonas();
+    
+    // Initialize content from URL prompt parameter
+    const promptFromUrl = searchParams.get('prompt');
+    if (promptFromUrl) {
+      setContent(promptFromUrl);
+    }
+  }, [searchParams]);
+
+  // Detect topics when content changes
+  useEffect(() => {
+    if (content.length > 50) { // Only detect topics for substantial content
+      detectTopics();
+    }
+  }, [content]);
+
+  const detectTopics = async () => {
+    try {
+      const topics = await apiService.classifyTopics(content);
+      setDetectedTopics(topics);
+      setShowEmojiReactions(true);
+    } catch (error) {
+      console.error('Failed to classify topics:', error);
+      // Use fallback topic detection based on keywords
+      const fallbackTopics = detectTopicsFallback(content);
+      setDetectedTopics(fallbackTopics);
+      if (fallbackTopics.length > 0) {
+        setShowEmojiReactions(true);
+      }
+    }
+  };
+
+  const detectTopicsFallback = (text: string): string[] => {
+    const keywords = {
+      work_stress: ['work', 'deadline', 'pressure', 'meeting', 'project', 'boss', 'colleague'],
+      anxiety: ['anxious', 'worried', 'nervous', 'overwhelmed', 'panic', 'fear'],
+      relationships: ['friend', 'family', 'partner', 'relationship', 'love', 'conflict'],
+      motivation: ['goal', 'achieve', 'success', 'progress', 'motivation', 'drive'],
+      reflection: ['thinking', 'wondering', 'considering', 'reflection', 'contemplating']
+    };
+
+    const lowerText = text.toLowerCase();
+    const detectedTopics: string[] = [];
+
+    Object.entries(keywords).forEach(([topic, words]) => {
+      if (words.some(word => lowerText.includes(word))) {
+        detectedTopics.push(topic);
+      }
+    });
+
+    return detectedTopics;
+  };
+
+  const loadPersonas = async () => {
+    setLoadingPersonas(true);
+    try {
+      const availablePersonas = await apiService.getAvailablePersonas(userId);
+      setPersonas(availablePersonas);
+      
+      // Set default persona to the first recommended one, or fallback to "pulse"
+      const recommendedPersona = availablePersonas.find(p => p.recommended);
+      if (recommendedPersona) {
+        setSelectedPersona(recommendedPersona.persona_id);
+      }
+    } catch (error) {
+      console.error('Failed to load personas:', error);
+      // Use fallback personas
+      setPersonas([
+        {
+          persona_id: "pulse",
+          persona_name: "Pulse",
+          description: "Your emotionally intelligent wellness companion",
+          recommended: true,
+          available: true,
+          requires_premium: false,
+          times_used: 0,
+          recommendation_reason: "Perfect for emotional support and wellness insights"
+        }
+      ]);
+    } finally {
+      setLoadingPersonas(false);
+    }
+  };
+
+  const handleFocusAreaToggle = (areaId: string) => {
+    setSelectedFocusAreas(prev => 
+      prev.includes(areaId) 
+        ? prev.filter(id => id !== areaId)
+        : [...prev, areaId]
+    );
+  };
+
+  const handleVoiceInput = () => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      setShowVoiceInput(true);
+      setIsRecording(true);
+      
+      // Mock voice input for now - in production, implement actual speech recognition
+      setTimeout(() => {
+        setIsRecording(false);
+        setShowVoiceInput(false);
+        // For demo purposes, add some sample text
+        setContent(prev => prev + " I'm feeling a bit overwhelmed with work today and could use some support.");
+      }, 3000);
+    } else {
+      alert('Voice input is not supported in your browser. Please type your reflection.');
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!content.trim()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Create journal entry via API with focus areas
+      const journalEntry = await apiService.createJournalEntry({
+        content: content.trim(),
+        mood_level: mood,
+        energy_level: energy,
+        stress_level: stress,
+        tags: selectedFocusAreas, // Use focus areas as tags
+        work_challenges: [],
+        gratitude_items: []
+      });
+
+      console.log('Journal entry created successfully:', journalEntry);
+
+      // Generate adaptive AI response with focus areas context
+      try {
+        const adaptiveResponse = await apiService.generateAdaptiveResponse({
+          user_id: userId,
+          journal_content: content.trim(),
+          persona: selectedPersona,
+          force_persona: false,
+          include_pattern_analysis: true,
+          response_preferences: {
+            mood_level: mood,
+            energy_level: energy,
+            stress_level: stress,
+            focus_areas: selectedFocusAreas // Pass focus areas in response_preferences
+          }
+        });
+
+        console.log('Adaptive AI response generated:', adaptiveResponse);
+        
+        // Store the response for display on the insights page
+        localStorage.setItem('lastAIResponse', JSON.stringify(adaptiveResponse));
+        
+        // Navigate to insights page to show the AI response
+        navigate("/insights");
+      } catch (aiError) {
+        console.error('Failed to generate AI response:', aiError);
+        // Still navigate to home even if AI fails
+        navigate("/");
+      }
+    } catch (error) {
+      console.error('Failed to create journal entry:', error);
+      // Show error to user (you could add a toast notification here)
+      alert('Failed to save journal entry. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBack = () => {
+    navigate("/");
+  };
+
+  const wordCount = content
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0).length;
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b">
+        <div className="max-w-lg mx-auto px-4 py-4">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+              className="gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Button>
+            <div className="flex-1">
+              <h1 className="text-lg font-semibold">New Reflection</h1>
+              <p className="text-sm text-muted-foreground">
+                Take your time, this is your space
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowPersonaSelector(!showPersonaSelector)}
+              className="gap-2"
+            >
+              <Settings className="w-4 h-4" />
+              AI
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-lg mx-auto px-4 py-6">
+        <div className="space-y-6">
+          {/* Persona Selector */}
+          {showPersonaSelector && (
+            <Card>
+              <CardContent className="p-4">
+                <PersonaSelector
+                  userId={userId}
+                  premiumEnabled={premiumEnabled}
+                  onPremiumToggle={setPremiumEnabled}
+                  personas={personas}
+                  isLoading={loadingPersonas}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Universal Journal Prompt */}
+          <Card className="bg-muted/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-primary text-base">
+                <Lightbulb className="w-4 h-4" />
+                What's on your mind?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <p className="text-calm-700 leading-relaxed italic text-lg">
+                "{UNIVERSAL_PROMPT}"
+              </p>
+              <p className="text-xs text-calm-500 mt-2">
+                Write about anything - work, relationships, feelings, dreams, or whatever matters to you right now
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Focus Areas Selection */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-calm-700 text-base">
+                <Lightbulb className="w-4 h-4" />
+                What areas would you like support with?
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowFocusAreas(!showFocusAreas)}
+                  className="ml-auto text-xs"
+                >
+                  {showFocusAreas ? "Hide" : "Show"}
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {showFocusAreas ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {FOCUS_AREAS.map((area) => (
+                    <div key={area.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={area.id}
+                        checked={selectedFocusAreas.includes(area.id)}
+                        onCheckedChange={() => handleFocusAreaToggle(area.id)}
+                      />
+                      <label
+                        htmlFor={area.id}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        <span className="mr-1">{area.emoji}</span>
+                        {area.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {selectedFocusAreas.length > 0 ? (
+                    selectedFocusAreas.map(areaId => {
+                      const area = FOCUS_AREAS.find(a => a.id === areaId);
+                      return (
+                        <Badge key={areaId} variant="secondary" className="text-xs">
+                          {area?.emoji} {area?.label}
+                        </Badge>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm text-calm-500 italic">
+                      Optional: Select areas you'd like personalized support with
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Enhanced Mood Tracker */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-calm-700 text-base">
+                <Heart className="w-4 h-4" />
+                How are you feeling?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Mood ({mood}/10)
+                </label>
+                <MoodTracker value={mood} onChange={setMood} />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Energy Level ({energy}/10)
+                </label>
+                <MoodTracker value={energy} onChange={setEnergy} />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Stress Level ({stress}/10)
+                </label>
+                <MoodTracker value={stress} onChange={setStress} />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Journal Entry with Voice Input */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="journal-content"
+                    className="text-sm font-medium text-calm-700"
+                  >
+                    Your reflection
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleVoiceInput}
+                      disabled={isRecording}
+                      className="gap-1 text-xs"
+                    >
+                      {isRecording ? (
+                        <>
+                          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                          Recording...
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="w-3 h-3" />
+                          Voice
+                        </>
+                      )}
+                    </Button>
+                    <span className="text-xs text-calm-500">
+                      {wordCount} words
+                    </span>
+                  </div>
+                </div>
+
+                <Textarea
+                  id="journal-content"
+                  placeholder="What's on your mind? Write freely about your thoughts, feelings, or experiences... Nothing is off-limits."
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  className="min-h-[200px] border-0 bg-transparent text-calm-800 placeholder:text-calm-400 resize-none focus:ring-0 focus:outline-none text-base leading-relaxed"
+                  style={{ fontSize: "16px" }} // Prevent zoom on iOS
+                />
+
+                {/* Voice Input Status */}
+                {showVoiceInput && (
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center gap-2 text-blue-700">
+                      <Mic className="w-4 h-4" />
+                      <span className="text-sm">
+                        {isRecording ? "Listening... Speak now" : "Voice input added"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Emoji Reaction System */}
+          {showEmojiReactions && content.length > 50 && (
+            <EmojiReactionSystem
+              journalContent={content}
+              detectedTopics={detectedTopics}
+              onReactionSelect={(reaction) => {
+                setSelectedEmoji(reaction);
+                console.log('Selected emoji reaction:', reaction);
+              }}
+              className="animate-fade-in"
+            />
+          )}
+
+          {/* Actions */}
+          <div className="flex items-center justify-between pt-4">
+            <div className="text-sm text-calm-500">
+              {personas.find(p => p.persona_id === selectedPersona)?.persona_name || 'Pulse'} will provide insights
+            </div>
+
+            <Button
+              onClick={handleSubmit}
+              disabled={!content.trim() || isSubmitting}
+              className="gap-2 min-w-[120px]"
+            >
+              {isSubmitting ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+              {isSubmitting ? "Saving..." : "Save reflection"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Enhanced Tips */}
+        <div className="mt-8 p-4 bg-calm-50/50 rounded-xl">
+          <h3 className="text-sm font-medium text-calm-700 mb-2">
+            Tips for reflection
+          </h3>
+          <ul className="text-sm text-calm-600 space-y-1">
+            <li>• Write without judgment - this is your safe space</li>
+            <li>• Focus on how you're feeling, not just what happened</li>
+            <li>• Be honest with yourself - it's okay to struggle</li>
+            <li>• Use voice input if typing feels overwhelming</li>
+            <li>• Select focus areas to get more personalized insights</li>
+            <li>• {personas.find(p => p.persona_id === selectedPersona)?.persona_name || 'Pulse'} will provide personalized insights</li>
+          </ul>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default JournalEntry;

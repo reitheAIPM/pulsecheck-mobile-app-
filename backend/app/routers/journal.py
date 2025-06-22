@@ -1,14 +1,17 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.models.journal import (
     JournalEntryCreate, JournalEntryResponse, JournalEntriesResponse,
     JournalStats, JournalEntryUpdate
 )
-from app.models.ai_insights import PulseResponse, AIAnalysisResponse
+from app.models.ai_insights import PulseResponse, AIAnalysisResponse, AIInsightResponse
 from app.services.pulse_ai import PulseAI
+from app.services.adaptive_ai_service import AdaptiveAIService, AIDebugContext
+from app.services.user_pattern_analyzer import UserPatternAnalyzer
+from app.services.weekly_summary_service import WeeklySummaryService, SummaryType
 from app.core.database import get_database, Database
 
 router = APIRouter()
@@ -16,6 +19,12 @@ router = APIRouter()
 # Initialize PulseAI with database for beta optimization
 def get_pulse_ai_service(db: Database = Depends(get_database)):
     return PulseAI(db=db)
+
+# Initialize Adaptive AI services
+def get_adaptive_ai_service(db: Database = Depends(get_database)):
+    pulse_ai = PulseAI(db=db)
+    pattern_analyzer = UserPatternAnalyzer(db=db)
+    return AdaptiveAIService(pulse_ai, pattern_analyzer)
 
 @router.get("/test")
 async def test_journal_router():
@@ -99,8 +108,8 @@ async def create_journal_entry(
             "tags": entry.tags or [],
             "work_challenges": entry.work_challenges or [],
             "gratitude_items": entry.gratitude_items or [],
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
         }
         
         # Insert into Supabase using sync client
@@ -150,8 +159,8 @@ async def get_pulse_response(
         entry_data = result.data
         # Ensure updated_at field exists before creating response
         if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
-            entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow())
-        
+            entry_data['updated_at'] = entry_data.get('created_at', datetime.now(timezone.utc))
+            
         journal_entry = JournalEntryResponse(**entry_data)
         
         # Use beta-optimized AI response generation
@@ -214,7 +223,7 @@ async def submit_pulse_feedback(
         return {
             "message": "Feedback submitted successfully",
             "feedback_type": feedback_type,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
     except HTTPException:
@@ -249,8 +258,8 @@ async def get_ai_analysis(
         entry_data = result.data
         # Ensure updated_at field exists before creating response
         if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
-            entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow())
-        
+            entry_data['updated_at'] = entry_data.get('created_at', datetime.now(timezone.utc))
+            
         journal_entry = JournalEntryResponse(**entry_data)
         
         # Get user history if requested (simplified for beta)
@@ -263,7 +272,7 @@ async def get_ai_analysis(
                 for entry in history_result.data:
                     # Ensure updated_at field exists for each history entry
                     if 'updated_at' not in entry or entry['updated_at'] is None:
-                        entry['updated_at'] = entry.get('created_at', datetime.utcnow())
+                        entry['updated_at'] = entry.get('created_at', datetime.now(timezone.utc))
                     
                     user_history.append(JournalEntryResponse(**entry))
 
@@ -339,7 +348,7 @@ async def get_journal_entries(
             for entry in result.data:
                 # Ensure updated_at field exists. This is the critical fix.
                 if 'updated_at' not in entry or entry['updated_at'] is None:
-                    entry['updated_at'] = entry.get('created_at', datetime.utcnow())
+                    entry['updated_at'] = entry.get('created_at', datetime.now(timezone.utc))
                 
                 entries.append(JournalEntryResponse(**entry))
 
@@ -427,8 +436,8 @@ async def get_journal_entry(
         # Ensure updated_at field exists before creating response
         entry_data = result.data
         if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
-            entry_data['updated_at'] = entry_data.get('created_at', datetime.utcnow())
-        
+            entry_data['updated_at'] = entry_data.get('created_at', datetime.now(timezone.utc))
+            
         return JournalEntryResponse(**entry_data)
         
     except Exception as e:
@@ -452,7 +461,7 @@ async def update_journal_entry(
             raise HTTPException(status_code=400, detail="No fields to update")
             
         # Add updated_at timestamp
-        update_data["updated_at"] = datetime.utcnow().isoformat()
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
         
         result = client.table("journal_entries").update(update_data).eq("id", entry_id).eq("user_id", current_user["id"]).execute()
         
@@ -479,4 +488,342 @@ async def delete_journal_entry(
             raise HTTPException(status_code=404, detail="Journal entry not found")
             
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error deleting journal entry: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Error deleting journal entry: {str(e)}")
+
+@router.post("/entries/{entry_id}/adaptive-response", response_model=AIInsightResponse)
+async def get_adaptive_ai_response(
+    entry_id: str,
+    persona: Optional[str] = "auto",  # "auto", "pulse", "sage", "spark", "anchor"
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user),
+    adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
+):
+    """
+    Get adaptive AI response with dynamic persona selection and topic classification
+    
+    Features:
+    - Dynamic persona selection based on content analysis
+    - Topic classification and flagging
+    - Pattern-based personalization
+    - User context memory
+    """
+    try:
+        # Get the database client
+        client = db.get_client()
+        
+        # Get the journal entry
+        result = client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Journal entry not found")
+        
+        entry_data = result.data
+        # Ensure updated_at field exists before creating response
+        if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
+            entry_data['updated_at'] = entry_data.get('created_at', datetime.now(timezone.utc))
+            
+        journal_entry = JournalEntryResponse(**entry_data)
+        
+        # Get user's journal history for pattern analysis
+        history_result = client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(20).execute()
+        journal_history = [JournalEntryResponse(**entry) for entry in history_result.data]
+        
+        # Generate adaptive response
+        adaptive_response = await adaptive_ai.generate_adaptive_response(
+            user_id=current_user["id"],
+            journal_entry=journal_entry,
+            journal_history=journal_history,
+            persona=persona
+        )
+        
+        return adaptive_response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating adaptive response: {str(e)}")
+
+@router.get("/personas")
+async def get_available_personas(
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user),
+    adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
+):
+    """
+    Get available AI personas with recommendations based on user patterns
+    """
+    try:
+        # Get user's journal history for pattern analysis
+        client = db.get_client()
+        history_result = client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(20).execute()
+        journal_history = [JournalEntryResponse(**entry) for entry in history_result.data]
+        
+        # Analyze user patterns
+        pattern_analyzer = UserPatternAnalyzer(db=db)
+        user_patterns = await pattern_analyzer.analyze_user_patterns(current_user["id"], journal_history)
+        
+        # Get available personas with recommendations
+        personas = adaptive_ai.get_available_personas(user_patterns)
+        
+        return {
+            "personas": personas,
+            "user_patterns": {
+                "writing_style": user_patterns.writing_style,
+                "common_topics": user_patterns.common_topics,
+                "response_preference": user_patterns.response_length_preference
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting personas: {str(e)}")
+
+@router.post("/ai/self-test")
+async def run_ai_self_tests(
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user),
+    adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
+):
+    """
+    Run comprehensive AI self-tests for debugging and validation
+    AI-OPTIMIZED TESTING ENDPOINT
+    """
+    try:
+        # Run all self-tests
+        test_results = await adaptive_ai.run_self_tests()
+        
+        # Calculate overall health score
+        passed_tests = sum(1 for result in test_results if result.passed)
+        total_tests = len(test_results)
+        health_score = (passed_tests / total_tests) * 100 if total_tests > 0 else 0
+        
+        # Get debug summary
+        debug_summary = adaptive_ai.get_debug_summary()
+        
+        # Generate recommendations
+        recommendations = []
+        if health_score < 80:
+            recommendations.append("System health below 80% - review error patterns and performance metrics")
+        
+        failed_tests = [result for result in test_results if not result.passed]
+        for test in failed_tests:
+            recommendations.append(f"Fix {test.test_name}: {test.error_message}")
+        
+        # Performance recommendations
+        if debug_summary["performance_metrics"]["avg_response_time"] > 3000:
+            recommendations.append("Average response time exceeds 3s - optimize AI service performance")
+        
+        if debug_summary["performance_metrics"]["total_errors"] > 10:
+            recommendations.append("High error count detected - investigate error patterns")
+        
+        return {
+            "test_results": [
+                {
+                    "test_name": result.test_name,
+                    "passed": result.passed,
+                    "execution_time_ms": result.execution_time_ms,
+                    "error_message": result.error_message,
+                    "performance_metrics": result.performance_metrics
+                }
+                for result in test_results
+            ],
+            "health_score": health_score,
+            "passed_tests": passed_tests,
+            "total_tests": total_tests,
+            "debug_summary": debug_summary,
+            "recommendations": recommendations,
+            "system_status": "healthy" if health_score >= 80 else "degraded" if health_score >= 60 else "critical"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error running AI self-tests: {str(e)}")
+
+@router.get("/ai/debug-summary")
+async def get_ai_debug_summary(
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user),
+    adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
+):
+    """
+    Get comprehensive AI debugging summary for system analysis
+    AI-OPTIMIZED DEBUGGING ENDPOINT
+    """
+    try:
+        debug_summary = adaptive_ai.get_debug_summary()
+        
+        # Add system recommendations
+        recommendations = []
+        
+        # Error pattern analysis
+        total_errors = sum(debug_summary["error_patterns"].values())
+        if total_errors > 0:
+            most_common_error = max(debug_summary["error_patterns"].items(), key=lambda x: x[1])
+            recommendations.append(f"Most common error: {most_common_error[0]} ({most_common_error[1]} occurrences)")
+        
+        # Performance analysis
+        avg_response_time = debug_summary["performance_metrics"]["avg_response_time"]
+        if avg_response_time > 3000:
+            recommendations.append(f"High average response time: {avg_response_time:.0f}ms - consider optimization")
+        
+        # Recovery analysis
+        recent_errors = debug_summary["recent_errors"]
+        recovery_success_rate = sum(1 for error in recent_errors if error["fallback_used"]) / len(recent_errors) if recent_errors else 0
+        if recovery_success_rate < 0.8:
+            recommendations.append(f"Low recovery success rate: {recovery_success_rate:.1%} - improve fallback mechanisms")
+        
+        return {
+            "debug_summary": debug_summary,
+            "recommendations": recommendations,
+            "system_health": {
+                "error_rate": total_errors / max(len(debug_summary["debug_contexts_count"]), 1),
+                "avg_response_time": avg_response_time,
+                "recovery_success_rate": recovery_success_rate,
+                "overall_status": "healthy" if total_errors == 0 and avg_response_time < 3000 else "degraded"
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting AI debug summary: {str(e)}")
+
+@router.post("/ai/topic-classification")
+async def classify_topics(
+    content: str,
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user),
+    adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
+):
+    """
+    Classify topics in journal content for testing and validation
+    AI-OPTIMIZED TOPIC CLASSIFICATION ENDPOINT
+    """
+    try:
+        # Create debug context for topic classification
+        debug_context = AIDebugContext(
+            operation="topic_classification_test",
+            user_id=current_user["id"],
+            system_state={
+                "content_length": len(content),
+                "content_preview": content[:100] + "..." if len(content) > 100 else content
+            }
+        )
+        
+        # Classify topics with monitoring
+        topics = await adaptive_ai._classify_topics_with_monitoring(content, debug_context)
+        
+        # Get topic confidence scores
+        topic_scores = {}
+        content_lower = content.lower()
+        for topic, keywords in adaptive_ai.topic_keywords.items():
+            matches = sum(1 for keyword in keywords if keyword in content_lower)
+            if matches > 0:
+                topic_scores[topic] = matches / len(keywords)  # Normalized score
+        
+        return {
+            "topics": topics,
+            "topic_scores": topic_scores,
+            "content_length": len(content),
+            "classification_confidence": len(topics) / len(adaptive_ai.topic_keywords) if adaptive_ai.topic_keywords else 0,
+            "debug_context": {
+                "operation": debug_context.operation,
+                "system_state": debug_context.system_state
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error classifying topics: {str(e)}")
+
+@router.get("/weekly-summary")
+async def get_weekly_summary(
+    week_offset: int = 0,  # 0 = current week, 1 = last week, etc.
+    summary_type: str = "comprehensive",  # "wellness", "productivity", "emotional", "comprehensive"
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Generate AI-powered weekly summary with insights and recommendations
+    
+    Features:
+    - Pattern analysis across journal entries
+    - Mood and energy trend detection
+    - Personalized insights and recommendations
+    - Predictive mood forecasting
+    - Actionable wellness tips
+    """
+    try:
+        # Get user's journal entries for analysis
+        client = db.get_client()
+        
+        # Get entries from the last 2-3 weeks for context
+        from datetime import timedelta
+        cutoff_date = (datetime.now(timezone.utc) - timedelta(weeks=3)).isoformat()
+        
+        result = client.table("journal_entries").select("*").eq("user_id", current_user["id"]).gte("created_at", cutoff_date).order("created_at", desc=False).execute()
+        
+        # Convert to response models
+        journal_entries = []
+        if result.data:
+            for entry in result.data:
+                # Ensure updated_at field exists
+                if 'updated_at' not in entry or entry['updated_at'] is None:
+                    entry['updated_at'] = entry.get('created_at', datetime.now(timezone.utc))
+                
+                journal_entries.append(JournalEntryResponse(**entry))
+        
+        # Initialize weekly summary service
+        summary_service = WeeklySummaryService()
+        
+        # Convert summary type string to enum
+        try:
+            summary_type_enum = SummaryType(summary_type.lower())
+        except ValueError:
+            summary_type_enum = SummaryType.COMPREHENSIVE
+        
+        # Generate weekly summary
+        weekly_summary = summary_service.generate_weekly_summary(
+            user_id=current_user["id"],
+            journal_entries=journal_entries,
+            summary_type=summary_type_enum,
+            week_offset=week_offset
+        )
+        
+        # Convert to response format
+        return {
+            "status": "success",
+            "week_period": {
+                "start": weekly_summary.week_start.isoformat(),
+                "end": weekly_summary.week_end.isoformat(),
+                "week_offset": week_offset
+            },
+            "summary_type": weekly_summary.summary_type.value,
+            "metrics": {
+                "total_entries": weekly_summary.metrics.total_entries,
+                "avg_mood": weekly_summary.metrics.avg_mood,
+                "avg_energy": weekly_summary.metrics.avg_energy,
+                "avg_stress": weekly_summary.metrics.avg_stress,
+                "avg_sleep": weekly_summary.metrics.avg_sleep,
+                "most_active_day": weekly_summary.metrics.most_active_day,
+                "mood_variance": weekly_summary.metrics.mood_variance,
+                "total_words": weekly_summary.metrics.total_words,
+                "avg_words_per_entry": weekly_summary.metrics.avg_words_per_entry,
+                "themes_detected": weekly_summary.metrics.themes_detected
+            },
+            "insights": [
+                {
+                    "category": insight.category.value,
+                    "title": insight.title,
+                    "description": insight.description,
+                    "confidence": insight.confidence,
+                    "actionable_tip": insight.actionable_tip,
+                    "trend": insight.trend,
+                    "priority": insight.priority
+                }
+                for insight in weekly_summary.insights
+            ],
+            "key_highlights": weekly_summary.key_highlights,
+            "recommendations": weekly_summary.recommendations,
+            "mood_forecast": weekly_summary.mood_forecast,
+            "confidence_score": weekly_summary.confidence_score,
+            "generated_at": weekly_summary.generated_at.isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating weekly summary: {str(e)}")

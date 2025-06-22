@@ -32,7 +32,7 @@ async def create_checkin(
     """
     # Set timestamp to now if not provided
     if checkin_data.timestamp is None:
-        checkin_data.timestamp = datetime.utcnow()
+        checkin_data.timestamp = datetime.now(timezone.utc)
     
     # Create check-in
     checkin = await CheckInService.create_checkin(
@@ -125,7 +125,7 @@ async def update_checkin(
         )
     
     # Check if check-in is too old to modify (24 hours)
-    if datetime.utcnow() - checkin.created_at > timedelta(hours=24):
+    if datetime.now(timezone.utc) - checkin.created_at > timedelta(hours=24):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Check-in is too old to modify (24 hour limit)"
@@ -166,7 +166,7 @@ async def delete_checkin(
         )
     
     # Check if check-in is too old to delete (24 hours)
-    if datetime.utcnow() - checkin.created_at > timedelta(hours=24):
+    if datetime.now(timezone.utc) - checkin.created_at > timedelta(hours=24):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Check-in is too old to delete (24 hour limit)"

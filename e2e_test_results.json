@@ -1,11 +1,11 @@
 {
-  "start_time": "2025-06-20T17:15:22.639295",
+  "start_time": "2025-06-21T19:58:33.139402",
   "tests": {
     "Backend Health Check": {
       "status": "PASS",
-      "timestamp": "2025-06-20T17:15:22.789454",
+      "timestamp": "2025-06-21T19:58:33.263794",
       "details": {
-        "response_time_ms": 148.823,
+        "response_time_ms": 123.004,
         "service": "PulseCheck API",
         "version": "2.1.0-cors-fix",
         "environment": "development",
@@ -14,56 +14,56 @@
     },
     "API Endpoint: Root Endpoint": {
       "status": "PASS",
-      "timestamp": "2025-06-20T17:15:22.815545",
+      "timestamp": "2025-06-21T19:58:33.286392",
       "details": {
         "method": "GET",
         "endpoint": "/",
         "status_code": 200,
-        "response_time_ms": 25.465999999999998
+        "response_time_ms": 21.814
       }
     },
     "API Endpoint: API Documentation": {
       "status": "PASS",
-      "timestamp": "2025-06-20T17:15:22.838874",
+      "timestamp": "2025-06-21T19:58:33.307522",
       "details": {
         "method": "GET",
         "endpoint": "/docs",
         "status_code": 200,
-        "response_time_ms": 22.844
+        "response_time_ms": 20.417
       }
     },
     "API Endpoint: Get Journal Entries": {
-      "status": "FAIL",
-      "timestamp": "2025-06-20T17:15:22.957906",
+      "status": "PASS",
+      "timestamp": "2025-06-21T19:58:33.495964",
       "details": {
         "method": "GET",
         "endpoint": "/api/v1/journal/entries",
-        "status_code": 500,
-        "response": "{\"detail\":\"Error fetching journal entries: object APIResponse[TypeVar] can't be used in 'await' expression\"}"
+        "status_code": 200,
+        "response_time_ms": 187.76999999999998
       }
     },
     "Journal Entry Creation": {
       "status": "FAIL",
-      "timestamp": "2025-06-20T17:15:22.993433",
+      "timestamp": "2025-06-21T19:58:33.577822",
       "details": {
         "status_code": 500,
-        "response": "{\"detail\":\"Error creating journal entry: Object of type datetime is not JSON serializable\"}"
+        "response": "{\"detail\":\"Error creating journal entry: {'code': '22P02', 'details': None, 'hint': None, 'message': 'invalid input syntax for type integer: \\\"7.0\\\"'}\"}"
       }
     },
     "Performance Under Load": {
       "status": "PASS",
-      "timestamp": "2025-06-20T17:15:23.159326",
+      "timestamp": "2025-06-21T19:58:33.698250",
       "details": {
         "total_requests": 10,
         "successful_requests": 10,
         "success_rate": "100.00%",
-        "total_time_seconds": 0.16544604301452637,
-        "avg_response_time_ms": 66.1913
+        "total_time_seconds": 0.12000203132629395,
+        "avg_response_time_ms": 48.653800000000004
       }
     },
     "Error Handling - Invalid Endpoint": {
       "status": "PASS",
-      "timestamp": "2025-06-20T17:15:23.189352",
+      "timestamp": "2025-06-21T19:58:33.721023",
       "details": {
         "status_code": 405,
         "expected_error": true
@@ -71,7 +71,7 @@
     },
     "Error Handling - Invalid Entry ID": {
       "status": "PASS",
-      "timestamp": "2025-06-20T17:15:23.248996",
+      "timestamp": "2025-06-21T19:58:33.788190",
       "details": {
         "status_code": 500,
         "expected_error": true
@@ -79,7 +79,7 @@
     },
     "Security - CORS Headers": {
       "status": "PASS",
-      "timestamp": "2025-06-20T17:15:23.271859",
+      "timestamp": "2025-06-21T19:58:33.812318",
       "details": {
         "cors_headers_present": true,
         "cors_value": "*"
@@ -87,7 +87,7 @@
     },
     "Security - Security Headers": {
       "status": "PASS",
-      "timestamp": "2025-06-20T17:15:23.295725",
+      "timestamp": "2025-06-21T19:58:33.834923",
       "details": {
         "security_headers_present": 3,
         "headers": {
@@ -100,8 +100,8 @@
   },
   "summary": {
     "total_tests": 10,
-    "passed": 8,
-    "failed": 2,
+    "passed": 9,
+    "failed": 1,
     "warnings": 0
   }
 }

@@ -6,12 +6,13 @@ Run this after deploying the schema to verify everything works.
 
 import requests
 import json
+import pytest
 from datetime import datetime
 
 # Production URL
 BASE_URL = "https://pulsecheck-mobile-app-production.up.railway.app"
 
-def test_endpoint(endpoint, description):
+def check_endpoint(endpoint, description):
     """Test a single endpoint and return result"""
     try:
         url = f"{BASE_URL}{endpoint}"
@@ -26,6 +27,25 @@ def test_endpoint(endpoint, description):
     except Exception as e:
         print(f"❌ {description} - Error: {str(e)}")
         return False
+
+def test_deployment_health():
+    """Test deployment health endpoints"""
+    assert check_endpoint("/", "Backend Health Check")
+
+def test_api_documentation():
+    """Test API documentation endpoint"""
+    assert check_endpoint("/docs", "API Documentation")
+
+def test_admin_endpoints():
+    """Test admin analytics endpoints"""
+    endpoints = [
+        ("/api/v1/admin/beta-metrics/daily", "Admin Analytics (Beta Feature)"),
+        ("/api/v1/admin/beta-metrics/users", "User Tiers (Beta Feature)"),
+        ("/api/v1/admin/beta-metrics/feedback", "Feedback Summary (Beta Feature)"),
+    ]
+    
+    for endpoint, description in endpoints:
+        assert check_endpoint(endpoint, description)
 
 def main():
     print("🚀 Testing PulseCheck Production Deployment")

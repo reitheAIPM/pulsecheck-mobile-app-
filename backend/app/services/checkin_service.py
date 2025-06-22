@@ -4,7 +4,7 @@ Check-in Service
 Business logic for daily check-ins, mood tracking, and wellness data management.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import text, desc
@@ -27,7 +27,7 @@ class CheckInService:
             user_id = uuid.UUID(user_id)
         
         # Set timestamp to now if not provided
-        timestamp = checkin_data.timestamp or datetime.utcnow()
+        timestamp = checkin_data.timestamp or datetime.now(timezone.utc)
         
         # Create check-in instance
         db_checkin = CheckInTable(
@@ -139,7 +139,7 @@ class CheckInService:
             return {}
         
         # Calculate date range
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
         
         # Get statistics using raw SQL for better performance
@@ -242,7 +242,7 @@ class CheckInService:
         days: int = 7
     ) -> List[CheckInTable]:
         """Get recent check-ins for AI analysis"""
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
         
         return await CheckInService.get_user_checkins(

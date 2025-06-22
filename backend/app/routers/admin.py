@@ -6,8 +6,9 @@ Provides comprehensive analytics and monitoring endpoints for PulseCheck
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import Optional
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from app.core.database import get_database, Database
+from app.services.cost_optimization import CostOptimizationService
 
 router = APIRouter(prefix="/admin")
 
@@ -17,6 +18,9 @@ async def verify_admin_access():
     # For beta, we'll use a simple approach
     # In production, this would check JWT tokens and admin roles
     return {"admin": True, "user_id": "admin"}
+
+# Cost optimization service instance
+cost_optimizer = CostOptimizationService()
 
 @router.get("/beta-metrics/daily")
 async def get_daily_beta_metrics(
@@ -241,7 +245,7 @@ async def get_system_health(
                     "views_operational": stats.get('views_exist', False)
                 },
                 "status": "healthy" if health_score >= 80 else "warning" if health_score >= 60 else "critical",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         else:
             return {
@@ -254,7 +258,7 @@ async def get_system_health(
                     "views_operational": False
                 },
                 "status": "warning",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         
     except Exception as e:
@@ -272,7 +276,7 @@ async def reset_daily_usage_counters(
         # Simple reset operation
         return {
             "message": "Daily usage counters reset successfully",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "note": "Reset functionality would be implemented based on requirements"
         }
         
@@ -311,4 +315,220 @@ async def export_beta_data(
             }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error exporting data: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Error exporting data: {str(e)}")
+
+# Cost Optimization Endpoints
+
+@router.get("/cost-optimization/metrics")
+async def get_cost_optimization_metrics(
+    admin: dict = Depends(verify_admin_access)
+):
+    """
+    Get comprehensive cost optimization metrics and performance stats
+    """
+    try:
+        metrics = cost_optimizer.get_cost_metrics()
+        
+        return {
+            "status": "success",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "cost_optimization": metrics,
+            "recommendations": _generate_cost_recommendations(metrics)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching cost metrics: {str(e)}")
+
+@router.post("/cost-optimization/reset-daily")
+async def reset_daily_cost_metrics(
+    admin: dict = Depends(verify_admin_access)
+):
+    """
+    Reset daily cost metrics (for testing or new day)
+    """
+    try:
+        cost_optimizer.reset_daily_metrics()
+        
+        return {
+            "status": "success",
+            "message": "Daily cost metrics reset successfully",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error resetting metrics: {str(e)}")
+
+@router.get("/cost-optimization/cache-status")
+async def get_cache_status(
+    admin: dict = Depends(verify_admin_access)
+):
+    """
+    Get detailed cache status and performance metrics
+    """
+    try:
+        cache_size = len(cost_optimizer.response_cache)
+        
+        # Calculate cache statistics
+        if cost_optimizer.response_cache:
+            cache_entries = list(cost_optimizer.response_cache.values())
+            avg_usage = sum(entry.usage_count for entry in cache_entries) / len(cache_entries)
+            oldest_entry = min(cache_entries, key=lambda x: x.created_at)
+            newest_entry = max(cache_entries, key=lambda x: x.created_at)
+            
+            # Group by model used
+            model_distribution = {}
+            complexity_distribution = {}
+            
+            for entry in cache_entries:
+                model = entry.model_used
+                complexity = entry.complexity
+                
+                model_distribution[model] = model_distribution.get(model, 0) + 1
+                complexity_distribution[complexity] = complexity_distribution.get(complexity, 0) + 1
+        else:
+            avg_usage = 0
+            oldest_entry = newest_entry = None
+            model_distribution = {}
+            complexity_distribution = {}
+        
+        return {
+            "cache_status": {
+                "total_entries": cache_size,
+                "max_capacity": cost_optimizer.max_cache_size,
+                "utilization_percent": round((cache_size / cost_optimizer.max_cache_size) * 100, 2),
+                "average_usage_per_entry": round(avg_usage, 2),
+                "ttl_hours": cost_optimizer.cache_ttl_hours
+            },
+            "cache_distribution": {
+                "by_model": model_distribution,
+                "by_complexity": complexity_distribution
+            },
+            "cache_timeline": {
+                "oldest_entry": oldest_entry.created_at.isoformat() if oldest_entry else None,
+                "newest_entry": newest_entry.created_at.isoformat() if newest_entry else None
+            },
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching cache status: {str(e)}")
+
+@router.post("/cost-optimization/clear-cache")
+async def clear_response_cache(
+    admin: dict = Depends(verify_admin_access)
+):
+    """
+    Clear the response cache (for testing or maintenance)
+    """
+    try:
+        cache_size_before = len(cost_optimizer.response_cache)
+        cost_optimizer.response_cache.clear()
+        
+        return {
+            "status": "success",
+            "message": f"Cache cleared successfully. Removed {cache_size_before} entries.",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error clearing cache: {str(e)}")
+
+@router.put("/cost-optimization/limits")
+async def update_cost_limits(
+    daily_limit: Optional[float] = Query(None, description="New daily cost limit in USD"),
+    monthly_limit: Optional[float] = Query(None, description="New monthly cost limit in USD"),
+    admin: dict = Depends(verify_admin_access)
+):
+    """
+    Update cost limits for optimization system
+    """
+    try:
+        old_daily = cost_optimizer.daily_cost_limit
+        old_monthly = cost_optimizer.monthly_cost_limit
+        
+        if daily_limit is not None:
+            cost_optimizer.daily_cost_limit = daily_limit
+        
+        if monthly_limit is not None:
+            cost_optimizer.monthly_cost_limit = monthly_limit
+        
+        return {
+            "status": "success",
+            "message": "Cost limits updated successfully",
+            "changes": {
+                "daily_limit": {
+                    "old": old_daily,
+                    "new": cost_optimizer.daily_cost_limit
+                },
+                "monthly_limit": {
+                    "old": old_monthly,
+                    "new": cost_optimizer.monthly_cost_limit
+                }
+            },
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating cost limits: {str(e)}")
+
+def _generate_cost_recommendations(metrics: dict) -> list:
+    """
+    Generate cost optimization recommendations based on metrics
+    """
+    recommendations = []
+    
+    try:
+        daily_metrics = metrics.get("daily_metrics", {})
+        limits = metrics.get("limits", {})
+        optimization = metrics.get("optimization", {})
+        
+        # Check cost utilization
+        daily_remaining = limits.get("daily_remaining", 0)
+        daily_limit = limits.get("daily_limit", 5.0)
+        utilization = ((daily_limit - daily_remaining) / daily_limit) * 100 if daily_limit > 0 else 0
+        
+        if utilization > 80:
+            recommendations.append({
+                "type": "warning",
+                "message": f"High cost utilization ({utilization:.1f}%). Consider increasing cache usage.",
+                "action": "Monitor usage patterns and increase cache TTL"
+            })
+        
+        # Check cache efficiency
+        cache_hit_rate = optimization.get("cache_efficiency", 0)
+        if cache_hit_rate < 30:
+            recommendations.append({
+                "type": "optimization",
+                "message": f"Low cache hit rate ({cache_hit_rate}%). Improve caching strategy.",
+                "action": "Review cache key generation and TTL settings"
+            })
+        
+        # Check fallback usage
+        fallback_usage = optimization.get("fallback_usage", 0)
+        if fallback_usage > 20:
+            recommendations.append({
+                "type": "alert",
+                "message": f"High fallback usage ({fallback_usage}%). Cost limits may be too restrictive.",
+                "action": "Consider adjusting cost limits or improving model selection"
+            })
+        
+        # Check average cost per request
+        avg_cost = optimization.get("average_cost_per_request", 0)
+        if avg_cost > 0.01:  # $0.01 per request
+            recommendations.append({
+                "type": "optimization",
+                "message": f"High average cost per request (${avg_cost:.4f}). Optimize model selection.",
+                "action": "Review complexity classification and model routing"
+            })
+        
+        if not recommendations:
+            recommendations.append({
+                "type": "success",
+                "message": "Cost optimization is performing well. No immediate actions needed.",
+                "action": "Continue monitoring"
+            })
+        
+        return recommendations
+        
+    except Exception as e:
+        return [{"type": "error", "message": "Failed to generate recommendations", "action": "Check system logs"}]

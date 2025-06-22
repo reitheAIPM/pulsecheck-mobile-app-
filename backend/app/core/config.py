@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # CORS Configuration
-    allowed_origins: str = "http://localhost:3000,http://localhost:19006,http://localhost:5173"
+    allowed_origins: str = "http://localhost:3000,http://localhost:19006,http://localhost:5173,http://localhost:5174,https://pulsecheck-mobile-9883ycydx-reitheaipms-projects.vercel.app"
     
     # Server Configuration
     host: str = "0.0.0.0"
@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # Allow extra fields from environment
 
 # Global settings instance
 try:
