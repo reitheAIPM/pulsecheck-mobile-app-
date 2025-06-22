@@ -550,6 +550,19 @@ async def record_ai_debugging_attempt(error_id: str, attempt_details: Dict[str, 
         log_error(e, ErrorSeverity.MEDIUM, ErrorCategory.API_ENDPOINT, {"endpoint": "record_ai_attempt"})
         return {"error": "Failed to record AI debugging attempt"}
 
+# Add global OPTIONS handler for all routes - MUST be before routers
+@app.options("/{full_path:path}")
+async def global_options_handler(full_path: str):
+    """Handle all OPTIONS requests for Railway health check compatibility"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+        }
+    )
+
 # Include routers
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(journal.router, prefix="/api/v1")
