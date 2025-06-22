@@ -93,15 +93,6 @@ app.add_middleware(
     allowed_hosts=["*"]  # Configure appropriately for production
 )
 
-# CORS middleware - allow all Vercel domains
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for now
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 @app.middleware("http")
 async def monitoring_middleware(request: Request, call_next):
     """Middleware for monitoring requests and responses"""
@@ -126,7 +117,7 @@ async def monitoring_middleware(request: Request, call_next):
             }
         )
         
-        # Add response time header
+        # Add response time header (preserve existing headers)
         response.headers["X-Response-Time"] = f"{response_time:.2f}ms"
         
         return response
@@ -246,6 +237,16 @@ async def general_exception_handler(request: Request, exc: Exception):
                 "timestamp": time.time()
             }
         )
+
+# CORS middleware - must be added last to run first
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for Vercel compatibility
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
+    allow_headers=["*"],
+    expose_headers=["*"]
+)
 
 # Health check endpoint
 @app.get("/health")
