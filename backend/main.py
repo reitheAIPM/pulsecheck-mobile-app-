@@ -88,21 +88,11 @@ app = FastAPI(
 )
 
 # CORS middleware - MUST be first to work properly
-# Include all known Vercel deployment URLs
-vercel_origins = [
-    "https://pulsecheck-mobile-743jnmyh8-reitheaipms-projects.vercel.app",
-    "https://pulsecheck-mobile-bcz4oqco5-reitheaipms-projects.vercel.app",
-    "https://pulsecheck-mobile-9883ycydx-reitheaipms-projects.vercel.app",
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "https://localhost:3000",
-    "https://localhost:5173"
-]
-
+# Use wildcard for Vercel compatibility (no credentials with wildcard)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=vercel_origins,  # Specific Vercel origins only
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for Vercel compatibility
+    allow_credentials=False,  # Cannot use credentials with wildcard
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"]
