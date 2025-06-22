@@ -582,21 +582,21 @@ const JournalEntry = () => {
               {isSubmitting ? "Saving..." : "Save reflection"}
             </Button>
           </div>
-        </div>
 
-        {/* Enhanced Tips */}
-        <div className="mt-8 p-4 bg-calm-50/50 rounded-xl">
-          <h3 className="text-sm font-medium text-calm-700 mb-2">
-            Tips for reflection
-          </h3>
-          <ul className="text-sm text-calm-600 space-y-1">
-            <li>• Write without judgment - this is your safe space</li>
-            <li>• Focus on how you're feeling, not just what happened</li>
-            <li>• Be honest with yourself - it's okay to struggle</li>
-            <li>• Use voice input if typing feels overwhelming</li>
-            <li>• Select focus areas to get more personalized insights</li>
-            <li>• {personas.find(p => p.persona_id === selectedPersona)?.persona_name || 'Pulse'} will provide personalized insights</li>
-          </ul>
+          {/* Enhanced Tips */}
+          <div className="mt-8 p-4 bg-calm-50/50 rounded-xl">
+            <h3 className="text-sm font-medium text-calm-700 mb-2">
+              Tips for reflection
+            </h3>
+            <ul className="text-sm text-calm-600 space-y-1">
+              <li>• Write without judgment - this is your safe space</li>
+              <li>• Focus on how you're feeling, not just what happened</li>
+              <li>• Be honest with yourself - it's okay to struggle</li>
+              <li>• Use voice input if typing feels overwhelming</li>
+              <li>• Select focus areas to get more personalized insights</li>
+              <li>• {personas.find(p => p.persona_id === selectedPersona)?.persona_name || 'Pulse'} will provide personalized insights</li>
+            </ul>
+          </div>
         </div>
         )}
       </main>
