@@ -212,10 +212,13 @@ class ApiService {
     const isExplicitDevelopment = import.meta.env.DEV && 
                                  import.meta.env.VITE_USE_LOCALHOST === 'true';
     
-    // Default to production URL unless explicitly set to development
-    return isExplicitDevelopment 
-      ? 'http://localhost:8000'
-      : 'https://pulsecheck-mobile-app-production.up.railway.app';
+    // Use CORS proxy for production to bypass CORS issues
+    if (isExplicitDevelopment) {
+      return 'http://localhost:8000';
+    } else {
+      // Use Vercel API proxy to bypass CORS
+      return window.location.origin + '/api/proxy';
+    }
   }
 
   constructor() {
