@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Send, Lightbulb, Heart, Settings, Mic, MicOff } from "lucide-react";
+import { useNavigate, useSearchParams, useParams } from "react-router-dom";
+import { ArrowLeft, Send, Lightbulb, Heart, Settings, Mic, MicOff, Image, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +33,7 @@ const FOCUS_AREAS = [
 const JournalEntry = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { id } = useParams();
   const [content, setContent] = useState("");
   const [mood, setMood] = useState(5);
   const [energy, setEnergy] = useState(5);
@@ -50,6 +51,15 @@ const JournalEntry = () => {
   const [detectedTopics, setDetectedTopics] = useState<string[]>([]);
   const [selectedEmoji, setSelectedEmoji] = useState<any>(null);
   const [showEmojiReactions, setShowEmojiReactions] = useState(false);
+  
+  // Image upload states
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
+  
+  // View mode states
+  const [isViewMode, setIsViewMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [existingEntry, setExistingEntry] = useState<any>(null);
 
   // Mock user ID - in a real app, this would come from authentication
   const userId = "user_123";
@@ -57,12 +67,51 @@ const JournalEntry = () => {
   useEffect(() => {
     loadPersonas();
     
-    // Initialize content from URL prompt parameter
-    const promptFromUrl = searchParams.get('prompt');
-    if (promptFromUrl) {
-      setContent(promptFromUrl);
+    // Check if we're viewing an existing entry
+    if (id) {
+      setIsViewMode(true);
+      loadExistingEntry(id);
+    } else {
+      // Initialize content from URL prompt parameter for new entries
+      const promptFromUrl = searchParams.get('prompt');
+      if (promptFromUrl) {
+        setContent(promptFromUrl);
+      }
     }
-  }, [searchParams]);
+  }, [id, searchParams]);
+
+  const loadExistingEntry = async (entryId: string) => {
+    setIsLoading(true);
+    try {
+      const entry = await apiService.getJournalEntry(entryId);
+      setExistingEntry(entry);
+      setContent(entry.content);
+      setMood(entry.mood_level);
+      setEnergy(entry.energy_level);
+      setStress(entry.stress_level);
+      setSelectedFocusAreas(entry.tags || []);
+    } catch (error) {
+      console.error('Failed to load journal entry:', error);
+      // Fallback to mock data for demo
+      const mockEntry = {
+        id: entryId,
+        content: "This is a sample journal entry for viewing. In a real app, this would be loaded from the backend.",
+        mood_level: 7,
+        energy_level: 6,
+        stress_level: 4,
+        tags: ['work', 'reflection'],
+        created_at: new Date().toISOString()
+      };
+      setExistingEntry(mockEntry);
+      setContent(mockEntry.content);
+      setMood(mockEntry.mood_level);
+      setEnergy(mockEntry.energy_level);
+      setStress(mockEntry.stress_level);
+      setSelectedFocusAreas(mockEntry.tags);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Detect topics when content changes
   useEffect(() => {
@@ -164,6 +213,41 @@ const JournalEntry = () => {
     }
   };
 
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    
+    // Limit to 5 images total
+    const remainingSlots = 5 - selectedImages.length;
+    const filesToAdd = files.slice(0, remainingSlots);
+    
+    // Validate file size (max 5MB per image)
+    const validFiles = filesToAdd.filter(file => {
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`Image "${file.name}" is too large. Please select images under 5MB.`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length > 0) {
+      setSelectedImages(prev => [...prev, ...validFiles]);
+      
+      // Generate preview URLs
+      validFiles.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setImagePreviewUrls(prev => [...prev, e.target?.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    setImagePreviewUrls(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
     if (!content.trim()) return;
 
@@ -245,9 +329,21 @@ const JournalEntry = () => {
               Back
             </Button>
             <div className="flex-1">
-              <h1 className="text-lg font-semibold">New Reflection</h1>
+              <h1 className="text-lg font-semibold">
+                {isViewMode ? "Journal Entry" : "New Reflection"}
+              </h1>
               <p className="text-sm text-muted-foreground">
-                Take your time, this is your space
+                {isViewMode 
+                  ? existingEntry 
+                    ? new Date(existingEntry.created_at).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })
+                    : "Loading entry..."
+                  : "Take your time, this is your space"
+                }
               </p>
             </div>
             <Button
@@ -265,6 +361,11 @@ const JournalEntry = () => {
 
       {/* Main Content */}
       <main className="max-w-lg mx-auto px-4 py-6">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : (
         <div className="space-y-6">
           {/* Persona Selector */}
           {showPersonaSelector && (
@@ -497,6 +598,7 @@ const JournalEntry = () => {
             <li>• {personas.find(p => p.persona_id === selectedPersona)?.persona_name || 'Pulse'} will provide personalized insights</li>
           </ul>
         </div>
+        )}
       </main>
     </div>
   );
