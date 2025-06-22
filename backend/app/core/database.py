@@ -1,10 +1,14 @@
 from supabase import create_client, Client
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.ext.declarative import declarative_base
 from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
+
+# SQLAlchemy Base for model definitions
+Base = declarative_base()
 
 class Database:
     """Database connection manager for Supabase"""
