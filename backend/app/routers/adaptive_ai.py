@@ -224,7 +224,7 @@ async def generate_adaptive_response(
 
 @router.get("/personas", response_model=List[PersonaRecommendation])
 async def get_available_personas(
-    user_id: str,
+    user_id: str = None,
     journal_service = Depends(get_journal_service),
     pattern_analyzer = Depends(get_pattern_analyzer),
     adaptive_ai_service = Depends(get_adaptive_ai_service)
@@ -233,19 +233,21 @@ async def get_available_personas(
     Get available personas for user with recommendations
     """
     try:
-        logger.info(f"Getting available personas for user {user_id}")
+        logger.info(f"Getting available personas for user {user_id or 'anonymous'}")
         
-        # Get user patterns for recommendations
-        journal_entries = await journal_service.get_user_journal_entries(
-            user_id=user_id,
-            limit=10
-        )
-        
+        # Get user patterns for recommendations (if user_id provided)
         user_patterns = None
         current_entry = None
-        if journal_entries:
-            user_patterns = await pattern_analyzer.analyze_user_patterns(user_id, journal_entries)
-            current_entry = journal_entries[0]  # Most recent entry
+        
+        if user_id:
+            journal_entries = await journal_service.get_user_journal_entries(
+                user_id=user_id,
+                limit=10
+            )
+            
+            if journal_entries:
+                user_patterns = await pattern_analyzer.analyze_user_patterns(user_id, journal_entries)
+                current_entry = journal_entries[0]  # Most recent entry
         
         # Get persona recommendations using the new persona service
         recommendations = persona_service.recommend_personas(
