@@ -13,8 +13,16 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
 from collections import defaultdict
 import httpx
-import psutil
 import sys
+
+# Import psutil with fallback
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    logger = logging.getLogger(__name__)
+    logger.warning("psutil not available - system metrics will be limited")
+    PSUTIL_AVAILABLE = False
 
 from app.core.config import settings
 from app.core.monitoring import log_error, ErrorSeverity, ErrorCategory
@@ -334,6 +342,15 @@ class DebuggingService:
     def _check_system_health(self) -> HealthCheckResult:
         """Check system resources"""
         try:
+            if not PSUTIL_AVAILABLE:
+                return HealthCheckResult(
+                    component="system_resources",
+                    status="degraded",
+                    response_time_ms=0,
+                    error_message="System monitoring unavailable (psutil not installed)",
+                    metadata={"psutil_available": False}
+                )
+            
             cpu_percent = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage('/')
@@ -676,16 +693,22 @@ class DebuggingService:
     def _get_system_metrics(self) -> Dict[str, Any]:
         """Get current system metrics"""
         try:
-            return {
-                "cpu_percent": psutil.cpu_percent(interval=0.1),
-                "memory_percent": psutil.virtual_memory().percent,
-                "disk_percent": psutil.disk_usage('/').percent,
-                "active_connections": len(psutil.net_connections()),
-                "python_version": sys.version.split()[0]
-            }
+            metrics = {"python_version": sys.version.split()[0]}
+            
+            if PSUTIL_AVAILABLE:
+                metrics.update({
+                    "cpu_percent": psutil.cpu_percent(interval=0.1),
+                    "memory_percent": psutil.virtual_memory().percent,
+                    "disk_percent": psutil.disk_usage('/').percent,
+                    "active_connections": len(psutil.net_connections())
+                })
+            else:
+                metrics["psutil_available"] = False
+                
+            return metrics
         except Exception as e:
             logger.error(f"Failed to get system metrics: {e}")
-            return {}
+            return {"python_version": sys.version.split()[0], "error": str(e)}
     
     def _get_performance_metrics(self) -> Dict[str, Any]:
         """Get current performance metrics"""
