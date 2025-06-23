@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import { getCurrentUserId } from '../utils/userSession';
+import { supabase } from './authService';
 
 // Types for API responses
 export interface HealthCheck {
@@ -13,21 +13,22 @@ export interface HealthCheck {
 
 export interface JournalEntry {
   id: string;
-  user_id: string;
   content: string;
   mood_level: number;
   energy_level: number;
   stress_level: number;
   sleep_hours?: number;
   work_hours?: number;
-  tags: string[];
-  work_challenges: string[];
-  gratitude_items: string[];
+  tags?: string[];
+  work_challenges?: string[];
+  gratitude_items?: string[];
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
+  ai_insights?: any;
+  ai_generated_at?: string;
 }
 
-export interface JournalEntryCreate {
+export interface CreateJournalEntry {
   content: string;
   mood_level: number;
   energy_level: number;
@@ -60,38 +61,31 @@ export interface JournalStats {
 }
 
 // Adaptive AI interfaces
-export interface UserPatternSummary {
+export interface UserPatterns {
   writing_style: string;
   common_topics: string[];
-  mood_trends: {
-    mood: number;
-    energy: number;
-    stress: number;
-  };
-  interaction_preferences: {
-    prefers_questions: boolean;
-    prefers_validation: boolean;
-    prefers_advice: boolean;
-  };
-  response_preferences: {
-    length: string;
-    style: string;
-  };
+  mood_trends: Record<string, number>;
+  interaction_preferences: Record<string, boolean>;
+  response_preferences: Record<string, string>;
   pattern_confidence: number;
   entries_analyzed: number;
-  last_updated: string;
 }
 
-export interface PersonaRecommendation {
-  persona_id: string;
-  persona_name: string;
+export interface PersonaInfo {
+  id: string;
+  name: string;
   description: string;
   recommended: boolean;
-  recommendation_reason?: string;
-  available: boolean;
-  requires_premium: boolean;
-  times_used: number;
-  last_used?: string;
+  traits: string[];
+}
+
+export interface AIResponse {
+  message: string;
+  confidence_score: number;
+  response_time_ms: number;
+  follow_up_question?: string;
+  suggested_actions?: string[];
+  insight?: string;
 }
 
 export interface AdaptiveContext {
@@ -142,9 +136,9 @@ export interface PatternAnalysisRequest {
 
 export interface PatternAnalysisResponse {
   user_id: string;
-  patterns: UserPatternSummary;
+  patterns: UserPatterns;
   adaptive_context: AdaptiveContext;
-  persona_recommendations: PersonaRecommendation[];
+  persona_recommendations: PersonaInfo[];
   analysis_completed_at: string;
   analysis_duration_ms?: number;
   cache_used: boolean;
@@ -162,7 +156,7 @@ export interface AdaptiveResponseRequest {
 export interface AdaptiveResponseResponse {
   ai_insight: AIInsightResponse;
   pattern_analysis?: PatternAnalysisResponse;
-  persona_used: PersonaRecommendation;
+  persona_used: PersonaInfo;
   adaptation_applied: boolean;
   adaptation_confidence: number;
   response_generated_at: string;
@@ -201,119 +195,112 @@ export interface BetaToggleResponse {
 
 class ApiService {
   private client: AxiosInstance;
-  private baseURL = this.getBaseURL();
-
-  private getBaseURL(): string {
-    // Check for explicit environment variable first
-    if (import.meta.env.VITE_API_URL) {
-      return import.meta.env.VITE_API_URL;
-    }
-    
-    // Check if we're explicitly in development mode
-    const isExplicitDevelopment = import.meta.env.DEV && 
-                                 import.meta.env.VITE_USE_LOCALHOST === 'true';
-    
-    // Use CORS proxy for production to bypass CORS issues
-    if (isExplicitDevelopment) {
-      return 'http://localhost:8000';
-    } else {
-      // Use Vercel API proxy to bypass CORS
-      return window.location.origin + '/api/proxy';
-    }
-  }
+  private currentUserId: string | null = null;
 
   constructor() {
-    console.log('API Service initialized with base URL:', this.baseURL);
-    
     this.client = axios.create({
-      baseURL: this.baseURL,
-      timeout: 30000,
+      baseURL: 'https://pulsecheck-mobile-app-production.up.railway.app',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
         'User-Agent': 'PulseCheck-Web/1.0',
       },
-      withCredentials: false, // Disable credentials for CORS
+      timeout: 30000,
     });
 
-    // Request interceptor for adding user ID header for beta testing
-    this.client.interceptors.request.use(
-      (config) => {
-        console.log('API Request:', config.method?.toUpperCase(), config.url);
-        console.log('Request params:', config.params);
+    // Add request interceptor to include authentication
+    this.client.interceptors.request.use(async (config) => {
+      try {
+        // Get current Supabase session
+        const { data: { session } } = await supabase.auth.getSession();
         
-        // Add user ID header for browser session authentication
-        const userId = getCurrentUserId();
-        if (userId) {
-          config.headers['X-User-Id'] = userId;
+        if (session?.user) {
+          // For now, keep using X-User-Id header for backend compatibility
+          // This will be replaced with JWT tokens once backend is updated
+          config.headers['X-User-Id'] = session.user.id;
+          this.currentUserId = session.user.id;
+          
+          // Also add Authorization header for future use
+          config.headers['Authorization'] = `Bearer ${session.access_token}`;
+        } else {
+          // Fallback to the old system for now
+          if (!this.currentUserId) {
+            this.currentUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          }
+          config.headers['X-User-Id'] = this.currentUserId;
         }
         
+        // Log request for debugging
+        console.log('API Request:', config.method?.toUpperCase(), config.url);
+        console.log('Request params:', config.params);
         console.log('Request headers:', config.headers);
+        
         return config;
-      },
-      (error) => {
-        console.error('API Request Error:', error);
-        return Promise.reject(error);
+      } catch (error) {
+        console.error('Request interceptor error:', error);
+        return config;
       }
-    );
+    });
 
-    // Response interceptor for error handling
+    // Add response interceptor for logging
     this.client.interceptors.response.use(
-      (response) => {
+      (response: AxiosResponse) => {
         console.log('API Response:', response.status, response.config.url);
         return response;
       },
       (error) => {
-        console.error('API Response Error:', {
-          url: error.config?.url,
-          status: error.response?.status,
-          data: error.response?.data,
-          message: error.message
-        });
-        return Promise.reject(error);
+        console.log('API Response Error:', error.response?.data || error.message);
+        throw error;
       }
     );
   }
 
   // Health check
-  async healthCheck(): Promise<HealthCheck> {
-    const response: AxiosResponse<HealthCheck> = await this.client.get('/health');
+  async testConnection(): Promise<boolean> {
+    try {
+      console.log('Testing connection to:', this.client.defaults.baseURL);
+      await this.healthCheck();
+      console.log('Connection test successful:', { connected: true });
+      return true;
+    } catch (error) {
+      console.error('Connection test failed:', error);
+      return false;
+    }
+  }
+
+  async healthCheck(): Promise<any> {
+    const response = await this.client.get('/health');
     return response.data;
   }
 
-  // Journal endpoints
-  async createJournalEntry(entry: JournalEntryCreate): Promise<JournalEntry> {
+  // Journal entries
+  async getJournalEntries(page: number = 1, perPage: number = 30): Promise<JournalEntry[]> {
+    console.log(`Fetching journal entries, page: ${page} per_page: ${perPage}`);
+    console.log('Full URL will be:', `${this.client.defaults.baseURL}/api/v1/journal/entries`);
+    
+    const response = await this.client.get('/api/v1/journal/entries', {
+      params: { page, per_page: perPage }
+    });
+    
+    console.log(`Journal entries fetched: ${response.data.entries?.length || 0} entries out of ${response.data.total || 0} total`);
+    return response.data.entries || [];
+  }
+
+  async getJournalEntry(id: string): Promise<JournalEntry> {
+    const response = await this.client.get(`/api/v1/journal/entries/${id}`);
+    return response.data;
+  }
+
+  async createJournalEntry(entry: CreateJournalEntry): Promise<JournalEntry> {
     console.log('Creating journal entry:', entry);
-    console.log('Full URL will be:', `${this.baseURL}/api/v1/journal/entries`);
-    const response: AxiosResponse<JournalEntry> = await this.client.post('/api/v1/journal/entries', entry);
+    console.log('Full URL will be:', `${this.client.defaults.baseURL}/api/v1/journal/entries`);
+    
+    const response = await this.client.post('/api/v1/journal/entries', entry);
     console.log('Journal entry created successfully:', response.data);
     return response.data;
   }
 
-  async getJournalEntries(page: number = 1, per_page: number = 30): Promise<JournalEntry[]> {
-    console.log('Fetching journal entries, page:', page, 'per_page:', per_page);
-    console.log('Full URL will be:', `${this.baseURL}/api/v1/journal/entries`);
-    const response: AxiosResponse<{
-      entries: JournalEntry[];
-      total: number;
-      page: number;
-      per_page: number;
-      has_next: boolean;
-      has_prev: boolean;
-    }> = await this.client.get('/api/v1/journal/entries', {
-      params: { page, per_page }
-    });
-    console.log('Journal entries fetched:', response.data.entries.length, 'entries out of', response.data.total, 'total');
-    return response.data.entries; // Return just the entries array
-  }
-
-  async getJournalEntry(id: string): Promise<JournalEntry> {
-    const response: AxiosResponse<JournalEntry> = await this.client.get(`/api/v1/journal/entries/${id}`);
-    return response.data;
-  }
-
-  async updateJournalEntry(id: string, entry: Partial<JournalEntryCreate>): Promise<JournalEntry> {
-    const response: AxiosResponse<JournalEntry> = await this.client.put(`/api/v1/journal/entries/${id}`, entry);
+  async updateJournalEntry(id: string, entry: Partial<CreateJournalEntry>): Promise<JournalEntry> {
+    const response = await this.client.put(`/api/v1/journal/entries/${id}`, entry);
     return response.data;
   }
 
@@ -321,13 +308,130 @@ class ApiService {
     await this.client.delete(`/api/v1/journal/entries/${id}`);
   }
 
-  // Reset journal - delete all entries for current user
-  async resetJournal(userId: string): Promise<{ deleted_count: number; message: string }> {
-    console.log('Resetting journal for user:', userId);
-    const response: AxiosResponse<{ deleted_count: number; message: string }> = await this.client.delete(`/api/v1/journal/reset/${userId}?confirm=true`);
-    console.log('Journal reset completed:', response.data);
+  async resetJournal(): Promise<any> {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id || this.currentUserId;
+    
+    const response = await this.client.delete(`/api/v1/journal/reset/${userId}`, {
+      params: { confirm: true }
+    });
     return response.data;
   }
+
+  // AI responses
+  async generateAdaptiveResponse(request: {
+    journal_content: string;
+    persona?: string;
+    include_pattern_analysis?: boolean;
+  }): Promise<AIResponse> {
+    console.log('Generating adaptive response:', request);
+    
+    const response = await this.client.post('/api/v1/adaptive-ai/generate-response', {
+      journal_content: request.journal_content,
+      persona: request.persona || 'auto',
+      include_pattern_analysis: request.include_pattern_analysis !== false
+    });
+    
+    console.log('Adaptive response generated:', response.data);
+    return response.data;
+  }
+
+  async getUserPatterns(): Promise<UserPatterns> {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id || this.currentUserId;
+    
+    console.log('Fetching user patterns for:', userId);
+    
+    const response = await this.client.get(`/api/v1/adaptive-ai/patterns/${userId}`);
+    console.log('User patterns fetched:', response.data);
+    return response.data;
+  }
+
+  async getAvailablePersonas(): Promise<PersonaInfo[]> {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id || this.currentUserId;
+    
+    console.log('Fetching available personas for user:', userId);
+    
+    const response = await this.client.get('/api/v1/adaptive-ai/personas', {
+      params: { user_id: userId }
+    });
+    
+    console.log(`Available personas fetched: ${response.data.personas?.length || 0} personas`);
+    return response.data.personas || [];
+  }
+
+  async getSubscriptionStatus(): Promise<any> {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id || this.currentUserId;
+    
+    console.log('Getting subscription status for user:', userId);
+    
+    const response = await this.client.get(`/api/v1/auth/subscription-status/${userId}`);
+    console.log('Subscription status retrieved:', response.data);
+    return response.data;
+  }
+
+  async classifyTopics(content: string): Promise<string[]> {
+    try {
+      // Use the correct endpoint path for topic classification
+      const response = await this.client.post('/api/v1/journal/ai/topic-classification', {
+        content: content
+      });
+      
+      return response.data.topics || [];
+    } catch (error) {
+      console.warn('Topic classification failed, returning empty array:', error);
+      return [];
+    }
+  }
+
+  // User management (for Supabase Auth integration)
+  async getCurrentUser(): Promise<any> {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user || null;
+  }
+
+  async updateUserProfile(updates: any): Promise<any> {
+    // Use Supabase to update profile directly
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.user) {
+      throw new Error('No authenticated user');
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', session.user.id)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  // Analytics
+  async trackUserAction(action: string, data?: any): Promise<void> {
+    try {
+      // For now, just log analytics locally
+      console.log('User action:', action, data);
+      
+      // Future: Send to analytics service
+      // await this.client.post('/api/v1/analytics/track', {
+      //   action,
+      //   data,
+      //   timestamp: new Date().toISOString()
+      // });
+    } catch (error) {
+      console.warn('Analytics tracking failed:', error);
+    }
+  }
+
+
 
   // Pulse AI endpoints
   async getPulseResponse(entryId: string): Promise<PulseResponse> {
@@ -349,37 +453,6 @@ class ApiService {
     return response.data;
   }
 
-  async generateAdaptiveResponse(request: AdaptiveResponseRequest): Promise<AdaptiveResponseResponse> {
-    console.log('Generating adaptive response:', request);
-    const response: AxiosResponse<AdaptiveResponseResponse> = await this.client.post('/api/v1/adaptive-ai/generate-response', request);
-    console.log('Adaptive response generated:', response.data);
-    return response.data;
-  }
-
-  async getAvailablePersonas(userId: string): Promise<PersonaRecommendation[]> {
-    console.log('Fetching available personas for user:', userId);
-    const response: AxiosResponse<PersonaRecommendation[]> = await this.client.get('/api/v1/adaptive-ai/personas', {
-      params: { user_id: userId }
-    });
-    console.log('Available personas fetched:', response.data.length, 'personas');
-    return response.data;
-  }
-
-  async getUserPatterns(userId: string): Promise<UserPatternSummary> {
-    console.log('Fetching user patterns for:', userId);
-    const response: AxiosResponse<UserPatternSummary> = await this.client.get(`/api/v1/adaptive-ai/patterns/${userId}`);
-    console.log('User patterns fetched:', response.data);
-    return response.data;
-  }
-
-  async refreshUserPatterns(userId: string): Promise<{ message: string; user_id: string }> {
-    console.log('Refreshing user patterns for:', userId);
-    const response: AxiosResponse<{ message: string; user_id: string }> = await this.client.post(`/api/v1/adaptive-ai/refresh-patterns/${userId}`);
-    console.log('User patterns refreshed:', response.data);
-    return response.data;
-  }
-
-  // Enhanced Pulse AI with adaptive features
   async getAdaptivePulseResponse(entryId: string, persona?: string): Promise<AIInsightResponse> {
     console.log('Getting adaptive Pulse response for entry:', entryId, 'with persona:', persona);
     const params = persona ? { persona } : {};
@@ -389,6 +462,8 @@ class ApiService {
     console.log('Adaptive Pulse response received:', response.data);
     return response.data;
   }
+
+
 
   // Enhanced error handling utility with AI debugging
   handleError(error: any, context?: Record<string, any>): string {
@@ -421,21 +496,8 @@ class ApiService {
   }
 
   // Utility methods
-  async testConnection(): Promise<boolean> {
-    try {
-      console.log('Testing connection to:', this.baseURL);
-      const result = await this.healthCheck();
-      console.log('Connection test successful:', result);
-      return true;
-    } catch (error) {
-      console.error('Connection test failed:', error);
-      return false;
-    }
-  }
-
-  // Get current base URL (for debugging)
   getBaseUrl(): string {
-    return this.baseURL;
+    return this.client.defaults.baseURL;
   }
 
   // Beta testing endpoints
@@ -451,61 +513,6 @@ class ApiService {
     const response: AxiosResponse<BetaToggleResponse> = await this.client.post('/api/v1/auth/beta/make-tester', { user_id: userId });
     console.log('User made beta tester:', response.data);
     return response.data;
-  }
-
-  async getSubscriptionStatus(userId: string): Promise<SubscriptionStatus> {
-    console.log('Getting subscription status for user:', userId);
-    const response: AxiosResponse<SubscriptionStatus> = await this.client.get(`/api/v1/auth/subscription-status/${userId}`);
-    console.log('Subscription status retrieved:', response.data);
-    return response.data;
-  }
-
-  async getAvailablePersonasEnhanced(): Promise<{
-    personas: Array<{
-      id: string;
-      name: string;
-      description: string;
-      topic_affinities: Record<string, number>;
-      tone_variations: string[];
-      recommended_for_user?: boolean;
-    }>;
-    user_patterns: {
-      writing_style: string;
-      common_topics: string[];
-      response_preference: string;
-    };
-  }> {
-    try {
-      const response = await this.client.get('/journal/personas');
-      return response.data;
-    } catch (error) {
-      throw new Error(this.handleError(error, { operation: 'get_personas' }));
-    }
-  }
-
-  async classifyTopics(content: string): Promise<string[]> {
-    try {
-      // This would typically call a dedicated topic classification endpoint
-      // For now, we'll use the adaptive response endpoint to get topic flags
-      const mockEntry = {
-        id: 'temp',
-        content: content,
-        mood_level: 5,
-        energy_level: 5,
-        stress_level: 5,
-        created_at: new Date().toISOString()
-      };
-      
-      // Use a lightweight endpoint for topic classification
-      const response = await this.client.post('/journal/topic-classification', {
-        content: content
-      });
-      
-      return response.data.topics || [];
-    } catch (error) {
-      console.warn('Topic classification failed, returning empty array:', error);
-      return [];
-    }
   }
 }
 

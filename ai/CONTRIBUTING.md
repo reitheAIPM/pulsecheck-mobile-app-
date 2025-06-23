@@ -317,8 +317,10 @@ REACT_APP_PUBLIC_BUILDER_KEY=93b18bce96bf4218884de91289488848
 
 ### Supabase
 - **URL**: `https://qwpwlubxhtuzvmvajjjr.supabase.co`
-- **Status**: ✅ Connected, database schema already perfect
-- **Next Step**: Deploy 3 minimal admin functions (MINIMAL_FUNCTION_FIX.sql)
+- **Status**: ✅ Connected, database schema documented
+- **Schema Reference**: See `ai/supabase-database-schema.md` for complete table structure
+- **Authentication**: Supabase Auth with Row Level Security (RLS)
+- **Tables**: 6 core tables (profiles, journal_entries, ai_insights, user_patterns, weekly_summaries, feedback)
 
 ### OpenAI
 - **Status**: ✅ Configured in backend
