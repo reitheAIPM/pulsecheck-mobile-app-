@@ -14,7 +14,7 @@ from app.services.user_pattern_analyzer import UserPatternAnalyzer
 from app.services.weekly_summary_service import WeeklySummaryService, SummaryType
 from app.core.database import get_database, Database
 
-router = APIRouter()
+router = APIRouter(prefix="/journal", tags=["Journal"])
 
 # Initialize PulseAI with database for beta optimization
 def get_pulse_ai_service(db: Database = Depends(get_database)):
