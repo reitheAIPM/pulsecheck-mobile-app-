@@ -67,6 +67,18 @@ class JournalService:
             
             entries = []
             for entry in result.data:
+                # Ensure updated_at field exists - critical fix for validation errors
+                if 'updated_at' not in entry or entry['updated_at'] is None:
+                    entry['updated_at'] = entry.get('created_at', datetime.utcnow().isoformat())
+                
+                # Ensure all required fields exist
+                if 'work_challenges' not in entry:
+                    entry['work_challenges'] = []
+                if 'gratitude_items' not in entry:
+                    entry['gratitude_items'] = []
+                if 'tags' not in entry:
+                    entry['tags'] = []
+                    
                 entries.append(JournalEntryResponse(
                     id=entry["id"],
                     user_id=entry["user_id"],
@@ -74,8 +86,13 @@ class JournalService:
                     mood_level=entry["mood_level"],
                     energy_level=entry["energy_level"],
                     stress_level=entry["stress_level"],
+                    sleep_hours=entry.get("sleep_hours"),
+                    work_hours=entry.get("work_hours"),
                     tags=entry.get("tags", []),
-                    created_at=entry["created_at"]
+                    work_challenges=entry.get("work_challenges", []),
+                    gratitude_items=entry.get("gratitude_items", []),
+                    created_at=entry["created_at"],
+                    updated_at=entry["updated_at"]
                 ))
             
             return entries

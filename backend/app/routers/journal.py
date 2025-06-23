@@ -514,9 +514,10 @@ async def delete_journal_entry(
 @router.delete("/reset/{user_id}")
 async def reset_journal(
     user_id: str,
+    request: Request,
     confirm: bool = False,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_with_request)
 ):
     """
     Reset journal - delete all journal entries for a user
