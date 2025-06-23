@@ -99,6 +99,7 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
         allowed_origins = [
             "http://localhost:3000",
             "http://localhost:5173",
+            "http://localhost:5174",  # Add new Vite port
             "http://localhost:19006",
             "https://pulse-check.vercel.app",
             "https://pulsecheck-web.vercel.app",
@@ -127,7 +128,7 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
             
             response.headers["Access-Control-Allow-Origin"] = cors_origin
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept, X-User-Id"
             response.headers["Access-Control-Expose-Headers"] = "Content-Type, Content-Length"
             response.headers["Access-Control-Max-Age"] = "86400"
             response.headers["Content-Length"] = "2"
@@ -142,7 +143,7 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
         # Add CORS headers to all responses
         response.headers["Access-Control-Allow-Origin"] = actual_origin
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, X-User-Id"
         response.headers["Access-Control-Expose-Headers"] = "Content-Type, Content-Length"
         
         return response
