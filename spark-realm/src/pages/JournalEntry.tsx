@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import PersonaSelector from "@/components/PersonaSelector";
 import EmojiReactionSystem from "@/components/EmojiReactionSystem";
 import { apiService, PersonaRecommendation } from "@/services/api";
+import { getCurrentUserId } from "@/utils/userSession";
 
 // Universal journal prompt for multi-theme approach
 const UNIVERSAL_PROMPT = "What's on your mind today? Nothing is off-limits.";
@@ -61,8 +62,8 @@ const JournalEntry = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [existingEntry, setExistingEntry] = useState<any>(null);
 
-  // Mock user ID - in a real app, this would come from authentication
-  const userId = "user_123";
+  // Get dynamic user ID from browser session
+  const userId = getCurrentUserId();
 
   useEffect(() => {
     loadPersonas();

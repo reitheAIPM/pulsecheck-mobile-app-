@@ -41,19 +41,20 @@ import JournalHistory from "@/components/JournalHistory";
 import { apiService, UserPatternSummary, PersonaRecommendation } from "@/services/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { StatusIndicator } from "@/components/ui/loading-states";
+import { getCurrentUserId, getCurrentUserDisplayName, getSessionInfo } from "@/utils/userSession";
 
 const Profile = () => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
-    name: "Alex Chen",
-    role: "Senior Software Engineer",
-    company: "TechCorp",
+    name: "First Name Last Name",
+    role: "Your Role",
+    company: "Your Company",
     workStyle:
-      "I work best in focused blocks and tend to overthink problems. I value work-life balance but sometimes struggle with setting boundaries.",
-    triggers: "Heavy meeting days, unclear requirements, tight deadlines",
+      "Tell Pulse about how you work best, your preferences, and what helps you be productive...",
+    triggers: "What situations or work conditions tend to stress you out?",
     goals:
-      "Better stress management, improved work-life balance, more confident decision making",
+      "What do you hope to achieve through reflection and journaling?",
   });
 
   const [aiSettings, setAiSettings] = useState({
@@ -86,26 +87,27 @@ const Profile = () => {
   // Debug section state
   const [apiStatus, setApiStatus] = useState<'loading' | 'connected' | 'error'>('loading');
   const [originalProfile, setOriginalProfile] = useState({
-    name: "Alex Chen",
-    role: "Senior Software Engineer",
-    company: "TechCorp",
+    name: "First Name Last Name",
+    role: "Your Role",
+    company: "Your Company",
     workStyle:
-      "I work best in focused blocks and tend to overthink problems. I value work-life balance but sometimes struggle with setting boundaries.",
-    triggers: "Heavy meeting days, unclear requirements, tight deadlines",
+      "Tell Pulse about how you work best, your preferences, and what helps you be productive...",
+    triggers: "What situations or work conditions tend to stress you out?",
     goals:
-      "Better stress management, improved work-life balance, more confident decision making",
+      "What do you hope to achieve through reflection and journaling?",
   });
 
-  // Mock user ID - in a real app, this would come from authentication
-  const userId = "user_123";
+  // Get dynamic user ID and session info from browser session
+  const userId = getCurrentUserId();
+  const sessionInfo = getSessionInfo();
 
-  // Mock user data
+  // Dynamic user data based on session
   const userData = {
-    name: "Alex Chen",
-    email: "alex@example.com",
-    memberSince: "December 2024",
-    totalEntries: 24,
-    currentStreak: 7,
+    name: "First Name Last Name",
+    email: `user@example.com`,
+    memberSince: new Date(sessionInfo.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    totalEntries: 0, // Will be updated when we load real data
+    currentStreak: sessionInfo.daysSinceCreated,
     isPremium: false
   };
 
@@ -464,6 +466,7 @@ const Profile = () => {
                   setProfile((prev) => ({ ...prev, name: e.target.value }))
                 }
                 disabled={!isEditing}
+                placeholder="Enter your first and last name"
               />
             </div>
 
@@ -477,6 +480,7 @@ const Profile = () => {
                     setProfile((prev) => ({ ...prev, role: e.target.value }))
                   }
                   disabled={!isEditing}
+                  placeholder="e.g. Software Engineer, Manager, Student"
                 />
               </div>
               <div className="space-y-2">
@@ -488,6 +492,7 @@ const Profile = () => {
                     setProfile((prev) => ({ ...prev, company: e.target.value }))
                   }
                   disabled={!isEditing}
+                  placeholder="e.g. Google, Freelancer, University"
                 />
               </div>
             </div>

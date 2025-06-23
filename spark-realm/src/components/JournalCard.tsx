@@ -228,12 +228,7 @@ export function JournalCard({ entry, onPulseClick }: JournalCardProps) {
             </Button>
           </div>
 
-          {!entry.aiResponse && (
-            <div className="flex items-center gap-2 text-xs text-calm-500">
-              <div className="w-2 h-2 rounded-full bg-calm-300 animate-pulse"></div>
-              <span>Pulse is reflecting...</span>
-            </div>
-          )}
+
         </div>
       </CardContent>
     </Card>

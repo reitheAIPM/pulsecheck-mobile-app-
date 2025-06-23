@@ -8,6 +8,7 @@ import { StatusIndicator, LoadingCard, EmptyState } from "@/components/ui/loadin
 import FollowUpPrompts from "@/components/FollowUpPrompts";
 import { apiService } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
+import { getCurrentUserId } from "@/utils/userSession";
 
 // Mock data for development
 const mockEntries = [
@@ -58,6 +59,9 @@ const Index = () => {
   const [isLoadingEntries, setIsLoadingEntries] = useState(false);
   const [premiumEnabled, setPremiumEnabled] = useState(false);
   const [hasNotifications, setHasNotifications] = useState(false);
+  
+  // Get dynamic user ID from browser session
+  const userId = getCurrentUserId();
 
   useEffect(() => {
     // Test API connection on component mount
@@ -237,7 +241,7 @@ const Index = () => {
         {entries.length > 0 && (
           <div className="mb-6">
             <FollowUpPrompts
-              userId="user_123"
+              userId={userId}
               recentEntries={entries.map(entry => ({
                 id: entry.id,
                 content: entry.content,
