@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import { getCurrentUserId } from '../utils/userSession';
 
 // Types for API responses
 export interface HealthCheck {
@@ -235,17 +236,19 @@ class ApiService {
       withCredentials: false, // Disable credentials for CORS
     });
 
-    // Request interceptor for adding auth headers (when we implement auth)
+    // Request interceptor for adding user ID header for beta testing
     this.client.interceptors.request.use(
       (config) => {
         console.log('API Request:', config.method?.toUpperCase(), config.url);
         console.log('Request params:', config.params);
+        
+        // Add user ID header for browser session authentication
+        const userId = getCurrentUserId();
+        if (userId) {
+          config.headers['X-User-Id'] = userId;
+        }
+        
         console.log('Request headers:', config.headers);
-        // TODO: Add auth token when implemented
-        // const token = localStorage.getItem('auth_token');
-        // if (token) {
-        //   config.headers.Authorization = `Bearer ${token}`;
-        // }
         return config;
       },
       (error) => {

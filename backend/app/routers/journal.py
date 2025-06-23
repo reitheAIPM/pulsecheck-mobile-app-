@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
@@ -70,14 +70,24 @@ async def test_ai_response():
             "status": "error"
         }
 
-# Mock user dependency for MVP (will implement proper auth later)
-async def get_current_user():
-    """Mock user for MVP - will implement proper JWT auth later"""
+# Mock user dependency for MVP with browser session support
+async def get_current_user(request: Request):
+    """
+    Mock user for MVP with browser session support
+    Accepts user ID from X-User-Id header for beta testing isolation
+    """
+    # Try to get user ID from header for browser session support
+    user_id = request.headers.get('X-User-Id')
+    
+    # Fallback to default if no header provided
+    if not user_id:
+        user_id = "user_123"
+    
     return {
-        "id": "user_123",
-        "email": "demo@pulsecheck.app",
-        "tech_role": "developer",
-        "name": "Demo User"
+        "id": user_id,
+        "email": f"demo-{user_id.split('_')[-1] if '_' in user_id else 'default'}@pulsecheck.app", 
+        "tech_role": "beta_tester",
+        "name": f"Beta User {user_id.split('_')[-1] if '_' in user_id else 'Default'}"
     }
 
 @router.post("/entries", response_model=JournalEntryResponse)
