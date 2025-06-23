@@ -7,6 +7,7 @@ import JournalEntry from './pages/JournalEntry'
 import PulseResponse from './pages/PulseResponse'
 import Insights from './pages/Insights'
 import Profile from './pages/Profile'
+import Privacy from './pages/Privacy'
 import History from './pages/History'
 import NotFound from './pages/NotFound'
 import { BottomNav } from './components/BottomNav'
@@ -24,6 +25,7 @@ function App() {
             <Route path="/history" element={<History />} />
             <Route path="/insights" element={<Insights />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/new-entry" element={<JournalEntry />} />
             {/* Test route - this will show the test content */}
             <Route path="/test" element={

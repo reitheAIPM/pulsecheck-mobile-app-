@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   User,
   Brain,
@@ -42,6 +43,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { StatusIndicator } from "@/components/ui/loading-states";
 
 const Profile = () => {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
     name: "Alex Chen",
@@ -654,15 +656,18 @@ const Profile = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="text-sm text-muted-foreground">
-              Your journal entries and patterns are private and secure. 
-              We use end-to-end encryption and never share your personal data.
+              Your journal entries are encrypted and stored securely. We never share your personal data and only access it for technical support when you explicitly request help.
             </div>
             <div className="flex flex-col gap-2">
               <Button variant="outline" size="sm">
                 Export Data
               </Button>
-              <Button variant="outline" size="sm">
-                Privacy Settings
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => navigate("/privacy")}
+              >
+                Privacy Policy
               </Button>
               
               {/* Reset Journal Button with Confirmation Dialog */}
@@ -746,7 +751,10 @@ const Profile = () => {
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </button>
 
-                <button className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+                <button 
+                  className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                  onClick={() => navigate("/privacy")}
+                >
                   <div className="flex items-center gap-3">
                     <Shield className="w-4 h-4" />
                     <span className="text-sm font-medium">
@@ -772,8 +780,7 @@ const Profile = () => {
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="p-4 text-center">
             <div className="text-sm text-primary/80">
-              🔒 Your personal information is encrypted and never shared. Pulse
-              uses this data only to provide better, more personalized support.
+              🔒 Your data is securely encrypted and stored. Pulse uses your journal entries to provide personalized AI insights and never shares your information with third parties.
             </div>
           </CardContent>
         </Card>
