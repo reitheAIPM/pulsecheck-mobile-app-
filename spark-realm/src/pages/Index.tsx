@@ -95,9 +95,35 @@ const Index = () => {
     testApiConnection();
   }, []);
 
+  // Add effect to reload entries when returning to this page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && apiStatus === 'connected') {
+        // Reload entries when page becomes visible and we're connected
+        loadRealEntries();
+      }
+    };
+
+    // Also reload when the page gains focus
+    const handleFocus = () => {
+      if (apiStatus === 'connected') {
+        loadRealEntries();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [apiStatus]); // Dependency on apiStatus to only run when connected
+
   const loadRealEntries = async () => {
     setIsLoadingEntries(true);
     try {
+      console.log('Loading entries for user:', userId); // Debug log
       const realEntries = await apiService.getJournalEntries();
       console.log('Loaded real entries:', realEntries);
       
@@ -110,6 +136,7 @@ const Index = () => {
         // AI response will be added later when we implement that feature
       }));
       
+      console.log('Transformed entries:', transformedEntries); // Debug log
       setEntries(transformedEntries);
       
       if (realEntries.length === 0) {
@@ -144,7 +171,7 @@ const Index = () => {
   };
 
   const handleNewEntry = () => {
-    navigate("/new-entry");
+    navigate("/journal"); // Fix: Changed from "/new-entry" to "/journal"
   };
 
   const handleRefresh = async () => {
@@ -252,7 +279,7 @@ const Index = () => {
               }))}
               onPromptSelect={(prompt) => {
                 // Navigate to journal entry with the selected prompt
-                navigate(`/new-entry?prompt=${encodeURIComponent(prompt.prompt)}`);
+                navigate(`/journal?prompt=${encodeURIComponent(prompt.prompt)}`); // Fix: Changed from "/new-entry" to "/journal"
               }}
             />
           </div>

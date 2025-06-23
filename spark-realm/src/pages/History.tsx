@@ -5,6 +5,22 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { 
   Calendar, 
   BookOpen, 
   TrendingUp, 
@@ -15,7 +31,11 @@ import {
   Star,
   Clock,
   Filter,
-  Search
+  Search,
+  MoreHorizontal,
+  Trash2,
+  Copy,
+  Edit
 } from 'lucide-react';
 import { apiService, JournalEntry } from '@/services/api';
 
@@ -34,6 +54,11 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+  
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<JournalEntry | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Mock AI responses for entries (in real app, these would come from backend)
   const mockAIResponses = {
@@ -168,6 +193,45 @@ const History = () => {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const handleDeleteEntry = async (entry: JournalEntry) => {
+    setEntryToDelete(entry);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!entryToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await apiService.deleteJournalEntry(entryToDelete.id);
+      
+      // Remove the entry from local state
+      setJournalEntries(prev => prev.filter(e => e.id !== entryToDelete.id));
+      
+      // Clear selected entry if it was the deleted one
+      if (selectedEntry?.id === entryToDelete.id) {
+        setSelectedEntry(null);
+      }
+      
+      setDeleteDialogOpen(false);
+      setEntryToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete journal entry:', error);
+      alert('Failed to delete entry. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCopyEntry = async (entry: JournalEntry) => {
+    try {
+      await navigator.clipboard.writeText(entry.content);
+      alert('Entry copied to clipboard!');
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+    }
   };
 
   if (loading) {
@@ -430,6 +494,50 @@ const History = () => {
                           <span className="text-xs text-muted-foreground">
                             Mood {entry.mood_level}/10
                           </span>
+                          
+                          {/* Entry Actions Dropdown */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0"
+                                onClick={(e) => e.stopPropagation()} // Prevent card click
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/journal/${entry.id}`);
+                                }}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                View/Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopyEntry(entry);
+                                }}
+                              >
+                                <Copy className="h-4 w-4 mr-2" />
+                                Copy text
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteEntry(entry);
+                                }}
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete entry
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                       
@@ -459,6 +567,34 @@ const History = () => {
           </div>
         )}
       </main>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Journal Entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this journal entry. This action cannot be undone.
+              {entryToDelete && (
+                <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
+                  <strong>Entry preview:</strong> {entryToDelete.content.substring(0, 100)}
+                  {entryToDelete.content.length > 100 && '...'}
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Entry'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

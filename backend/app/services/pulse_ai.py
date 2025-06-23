@@ -174,8 +174,7 @@ class PulseAI:
             confidence_score=0.5,
             response_time_ms=0,
             follow_up_question="How are you feeling right now?",
-            suggested_actions=["Take a few deep breaths", "Step away from your screen for 5 minutes"],
-            insight="You're not alone in feeling this way."
+            suggested_actions=["Take a few deep breaths", "Step away from your screen for 5 minutes"]
         )
     
     def _load_personality_prompt(self) -> str:
@@ -700,8 +699,7 @@ Stress: {stress_word} ({journal_entry.stress_level}/10)
                 confidence_score=confidence_score,
                 response_time_ms=int(response_time * 1000),
                 follow_up_question=follow_up_question,
-                suggested_actions=suggested_actions,
-                insight="I'm here to support you through this."
+                suggested_actions=suggested_actions
             )
             
         except Exception as e:
@@ -735,8 +733,7 @@ Stress: {stress_word} ({journal_entry.stress_level}/10)
                 confidence_score=0.6,
                 response_time_ms=0,
                 follow_up_question="How are you feeling right now?",
-                suggested_actions=actions,
-                insight="Sometimes just being heard can make a difference."
+                suggested_actions=actions
             )
             
         except Exception as e:
