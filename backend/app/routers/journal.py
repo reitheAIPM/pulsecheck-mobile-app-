@@ -766,7 +766,7 @@ async def get_ai_debug_summary(
 
 @router.post("/ai/topic-classification")
 async def classify_topics(
-    content: str,
+    request_body: dict,  # Accept JSON body instead of query parameter
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user),
     adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
@@ -776,6 +776,11 @@ async def classify_topics(
     AI-OPTIMIZED TOPIC CLASSIFICATION ENDPOINT
     """
     try:
+        # Extract content from request body
+        content = request_body.get("content", "")
+        if not content:
+            raise HTTPException(status_code=400, detail="Content is required")
+        
         # Create debug context for topic classification
         debug_context = AIDebugContext(
             operation="topic_classification_test",
