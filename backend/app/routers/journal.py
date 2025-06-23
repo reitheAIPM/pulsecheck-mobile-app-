@@ -490,6 +490,64 @@ async def delete_journal_entry(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting journal entry: {str(e)}")
 
+@router.delete("/reset/{user_id}")
+async def reset_journal(
+    user_id: str,
+    confirm: bool = False,
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Reset journal - delete all journal entries for a user
+    Requires confirmation parameter to prevent accidental deletion
+    """
+    try:
+        # Security check - user can only reset their own journal
+        if current_user["id"] != user_id:
+            raise HTTPException(status_code=403, detail="You can only reset your own journal")
+        
+        # Require confirmation to prevent accidental deletion
+        if not confirm:
+            raise HTTPException(
+                status_code=400, 
+                detail="Journal reset requires confirmation. Add ?confirm=true to proceed."
+            )
+        
+        client = db.get_client()
+        
+        # First, get count of entries to be deleted
+        count_result = client.table("journal_entries").select("id", count="exact").eq("user_id", user_id).execute()
+        entries_count = count_result.count or 0
+        
+        if entries_count == 0:
+            return {
+                "success": True,
+                "deleted_count": 0,
+                "message": "No journal entries found to delete"
+            }
+        
+        # Delete all journal entries for the user
+        delete_result = client.table("journal_entries").delete().eq("user_id", user_id).execute()
+        
+        # Also clear any cached user patterns to start fresh
+        try:
+            # Clear pattern cache (if exists)
+            client.table("user_patterns").delete().eq("user_id", user_id).execute()
+        except:
+            # Pattern cache might not exist, that's okay
+            pass
+        
+        return {
+            "success": True,
+            "deleted_count": entries_count,
+            "message": f"Successfully deleted {entries_count} journal entries. Your journal has been reset."
+        }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error resetting journal: {str(e)}")
+
 @router.post("/entries/{entry_id}/adaptive-response", response_model=AIInsightResponse)
 async def get_adaptive_ai_response(
     entry_id: str,
