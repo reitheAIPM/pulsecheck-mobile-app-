@@ -145,6 +145,10 @@ class PersonaRecommendation(BaseModel):
     # Usage stats
     times_used: int = Field(0, description="Number of times user has used this persona")
     last_used: Optional[datetime] = Field(None, description="When persona was last used")
+    
+    # Recommendation details
+    recommendation_score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Recommendation score")
+    recommendation_reasons: Optional[List[str]] = Field(None, description="List of recommendation reasons")
 
 class AdaptiveContext(BaseModel):
     """Context for adaptive AI responses"""

@@ -6,6 +6,7 @@ Endpoints for pattern analysis and personalized AI responses
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 import logging
+import traceback
 
 from app.models.ai_insights import (
     PatternAnalysisRequest, PatternAnalysisResponse,
@@ -17,6 +18,7 @@ from app.services.adaptive_ai_service import AdaptiveAIService
 from app.services.user_pattern_analyzer import UserPatternAnalyzer
 from app.services.pulse_ai import PulseAI
 from app.services.journal_service import JournalService
+from app.services.persona_service import persona_service
 from app.core.monitoring import log_error, ErrorSeverity, ErrorCategory
 from app.core.database import get_database
 
@@ -240,31 +242,38 @@ async def get_available_personas(
         )
         
         user_patterns = None
+        current_entry = None
         if journal_entries:
             user_patterns = await pattern_analyzer.analyze_user_patterns(user_id, journal_entries)
+            current_entry = journal_entries[0]  # Most recent entry
         
-        # Get persona recommendations
-        persona_list = adaptive_ai_service.get_available_personas(user_patterns)
+        # Get persona recommendations using the new persona service
+        recommendations = persona_service.recommend_personas(
+            user_id=user_id,
+            user_patterns=user_patterns,
+            current_entry=current_entry
+        )
         
-        # Convert to response format
-        personas = []
-        for persona_info in persona_list:
-            personas.append(PersonaRecommendation(
-                persona_id=persona_info["id"],
-                persona_name=persona_info["name"],
-                description=persona_info["description"],
-                recommended=persona_info["recommended"],
-                available=persona_info["available"]
-            ))
-        
-        return personas
+        return recommendations
         
     except Exception as e:
-        log_error(e, ErrorSeverity.MEDIUM, ErrorCategory.API_ENDPOINT,
-                 {"user_id": user_id, "operation": "get_personas"})
+        # AI-optimized error context for debugging
+        error_context = {
+            "user_id": user_id,
+            "operation": "get_personas",
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "stack_trace": traceback.format_exc() if logger.isEnabledFor(logging.DEBUG) else None
+        }
+        
+        log_error(e, ErrorSeverity.MEDIUM, ErrorCategory.API_ENDPOINT, error_context)
+        
+        # More detailed error message for debugging
+        error_detail = f"Failed to get available personas: {type(e).__name__}: {str(e)}"
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get available personas"
+            detail=error_detail
         )
 
 @router.get("/patterns/{user_id}", response_model=UserPatternSummary)
