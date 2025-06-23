@@ -71,7 +71,7 @@ async def test_ai_response():
         }
 
 # Mock user dependency for MVP with browser session support
-async def get_current_user(request: Request):
+async def get_current_user_with_request(request: Request):
     """
     Mock user for MVP with browser session support
     Accepts user ID from X-User-Id header for beta testing isolation
@@ -90,11 +90,22 @@ async def get_current_user(request: Request):
         "name": f"Beta User {user_id.split('_')[-1] if '_' in user_id else 'Default'}"
     }
 
+# Wrapper for endpoints that don't need request
+async def get_current_user():
+    """Fallback for endpoints without request access"""
+    return {
+        "id": "user_123",
+        "email": "demo@pulsecheck.app",
+        "tech_role": "beta_tester", 
+        "name": "Beta User Default"
+    }
+
 @router.post("/entries", response_model=JournalEntryResponse)
 async def create_journal_entry(
     entry: JournalEntryCreate,
+    request: Request,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_with_request)
 ):
     """
     Create a new journal entry
