@@ -246,7 +246,7 @@ class WeeklySummaryService:
         
         # Basic metrics
         total_entries = len(entries)
-        moods = [entry.mood_score for entry in entries if hasattr(entry, 'mood_score') and entry.mood_score]
+        moods = [entry.mood_level for entry in entries if hasattr(entry, 'mood_level') and entry.mood_level]
         energies = [entry.energy_level for entry in entries if hasattr(entry, 'energy_level') and entry.energy_level]
         stresses = [entry.stress_level for entry in entries if hasattr(entry, 'stress_level') and entry.stress_level]
         sleeps = [entry.sleep_hours for entry in entries if hasattr(entry, 'sleep_hours') and entry.sleep_hours]
@@ -724,8 +724,8 @@ class WeeklySummaryService:
                 # Look at recent entries for trend
                 recent_moods = []
                 for entry in entries[-3:]:
-                    if hasattr(entry, 'mood_score') and entry.mood_score:
-                        recent_moods.append(entry.mood_score)
+                    if hasattr(entry, 'mood_level') and entry.mood_level:
+                        recent_moods.append(entry.mood_level)
                 
                 if len(recent_moods) >= 2:
                     recent_avg = sum(recent_moods) / len(recent_moods)

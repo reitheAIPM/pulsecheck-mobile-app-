@@ -196,8 +196,15 @@ async def generate_adaptive_response(
             mood_level=5,  # Default values
             energy_level=5,
             stress_level=5,
+            sleep_hours=None,
+            work_hours=None,
+            tags=[],
+            work_challenges=[],
+            gratitude_items=[],
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
+            ai_insights=None,
+            ai_generated_at=None
         )
         
         # Get user's journal history for pattern analysis

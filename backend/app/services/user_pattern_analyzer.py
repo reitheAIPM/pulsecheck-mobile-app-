@@ -314,12 +314,12 @@ class UserPatternAnalyzer:
             mood_scores = {"mood": [], "energy": [], "stress": []}
             
             for entry in entries:
-                if hasattr(entry, 'mood_score'):
-                    mood_scores["mood"].append(entry.mood_score)
-                if hasattr(entry, 'energy_score'):
-                    mood_scores["energy"].append(entry.energy_score)
-                if hasattr(entry, 'stress_score'):
-                    mood_scores["stress"].append(entry.stress_score)
+                if hasattr(entry, 'mood_level'):
+                    mood_scores["mood"].append(entry.mood_level)
+                if hasattr(entry, 'energy_level'):
+                    mood_scores["energy"].append(entry.energy_level)
+                if hasattr(entry, 'stress_level'):
+                    mood_scores["stress"].append(entry.stress_level)
             
             trends = {}
             for mood_type, scores in mood_scores.items():
@@ -339,9 +339,9 @@ class UserPatternAnalyzer:
             mood_by_day = {i: [] for i in range(7)}  # 0=Monday, 6=Sunday
             
             for entry in entries:
-                if entry.created_at and hasattr(entry, 'mood_score'):
+                if entry.created_at and hasattr(entry, 'mood_level'):
                     day_of_week = entry.created_at.weekday()
-                    mood_by_day[day_of_week].append(entry.mood_score)
+                    mood_by_day[day_of_week].append(entry.mood_level)
             
             # Calculate average mood for each day
             cycles = {}
@@ -366,19 +366,19 @@ class UserPatternAnalyzer:
                 topics = self._analyze_topics([entry])
                 
                 # Determine mood state
-                mood_score = getattr(entry, 'mood_score', 5)
-                stress_score = getattr(entry, 'stress_score', 5)
-                energy_score = getattr(entry, 'energy_score', 5)
+                mood_level = getattr(entry, 'mood_level', 5)
+                stress_level = getattr(entry, 'stress_level', 5)
+                energy_level = getattr(entry, 'energy_level', 5)
                 
-                if mood_score <= 3:
+                if mood_level <= 3:
                     mood_triggers["low_mood"].extend(topics)
-                elif mood_score >= 7:
+                elif mood_level >= 7:
                     mood_triggers["high_mood"].extend(topics)
                 
-                if stress_score >= 7:
+                if stress_level >= 7:
                     mood_triggers["high_stress"].extend(topics)
                 
-                if energy_score <= 3:
+                if energy_level <= 3:
                     mood_triggers["low_energy"].extend(topics)
             
             # Get most common triggers
@@ -526,9 +526,9 @@ class UserPatternAnalyzer:
         """Analyze current entry context"""
         try:
             return {
-                "mood_score": getattr(entry, 'mood_score', 5),
-                "energy_score": getattr(entry, 'energy_score', 5),
-                "stress_score": getattr(entry, 'stress_score', 5),
+                "mood_level": getattr(entry, 'mood_level', 5),
+                "energy_level": getattr(entry, 'energy_level', 5),
+                "stress_level": getattr(entry, 'stress_level', 5),
                 "entry_length": len(entry.content) if entry.content else 0,
                 "time_of_day": entry.created_at.hour if entry.created_at else 12,
                 "day_of_week": entry.created_at.weekday() if entry.created_at else 0,
@@ -536,23 +536,23 @@ class UserPatternAnalyzer:
                 "emotional_state": self._analyze_emotional_state(entry)
             }
         except Exception:
-            return {"mood_score": 5, "energy_score": 5, "stress_score": 5}
+            return {"mood_level": 5, "energy_level": 5, "stress_level": 5}
     
     def _analyze_emotional_state(self, entry: JournalEntryResponse) -> str:
         """Analyze emotional state from current entry"""
         try:
             content = entry.content.lower() if entry.content else ""
-            mood_score = getattr(entry, 'mood_score', 5)
-            stress_score = getattr(entry, 'stress_score', 5)
-            energy_score = getattr(entry, 'energy_score', 5)
+            mood_level = getattr(entry, 'mood_level', 5)
+            stress_level = getattr(entry, 'stress_level', 5)
+            energy_level = getattr(entry, 'energy_level', 5)
             
-            if stress_score >= 7:
+            if stress_level >= 7:
                 return "stressed"
-            elif mood_score <= 3:
+            elif mood_level <= 3:
                 return "sad"
-            elif energy_score <= 3:
+            elif energy_level <= 3:
                 return "tired"
-            elif mood_score >= 7:
+            elif mood_level >= 7:
                 return "happy"
             else:
                 return "neutral"
@@ -686,7 +686,7 @@ class UserPatternAnalyzer:
         """Create default adaptive context"""
         return AdaptiveContext(
             user_patterns=patterns,
-            current_context={"mood_score": 5, "energy_score": 5, "stress_score": 5},
+            current_context={"mood_level": 5, "energy_level": 5, "stress_level": 5},
             suggested_tone="neutral",
             suggested_length="medium",
             focus_areas=["general_support"],
