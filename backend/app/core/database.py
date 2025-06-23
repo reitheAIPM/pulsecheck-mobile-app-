@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base
 from app.core.config import settings
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -54,15 +55,28 @@ class Database:
 # SQLAlchemy setup for direct PostgreSQL access
 def get_database_url() -> str:
     """Get PostgreSQL connection URL from Supabase URL"""
-    # Convert Supabase URL to PostgreSQL URL
-    supabase_url = settings.supabase_url
-    # Extract the project reference from supabase URL
-    # Format: https://[project-ref].supabase.co
-    project_ref = supabase_url.replace('https://', '').replace('.supabase.co', '')
-    
-    # Construct PostgreSQL URL
-    # Format: postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
-    return f"postgresql://postgres:{settings.supabase_service_key or 'password'}@db.{project_ref}.supabase.co:5432/postgres"
+    try:
+        # Convert Supabase URL to PostgreSQL URL
+        supabase_url = settings.supabase_url
+        if not supabase_url:
+            logger.warning("SUPABASE_URL not set, using default database URL")
+            return "sqlite:///./test.db"  # Fallback for development
+            
+        # Extract the project reference from supabase URL
+        # Format: https://[project-ref].supabase.co
+        project_ref = supabase_url.replace('https://', '').replace('.supabase.co', '')
+        
+        # Use environment variable for DB password if available, otherwise use service key
+        db_password = os.environ.get('DB_PASSWORD', settings.supabase_service_key or 'password')
+        
+        # Construct PostgreSQL URL
+        # Format: postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
+        database_url = f"postgresql://postgres:{db_password}@db.{project_ref}.supabase.co:5432/postgres"
+        logger.debug(f"Database URL constructed for project: {project_ref}")
+        return database_url
+    except Exception as e:
+        logger.error(f"Failed to construct database URL: {e}")
+        return "sqlite:///./fallback.db"  # Emergency fallback
 
 # Global database instance (lazy initialization)
 _db_instance = None
@@ -83,8 +97,20 @@ def get_db() -> Session:
     global engine, SessionLocal
     
     if engine is None:
-        database_url = get_database_url()
-        engine = create_engine(database_url)
+        try:
+            database_url = get_database_url()
+            logger.info(f"Initializing database engine...")
+            engine = create_engine(database_url, echo=False)
+            SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+            logger.info("✅ Database engine initialized successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize database engine: {e}")
+            # Create a dummy engine to prevent NoneType errors
+            engine = create_engine("sqlite:///./emergency.db")
+            SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    
+    if SessionLocal is None:
+        logger.error("SessionLocal is None, creating emergency session")
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     
     db = SessionLocal()

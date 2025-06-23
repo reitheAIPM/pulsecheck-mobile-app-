@@ -55,8 +55,11 @@ async def lifespan(app: FastAPI):
     
     # Create database tables
     try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created successfully")
+        if engine is not None:
+            Base.metadata.create_all(bind=engine)
+            logger.info("Database tables created successfully")
+        else:
+            logger.warning("Database engine is None, skipping table creation")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
         log_error(e, ErrorSeverity.CRITICAL, ErrorCategory.DATABASE, {"operation": "startup"})
