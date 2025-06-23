@@ -130,7 +130,7 @@ npm run dev  # Runs Expo + Builder Dev Tools concurrently
 
 ## 🔗 Base Configuration
 
-**Base URL**: `https://api.pulsecheck.app/v1` (Production)  
+**Base URL**: `https://pulsecheck-mobile-app-production.up.railway.app`  
 **Dev URL**: `http://localhost:8000/api/v1` (Development)  
 **Authentication**: JWT Bearer tokens  
 **Rate Limiting**: 100 requests/minute per user  
@@ -679,3 +679,440 @@ User feedback on AI responses for quality tracking
 **Status**: Foundation Complete - Ready for Core Feature Implementation  
 **Last Updated**: Current session - Added frontend integration patterns and Builder.io workflow  
 **Next Update**: After implementing database schema and first endpoints 
+
+## 🎉 **NEW: AI-Optimized Debugging Endpoints** (LIVE)
+
+### **Debug Health & Monitoring**
+All debug endpoints are now **LIVE** in production with comprehensive AI-optimized monitoring capabilities.
+
+#### `GET /api/v1/debug/health`
+**Status**: ✅ **LIVE** - System health monitoring
+```json
+{
+  "success": true,
+  "message": "System health retrieved",
+  "data": {
+    "overall_status": "healthy",
+    "components": {
+      "database": "healthy",
+      "ai_service": "healthy",
+      "journal": "healthy",
+      "adaptive_ai": "healthy"
+    },
+    "system_metrics": {
+      "cpu_usage": 25.3,
+      "memory_usage": 45.2,
+      "disk_usage": 12.1
+    },
+    "error_rate": 0.02,
+    "uptime_seconds": 86400
+  }
+}
+```
+
+#### `GET /api/v1/debug/diagnostics`
+**Status**: ✅ **LIVE** - Comprehensive diagnostics with auto-fix capabilities
+```json
+{
+  "timestamp": "2025-01-27T11:30:00.000Z",
+  "overall_health": "healthy",
+  "component_health": [
+    {
+      "component": "database",
+      "status": "healthy",
+      "response_time_ms": 45.2,
+      "metadata": {
+        "connections": 12,
+        "query_performance": "optimal"
+      }
+    }
+  ],
+  "active_issues": [],
+  "performance_analysis": {
+    "avg_response_time_ms": 150.5,
+    "p95_response_time_ms": 280.1,
+    "error_rate": 0.02
+  },
+  "recommendations": [
+    "System performance is optimal",
+    "No immediate action required"
+  ],
+  "auto_fixes_applied": []
+}
+```
+
+#### `POST /api/v1/debug/self-test`
+**Status**: ✅ **LIVE** - Debugging service self-test
+```json
+{
+  "success": true,
+  "message": "Self-test completed: 8 passed, 0 failed",
+  "data": {
+    "overall_status": "passed",
+    "tests_passed": 8,
+    "tests_failed": 0,
+    "execution_time_ms": 125.6,
+    "test_results": [
+      {
+        "test_name": "database_connectivity",
+        "passed": true,
+        "execution_time_ms": 15.3
+      },
+      {
+        "test_name": "ai_service_integration",
+        "passed": true,
+        "execution_time_ms": 45.2
+      }
+    ]
+  }
+}
+```
+
+#### `GET /api/v1/debug/error-patterns`
+**Status**: ✅ **LIVE** - Error pattern analysis
+```json
+{
+  "success": true,
+  "message": "Error patterns retrieved",
+  "data": {
+    "patterns": {
+      "database_timeout": 2,
+      "ai_service_rate_limit": 1,
+      "validation_error": 5
+    },
+    "total_errors": 8
+  }
+}
+```
+
+#### `GET /api/v1/debug/recent-errors?limit=10`
+**Status**: ✅ **LIVE** - Recent errors with AI recommendations
+```json
+{
+  "success": true,
+  "message": "Retrieved 3 recent errors",
+  "data": [
+    {
+      "timestamp": "2025-01-27T11:25:00.000Z",
+      "operation": "generate_adaptive_response",
+      "endpoint": "/api/v1/adaptive-ai/generate-response",
+      "error_type": "OpenAITimeout",
+      "error_message": "Request timeout after 30s",
+      "recommendations": [
+        "Implement request retry logic",
+        "Consider reducing response complexity",
+        "Monitor OpenAI service status"
+      ],
+      "recovery_attempted": true,
+      "recovery_success": true
+    }
+  ]
+}
+```
+
+#### `POST /api/v1/debug/analyze-error`
+**Status**: ✅ **LIVE** - Analyze specific errors with AI context
+```json
+// Request Body
+{
+  "error_type": "DatabaseTimeout",
+  "error_message": "Connection timeout after 5s",
+  "operation": "get_user_journal_entries",
+  "endpoint": "/api/v1/journal/entries",
+  "user_id": "user_123"
+}
+
+// Response
+{
+  "success": true,
+  "message": "Error analyzed successfully",
+  "data": {
+    "error_type": "DatabaseTimeout",
+    "recommendations": [
+      "Check database connection pool settings",
+      "Implement connection retry logic",
+      "Monitor database performance metrics"
+    ],
+    "system_metrics": {
+      "database_connections": 15,
+      "avg_query_time_ms": 150.5
+    }
+  }
+}
+```
+
+#### `POST /api/v1/debug/clear-history`
+**Status**: ✅ **LIVE** - Clear debug history (admin only)
+```json
+{
+  "success": true,
+  "message": "Cleared 147 debug contexts",
+  "data": {
+    "cleared_contexts": 147
+  }
+}
+```
+
+---
+
+## 🤖 **Enhanced Multi-Persona System** (FULLY OPERATIONAL)
+
+### `GET /api/v1/adaptive-ai/personas`
+**Status**: ✅ **WORKING** - All 4 personas operational
+**Enhanced**: Now works with optional `user_id` parameter for personalized recommendations
+
+#### **Without user_id** (Public access):
+```bash
+GET /api/v1/adaptive-ai/personas
+```
+```json
+[
+  {
+    "persona_id": "pulse",
+    "persona_name": "Pulse",
+    "description": "Your emotionally intelligent wellness companion",
+    "recommended": true,
+    "available": true,
+    "recommendation_score": 0.9
+  },
+  {
+    "persona_id": "sage",
+    "persona_name": "Sage", 
+    "description": "A wise mentor who provides strategic life guidance",
+    "recommended": false,
+    "available": true,
+    "recommendation_score": 0.7
+  },
+  {
+    "persona_id": "spark",
+    "persona_name": "Spark",
+    "description": "An energetic motivator who ignites creativity and action", 
+    "recommended": false,
+    "available": true,
+    "recommendation_score": 0.6
+  },
+  {
+    "persona_id": "anchor",
+    "persona_name": "Anchor",
+    "description": "A steady presence who provides stability and grounding",
+    "recommended": false,
+    "available": true,
+    "recommendation_score": 0.8
+  }
+]
+```
+
+#### **With user_id** (Personalized recommendations):
+```bash
+GET /api/v1/adaptive-ai/personas?user_id=user_123
+```
+Returns same format but with personalized `recommendation_score` and `recommendation_reasons` based on user patterns.
+
+### `POST /api/v1/adaptive-ai/generate-response`
+**Status**: ✅ **ENHANCED** - Now supports all 4 personas with dynamic selection
+```json
+// Request Body
+{
+  "user_id": "user_123",
+  "journal_content": "Feeling overwhelmed with work deadlines...",
+  "persona": "pulse", // or "auto" for dynamic selection
+  "include_pattern_analysis": true
+}
+
+// Response
+{
+  "ai_insight": {
+    "insight": "I can sense the weight of these deadlines pressing on you...",
+    "suggested_action": "Take 5 deep breaths and write down your top 3 priorities",
+    "follow_up_question": "What's the most important deadline you're facing?",
+    "confidence_score": 0.92,
+    "persona_used": "pulse",
+    "adaptation_level": "high",
+    "topic_flags": ["work_stress", "anxiety"]
+  },
+  "persona_used": {
+    "persona_id": "pulse",
+    "persona_name": "Pulse",
+    "description": "Your emotionally intelligent wellness companion",
+    "recommended": true,
+    "available": true
+  },
+  "adaptation_applied": true,
+  "adaptation_confidence": 0.85
+}
+```
+
+---
+
+## 📝 **Core Journal Endpoints** (STABLE)
+
+### `GET /api/v1/journal/entries`
+**Status**: ✅ **STABLE** - Retrieving journal entries
+```bash
+GET /api/v1/journal/entries?user_id=user_123&limit=10
+```
+
+### `POST /api/v1/journal/entries`
+**Status**: ✅ **STABLE** - Creating journal entries
+```json
+{
+  "user_id": "user_123",
+  "content": "Today I feel...",
+  "mood_level": 7,
+  "energy_level": 6,
+  "stress_level": 4
+}
+```
+
+### `DELETE /api/v1/journal/reset/{user_id}?confirm=true`
+**Status**: ✅ **NEW** - Reset journal (delete all entries)
+**Security**: User can only reset their own journal
+**Requires**: `confirm=true` parameter to prevent accidental deletion
+
+```bash
+DELETE /api/v1/journal/reset/user_123?confirm=true
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "deleted_count": 47,
+  "message": "Successfully deleted 47 journal entries. Your journal has been reset."
+}
+```
+
+**Error Response** (without confirmation):
+```json
+{
+  "detail": "Journal reset requires confirmation. Add ?confirm=true to proceed."
+}
+```
+
+### `GET /api/v1/journal/stats`
+**Status**: ✅ **STABLE** - Journal statistics
+```bash
+GET /api/v1/journal/stats?user_id=user_123
+```
+
+---
+
+## 🔍 **Pattern Analysis Endpoints** (ENHANCED)
+
+### `POST /api/v1/adaptive-ai/analyze-patterns`
+**Status**: ✅ **ENHANCED** - Comprehensive user pattern analysis
+```json
+// Request
+{
+  "user_id": "user_123",
+  "include_history": true,
+  "analysis_depth": "standard"
+}
+
+// Response
+{
+  "user_id": "user_123",
+  "patterns": {
+    "writing_style": "emotional",
+    "common_topics": ["work_stress", "relationships", "self_care"],
+    "mood_trends": {
+      "mood": 6.2,
+      "energy": 5.8,
+      "stress": 6.5
+    },
+    "interaction_preferences": {
+      "prefers_questions": true,
+      "prefers_validation": true,
+      "prefers_advice": false
+    },
+    "pattern_confidence": 0.82,
+    "entries_analyzed": 47
+  },
+  "persona_recommendations": [...],
+  "cache_used": false
+}
+```
+
+### `GET /api/v1/adaptive-ai/patterns/{user_id}`
+**Status**: ✅ **STABLE** - Get user pattern summary
+
+### `POST /api/v1/adaptive-ai/refresh-patterns/{user_id}`
+**Status**: ✅ **STABLE** - Force refresh user patterns
+
+---
+
+## 🏥 **Health & Monitoring Endpoints** (STABLE)
+
+### `GET /health`
+**Status**: ✅ **STABLE** - Basic health check
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-01-27T11:30:00.000Z",
+  "version": "2.1.2"
+}
+```
+
+### `GET /`
+**Status**: ✅ **STABLE** - Root endpoint
+```json
+{
+  "name": "PulseCheck API",
+  "version": "2.1.2",
+  "status": "operational",
+  "documentation": "https://github.com/reitheAIPM/pulsecheck-mobile-app-"
+}
+```
+
+---
+
+## 🔐 **Authentication Endpoints** (READY)
+
+### `POST /api/v1/auth/register`
+**Status**: ⏳ **READY** - User registration (to be implemented)
+
+### `POST /api/v1/auth/login`  
+**Status**: ⏳ **READY** - User login (to be implemented)
+
+### `POST /api/v1/auth/refresh`
+**Status**: ⏳ **READY** - Token refresh (to be implemented)
+
+---
+
+## 📊 **Error Handling**
+
+All endpoints now include **AI-optimized error handling** with:
+- Structured error responses
+- Error categorization and severity assessment
+- Automatic recovery mechanisms where possible
+- Comprehensive logging for debugging
+- Performance degradation detection
+
+**Standard Error Response Format**:
+```json
+{
+  "success": false,
+  "error": "Detailed error message",
+  "error_code": "VALIDATION_ERROR",
+  "details": {
+    "field": "user_id",
+    "message": "User ID is required"
+  },
+  "timestamp": "2025-01-27T11:30:00.000Z"
+}
+```
+
+---
+
+## 🚀 **Production Environment**
+
+- **Base URL**: `https://pulsecheck-mobile-app-production.up.railway.app`
+- **Deployment**: Railway (automated on git push)
+- **Database**: Supabase PostgreSQL
+- **AI Service**: OpenAI GPT-4
+- **Monitoring**: Built-in AI-optimized debugging system
+- **Status**: **100% OPERATIONAL** ✅
+
+**Last Updated**: January 27, 2025  
+**API Version**: 2.1.2  
+**System Status**: All endpoints operational with enhanced debugging capabilities 

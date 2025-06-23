@@ -140,6 +140,23 @@ class MobileApiService {
     }
   }
 
+  // Reset journal - delete all entries for current user
+  async resetJournal(userId: string): Promise<{ deleted_count: number; message: string }> {
+    console.log('Resetting journal for user:', userId);
+    const response = await fetch(`${this.baseURL}/api/v1/journal/reset/${userId}?confirm=true`, {
+      method: 'DELETE',
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('Journal reset completed:', result);
+    return result;
+  }
+
   async getPulseResponse(entryId: string): Promise<PulseResponse> {
     const response = await fetch(`${this.baseURL}/api/v1/journal/entries/${entryId}/pulse`);
     

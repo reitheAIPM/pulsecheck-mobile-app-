@@ -318,6 +318,14 @@ class ApiService {
     await this.client.delete(`/api/v1/journal/entries/${id}`);
   }
 
+  // Reset journal - delete all entries for current user
+  async resetJournal(userId: string): Promise<{ deleted_count: number; message: string }> {
+    console.log('Resetting journal for user:', userId);
+    const response: AxiosResponse<{ deleted_count: number; message: string }> = await this.client.delete(`/api/v1/journal/reset/${userId}?confirm=true`);
+    console.log('Journal reset completed:', response.data);
+    return response.data;
+  }
+
   // Pulse AI endpoints
   async getPulseResponse(entryId: string): Promise<PulseResponse> {
     const response: AxiosResponse<PulseResponse> = await this.client.get(`/api/v1/journal/entries/${entryId}/pulse`);

@@ -13,6 +13,7 @@ import {
   Sparkles,
   RefreshCw,
   Crown,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import AITeamManager from "@/components/PersonaSelector";
 import PatternInsights from "@/components/PatternInsights";
 import JournalHistory from "@/components/JournalHistory";
@@ -61,6 +73,22 @@ const Profile = () => {
   const [premiumToggleLoading, setPremiumToggleLoading] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
+
+  // State for reset journal functionality
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isResettingJournal, setIsResettingJournal] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+  const [originalProfile, setOriginalProfile] = useState({
+    name: "Alex Chen",
+    role: "Senior Software Engineer",
+    company: "TechCorp",
+    workStyle:
+      "I work best in focused blocks and tend to overthink problems. I value work-life balance but sometimes struggle with setting boundaries.",
+    triggers: "Heavy meeting days, unclear requirements, tight deadlines",
+    goals:
+      "Better stress management, improved work-life balance, more confident decision making",
+  });
 
   // Mock user ID - in a real app, this would come from authentication
   const userId = "user_123";
@@ -252,8 +280,46 @@ const Profile = () => {
   };
 
   const handleCancel = () => {
-    // Reset changes
+    setProfile(originalProfile);
     setIsEditing(false);
+  };
+
+  const handleResetJournal = async () => {
+    setIsResettingJournal(true);
+    setResetError(null);
+    setResetSuccess(null);
+
+    try {
+      // Call the reset journal API with confirmation
+      const result = await apiService.resetJournal(userId);
+      
+      if (result.deleted_count >= 0) {
+        setResetSuccess(result.message);
+        // Clear any cached journal data
+        localStorage.removeItem('lastAIResponse');
+        localStorage.removeItem('journalEntries');
+        
+        // Refresh user patterns since journal is reset
+        await loadUserPatterns();
+        
+        setIsResetDialogOpen(false);
+      } else {
+        setResetError('Failed to reset journal. Please try again.');
+      }
+    } catch (error: any) {
+      console.error('Error resetting journal:', error);
+      
+      // Handle specific error messages
+      if (error.response?.data?.detail) {
+        setResetError(error.response.data.detail);
+      } else if (error.message) {
+        setResetError(error.message);
+      } else {
+        setResetError('Failed to reset journal. Please try again.');
+      }
+    } finally {
+      setIsResettingJournal(false);
+    }
   };
 
   return (
@@ -572,7 +638,67 @@ const Profile = () => {
               <Button variant="outline" size="sm">
                 Privacy Settings
               </Button>
+              
+              {/* Reset Journal Button with Confirmation Dialog */}
+              <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" className="gap-2">
+                    <Trash2 className="w-4 h-4" />
+                    Reset Journal
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reset Your Journal?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete all your journal entries and clear your AI patterns. 
+                      This action cannot be undone. Are you sure you want to continue?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isResettingJournal}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleResetJournal}
+                      disabled={isResettingJournal}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {isResettingJournal ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Resetting...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Yes, Reset Journal
+                        </>
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
+            
+            {/* Reset Journal Status Messages */}
+            {resetSuccess && (
+              <Alert className="mt-4 border-green-200 bg-green-50">
+                <AlertTitle className="text-green-800">Success!</AlertTitle>
+                <AlertDescription className="text-green-700">
+                  {resetSuccess}
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {resetError && (
+              <Alert className="mt-4 border-red-200 bg-red-50">
+                <AlertTitle className="text-red-800">Error</AlertTitle>
+                <AlertDescription className="text-red-700">
+                  {resetError}
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
 
