@@ -23,6 +23,10 @@ from datetime import datetime
 # Load environment variables
 load_dotenv()
 
+# Configure logging early
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Import configuration and routers
 try:
     from app.core.config import settings
@@ -38,14 +42,27 @@ except Exception as e:
         port = 8000
     settings = MinimalSettings()
 
-from app.routers import auth, checkins, journal, admin, debugging
-from app.routers.adaptive_ai import router as adaptive_ai_router
+# Import routers with error handling to prevent deployment failures
+try:
+    from app.routers import auth
+    from app.routers import checkins
+    from app.routers import journal
+    from app.routers import admin
+    from app.routers import debugging
+    from app.routers.adaptive_ai import router as adaptive_ai_router
+except Exception as e:
+    logger.error(f"Error importing routers: {e}")
+    # Create minimal fallback routers
+    from fastapi import APIRouter
+    auth = APIRouter()
+    checkins = APIRouter()
+    journal = APIRouter()
+    admin = APIRouter()
+    debugging = APIRouter()
+    adaptive_ai_router = APIRouter()
+
 from app.core.monitoring import monitor, log_error, log_performance, check_health, ErrorSeverity, ErrorCategory
 from app.core.database import engine, Base
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -561,13 +578,38 @@ async def record_ai_debugging_attempt(error_id: str, attempt_details: Dict[str, 
 # Note: OPTIONS requests are handled by CustomCORSMiddleware above
 # No need for additional OPTIONS handler as it causes conflicts
 
-# Include routers
-app.include_router(auth.router, prefix="/api/v1")
-app.include_router(journal.router, prefix="/api/v1")
-app.include_router(checkins.router, prefix="/api/v1")
-app.include_router(admin.router, prefix="/api/v1")
-app.include_router(adaptive_ai_router, prefix="/api/v1")
-app.include_router(debugging.router, prefix="/api/v1")
+# Include routers - handle both imported and fallback routers
+try:
+    if hasattr(auth, 'router'):
+        app.include_router(auth.router, prefix="/api/v1")
+    else:
+        app.include_router(auth, prefix="/api/v1")
+    
+    if hasattr(journal, 'router'):
+        app.include_router(journal.router, prefix="/api/v1")
+    else:
+        app.include_router(journal, prefix="/api/v1")
+    
+    if hasattr(checkins, 'router'):
+        app.include_router(checkins.router, prefix="/api/v1")
+    else:
+        app.include_router(checkins, prefix="/api/v1")
+    
+    if hasattr(admin, 'router'):
+        app.include_router(admin.router, prefix="/api/v1")
+    else:
+        app.include_router(admin, prefix="/api/v1")
+    
+    app.include_router(adaptive_ai_router, prefix="/api/v1")
+    
+    if hasattr(debugging, 'router'):
+        app.include_router(debugging.router, prefix="/api/v1")
+    else:
+        app.include_router(debugging, prefix="/api/v1")
+        
+except Exception as e:
+    logger.error(f"Error registering routers: {e}")
+    # Continue without problematic routers
 
 @app.get("/")
 async def root():

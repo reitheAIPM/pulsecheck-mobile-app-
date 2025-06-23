@@ -9,6 +9,7 @@ import Insights from './pages/Insights'
 import Profile from './pages/Profile'
 import Privacy from './pages/Privacy'
 import History from './pages/History'
+import Auth from './pages/Auth'
 import NotFound from './pages/NotFound'
 import { BottomNav } from './components/BottomNav'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -26,6 +27,9 @@ function App() {
             <Route path="/insights" element={<Insights />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/login" element={<Auth />} />
+            <Route path="/register" element={<Auth />} />
             <Route path="/new-entry" element={<JournalEntry />} />
             {/* Test route - this will show the test content */}
             <Route path="/test" element={

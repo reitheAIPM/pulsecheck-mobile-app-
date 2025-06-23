@@ -15,8 +15,13 @@ import {
   RefreshCw,
   Crown,
   Trash2,
+  CheckCircle,
+  AlertCircle,
+  LogOut,
+  Loader2,
+  UserPlus,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,10 +43,21 @@ import {
 import AITeamManager from "@/components/PersonaSelector";
 import PatternInsights from "@/components/PatternInsights";
 import JournalHistory from "@/components/JournalHistory";
-import { apiService, UserPatternSummary, PersonaRecommendation } from "@/services/api";
+import { apiService, UserPatterns, PersonaInfo } from "@/services/api";
+import { authService } from "@/services/authService";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { StatusIndicator } from "@/components/ui/loading-states";
 import { getCurrentUserId, getCurrentUserDisplayName, getSessionInfo } from "@/utils/userSession";
+
+// Type aliases for compatibility
+type UserPatternSummary = UserPatterns;
+type PersonaRecommendation = PersonaInfo & {
+  recommended: boolean;
+  available: boolean;
+  requires_premium: boolean;
+  times_used: number;
+  recommendation_reason: string;
+};
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -77,6 +93,10 @@ const Profile = () => {
   const [premiumToggleLoading, setPremiumToggleLoading] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
+
+  // Authentication state
+  const [userSession, setUserSession] = useState<any>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // State for reset journal functionality
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
@@ -116,7 +136,36 @@ const Profile = () => {
     loadPersonas();
     loadSubscriptionStatus();
     testApiConnection();
+    checkAuthStatus();
   }, []);
+
+  const checkAuthStatus = async () => {
+    try {
+      const result = await authService.getCurrentUser();
+      if (result.user && !result.error) {
+        setUserSession(result.user);
+      } else {
+        setUserSession(null);
+      }
+    } catch (error) {
+      console.log('No active auth session found');
+      setUserSession(null);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await authService.logout();
+      setUserSession(null);
+      // Optionally redirect to home or auth page
+      navigate('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   const testApiConnection = async () => {
     try {
@@ -142,7 +191,7 @@ const Profile = () => {
   const loadUserPatterns = async () => {
     setLoadingPatterns(true);
     try {
-      const patterns = await apiService.getUserPatterns(userId);
+      const patterns = await apiService.getUserPatterns();
       setUserPatterns(patterns);
     } catch (error) {
       console.error('Failed to load user patterns:', error);
@@ -165,8 +214,7 @@ const Profile = () => {
           style: "supportive"
         },
         pattern_confidence: 0.75,
-        entries_analyzed: 24,
-        last_updated: new Date().toISOString()
+        entries_analyzed: 24
       });
     } finally {
       setLoadingPatterns(false);
@@ -176,57 +224,49 @@ const Profile = () => {
   const loadPersonas = async () => {
     setLoadingPersonas(true);
     try {
-      const availablePersonas = await apiService.getAvailablePersonas(userId);
-      setPersonas(availablePersonas);
+      const availablePersonas = await apiService.getAvailablePersonas();
+      // Convert PersonaInfo to PersonaRecommendation format
+      const convertedPersonas: PersonaRecommendation[] = availablePersonas.map(p => ({
+        ...p,
+        recommended: p.recommended,
+        available: true,
+        requires_premium: p.id !== 'pulse',
+        times_used: 0,
+        recommendation_reason: `Great for ${p.description.toLowerCase()}`
+      }));
+      
+      setPersonas(convertedPersonas);
       
       // Set default persona to the first recommended one, or fallback to "pulse"
-      const recommendedPersona = availablePersonas.find(p => p.recommended);
+      const recommendedPersona = convertedPersonas.find(p => p.recommended);
       if (recommendedPersona) {
-        setSelectedPersona(recommendedPersona.persona_id);
+        setSelectedPersona(recommendedPersona.id);
       }
     } catch (error) {
       console.error('Failed to load personas:', error);
       // Use fallback personas
       setPersonas([
         {
-          persona_id: "pulse",
-          persona_name: "Pulse",
+          id: "pulse",
+          name: "Pulse",
           description: "Your emotionally intelligent wellness companion",
           recommended: true,
+          traits: ["empathetic", "supportive", "insightful"],
           available: true,
           requires_premium: false,
           times_used: 15,
           recommendation_reason: "Perfect for emotional support and wellness insights"
         },
         {
-          persona_id: "sage",
-          persona_name: "Sage",
+          id: "sage",
+          name: "Sage",
           description: "Wise mentor for strategic life guidance",
           recommended: false,
+          traits: ["wise", "strategic", "thoughtful"],
           available: premiumEnabled,
           requires_premium: true,
           times_used: premiumEnabled ? 3 : 0,
           recommendation_reason: "Great for long-term planning and wisdom"
-        },
-        {
-          persona_id: "spark",
-          persona_name: "Spark",
-          description: "Energetic motivator for creativity and action",
-          recommended: false,
-          available: premiumEnabled,
-          requires_premium: true,
-          times_used: premiumEnabled ? 1 : 0,
-          recommendation_reason: "Perfect for boosting motivation and creative thinking"
-        },
-        {
-          persona_id: "anchor",
-          persona_name: "Anchor",
-          description: "Steady presence for stability and grounding",
-          recommended: false,
-          available: premiumEnabled,
-          requires_premium: true,
-          times_used: premiumEnabled ? 2 : 0,
-          recommendation_reason: "Ideal for finding balance and inner stability"
         }
       ]);
     } finally {
@@ -237,7 +277,7 @@ const Profile = () => {
   const loadSubscriptionStatus = async () => {
     setLoadingSubscription(true);
     try {
-      const status = await apiService.getSubscriptionStatus(userId);
+      const status = await apiService.getSubscriptionStatus();
       setSubscriptionStatus(status);
       setPremiumEnabled(status.beta_premium_enabled);
     } catch (error) {
@@ -246,7 +286,7 @@ const Profile = () => {
       setSubscriptionStatus({
         tier: 'free',
         is_premium_active: false,
-        is_beta_tester: true, // Default to beta tester for development
+        is_beta_tester: true,
         beta_premium_enabled: false,
         available_personas: ['pulse'],
         ai_requests_today: 0,
@@ -267,7 +307,7 @@ const Profile = () => {
   const refreshPatterns = async () => {
     setRefreshingPatterns(true);
     try {
-      await apiService.refreshUserPatterns(userId);
+      // Since there's no refresh function, just reload patterns
       await loadUserPatterns();
     } catch (error) {
       console.error('Failed to refresh patterns:', error);
@@ -321,7 +361,7 @@ const Profile = () => {
 
     try {
       // Call the reset journal API with confirmation
-      const result = await apiService.resetJournal(userId);
+      const result = await apiService.resetJournal();
       
       if (result.deleted_count >= 0) {
         setResetSuccess(result.message);
@@ -873,7 +913,91 @@ const Profile = () => {
           </Card>
         )}
 
-        {/* Persona Management */}
+        {/* Authentication Status Section - NEW */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5" />
+              Authentication Status
+            </CardTitle>
+            <CardDescription>
+              Current user session and authentication details
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {userSession ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-green-600">
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="font-medium">Authenticated</span>
+                </div>
+                
+                <div className="bg-green-50 p-3 rounded-lg space-y-2">
+                  <div className="text-sm">
+                    <span className="font-medium text-gray-700">User ID:</span>
+                    <span className="ml-2 font-mono text-xs bg-white px-2 py-1 rounded">
+                      {userSession.user?.id || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="font-medium text-gray-700">Email:</span>
+                    <span className="ml-2">{userSession.user?.email || 'N/A'}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="font-medium text-gray-700">Session Expires:</span>
+                    <span className="ml-2">
+                      {userSession.expires_at 
+                        ? new Date(userSession.expires_at * 1000).toLocaleString()
+                        : 'N/A'
+                      }
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleSignOut}
+                  variant="outline"
+                  className="w-full"
+                  disabled={isSigningOut}
+                >
+                  {isSigningOut ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing Out...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign Out
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-amber-600">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="font-medium">Using Browser Session</span>
+                </div>
+                
+                <div className="bg-amber-50 p-3 rounded-lg">
+                  <p className="text-sm text-amber-800">
+                    You're currently using a temporary browser session. 
+                    Create an account to save your data permanently.
+                  </p>
+                </div>
+
+                <Button
+                  onClick={() => navigate('/auth')}
+                  className="w-full"
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Create Account / Sign In
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Debug Section */}
         <Card className="border-dashed border-muted-foreground/30">
