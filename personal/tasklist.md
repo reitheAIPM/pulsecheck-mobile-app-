@@ -1,9 +1,9 @@
 # PulseCheck - Task List & Issue Tracking
 
-**Last Updated**: January 21, 2025 - Evening Session  
-**Status**: ✅ **PRODUCTION DEPLOYED** - Both Railway & Vercel Live  
-**Completion**: 95% Complete (5% remaining issues to resolve)  
-**Current Focus**: API endpoint debugging and UX improvements
+**Last Updated**: January 27, 2025 - Critical Frontend 404 Debugging Session  
+**Status**: ❌ **CRITICAL PRODUCTION ISSUES** - Journal functionality broken  
+**Completion**: 90% Complete (10% critical API routing issues)  
+**Current Focus**: Router mounting and authentication dependency debugging
 
 ---
 
@@ -25,55 +25,115 @@
 
 ---
 
+## 🚨 **UPDATED CRITICAL ISSUES - January 27, 2025**
+
+### **❌ BREAKING: All Journal API Endpoints Returning 404**
+**Status**: URGENT - Core functionality completely broken  
+**Discovery**: January 27, 2025 - User unable to save journal entries  
+**Impact**: Users cannot create, read, or interact with journal entries
+
+#### **🔴 Confirmed 404 Endpoints**
+1. **POST `/api/v1/journal/entries`** → 404 Not Found
+   - **Error**: Journal entry creation completely broken
+   - **Frontend Impact**: Save button fails, no feedback to user
+   - **User Experience**: Complete functionality loss
+
+2. **POST `/api/v1/journal/ai/topic-classification`** → 404 Not Found  
+   - **Error**: AI topic detection missing
+   - **Frontend Impact**: Emoji reactions and topic prompts broken
+   - **User Experience**: Reduced AI intelligence in responses
+
+3. **GET `/api/v1/journal/test`** → 404 Not Found
+   - **Error**: Basic router health check failing
+   - **Frontend Impact**: Router completely unmounted
+   - **Diagnostic**: Indicates entire journal router not available
+
+#### **✅ Working Endpoints (Backend Operational)**
+- **GET `/health`** → 200 OK
+- **Root endpoint** → 200 OK
+- **Backend service**: Running and responsive
+
+### **🔧 Debugging Actions Taken Today**
+
+#### **✅ Code Fixes Applied**
+1. **Topic Classification Endpoint Fixed**:
+   - ✅ Changed from query parameter to JSON body handling
+   - ✅ Added proper request validation and error handling
+   - ✅ Code committed and deployed (commit 044fdd1)
+
+2. **Testing Infrastructure Added**:
+   - ✅ Created `backend/test_endpoints.py` for systematic API testing
+   - ✅ Provides automated endpoint health checks
+   - ✅ Can be used for future deployment validation
+
+#### **❌ Issues Still Outstanding**
+1. **Router Mounting Problem**:
+   - **Hypothesis**: Journal router not properly mounting in FastAPI application
+   - **Evidence**: All journal endpoints 404, but health endpoints work
+   - **Likely Cause**: Authentication dependency issues in router imports
+
+2. **Authentication Dependencies**:
+   - **Issue**: `get_current_user` imports may be causing circular dependencies
+   - **Impact**: Entire router fails to mount if auth dependencies break
+   - **Investigation Needed**: Check Railway logs for import errors
+
+3. **Railway Environment Issues**:
+   - **Possibility**: Production environment missing required dependencies
+   - **Evidence**: Local code looks correct, but production returns 404
+   - **Next Step**: Examine Railway deployment logs and service health
+
+### **🔍 Root Cause Analysis**
+
+**Most Likely Issue**: **Router Mount Failure Due to Authentication Dependencies**
+
+**Evidence Supporting This Theory**:
+- ✅ Backend service is running (health endpoint works)
+- ✅ Journal router code exists and looks correct
+- ✅ Recent changes were deployed successfully
+- ❌ ALL journal endpoints return 404 (not individual endpoint issues)
+- ❌ Even basic test endpoint `/api/v1/journal/test` returns 404
+
+**This suggests the entire journal router is failing to mount, most likely due to:**
+1. **Import errors** during router registration in `main.py`
+2. **Authentication dependency failures** preventing router initialization
+3. **Database connection issues** blocking service dependencies
+4. **Environment variable issues** in Railway production environment
+
+### **🎯 Immediate Next Steps**
+
+#### **Priority 1: Diagnostic Investigation**
+1. **Railway Logs Analysis**:
+   ```bash
+   # Check for startup errors, import failures, authentication issues
+   railway logs --tail 100
+   railway logs --follow
+   ```
+
+2. **Router Registration Verification**:
+   ```python
+   # Verify in main.py that journal router is properly included
+   app.include_router(journal.router, prefix="/api/v1")
+   ```
+
+3. **Authentication Dependency Check**:
+   ```python
+   # Test if auth imports are causing circular dependencies
+   from app.routers.journal import router
+   ```
+
+#### **Priority 2: Quick Fix Options**
+1. **Minimal Router Test**: Create journal router without auth dependencies
+2. **Health Check Addition**: Add journal-specific health endpoint  
+3. **Fallback Authentication**: Implement simple mock auth for testing
+
+#### **Priority 3: Validation & Testing**
+1. **Endpoint Testing**: Use `test_endpoints.py` to verify fixes
+2. **User Flow Testing**: Complete journal entry creation flow
+3. **Production Monitoring**: Confirm all endpoints return 200 OK
+
+---
+
 ## 🚨 **CURRENT ISSUES TO RESOLVE - Evening Update**
-
-### **🔴 Critical API Issues (Backend)**
-**Status**: High Priority - Blocking core functionality  
-**Discovered**: January 21, 2025 - Post-deployment testing
-
-1. **Journal Entries API 404 Errors**
-   - **Issue**: `GET /api/v1/journal/entries` returning 404 Not Found
-   - **Impact**: History screen not loading, main functionality broken
-   - **Error Pattern**: Multiple 404s for journal entry endpoints
-   - **Console Evidence**: `GET https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/entries?page=1&per_page=30 404 (Not Found)`
-   - **Root Cause**: API routing mismatch between frontend expectations and backend implementation
-   - **Next Steps**: 
-     - Verify backend journal router configuration
-     - Check if endpoints exist at expected paths (`/journal/entries` vs `/api/v1/journal/entries`)
-     - Validate API versioning consistency
-
-2. **Individual Journal Entry 404 Error**
-   - **Issue**: `GET /api/v1/journal/entries/entry-2` returning 404 Not Found
-   - **Impact**: Full entry view after historical selection not working
-   - **Error Pattern**: Individual entry retrieval failing
-   - **Console Evidence**: `GET https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/entries/entry-2 404 (Not Found)`
-   - **Root Cause**: Entry ID routing or endpoint structure mismatch
-   - **Next Steps**:
-     - Check individual entry endpoint implementation
-     - Verify entry ID parameter handling
-     - Test with actual entry IDs from database
-
-3. **Adaptive AI Personas 500 Error**
-   - **Issue**: `GET /api/v1/adaptive-ai/personas` returning 500 Internal Server Error
-   - **Impact**: AI persona selection not working
-   - **Error Pattern**: Server-side error in persona loading
-   - **Console Evidence**: `GET https://pulsecheck-mobile-app-production.up.railway.app/api/v1/adaptive-ai/personas?user_id=user_123 500 (Internal Server Error)`
-   - **Root Cause**: Likely missing service initialization or database connection issue
-   - **Next Steps**:
-     - Check Railway logs for specific error details
-     - Validate adaptive AI service initialization
-     - Test persona endpoints independently
-
-4. **Topic Classification 404 Error**
-   - **Issue**: `POST /journal/topic-classification` returning 404 Not Found
-   - **Impact**: AI topic detection not working
-   - **Error Pattern**: Endpoint not found
-   - **Console Evidence**: `POST https://pulsecheck-mobile-app-production.up.railway.app/journal/topic-classification 404 (Not Found)`
-   - **Root Cause**: Possible routing mismatch or missing endpoint (missing `/api/v1` prefix)
-   - **Next Steps**:
-     - Verify topic classification endpoint exists and correct path
-     - Check API routing configuration for consistency
-     - Test endpoint directly via curl
 
 ### **🟡 Frontend UX Issues**
 **Status**: Medium Priority - User experience improvements

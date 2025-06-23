@@ -20,7 +20,7 @@ from openai import OpenAI
 
 from ..core.database import get_database
 from ..models.journal import JournalEntryResponse
-from ..models.user import User
+from ..models.user import UserTable
 
 # =====================================================
 # DATA MODELS
