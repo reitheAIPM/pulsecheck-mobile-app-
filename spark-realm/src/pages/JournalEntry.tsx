@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MoodTracker } from "@/components/MoodTracker";
+import { Slider } from "@/components/ui/slider";
 import PersonaSelector from "@/components/PersonaSelector";
 import EmojiReactionSystem from "@/components/EmojiReactionSystem";
 import { apiService, PersonaRecommendation } from "@/services/api";
@@ -382,53 +382,42 @@ const JournalEntry = () => {
             </Card>
           )}
 
-          {/* Universal Journal Prompt */}
-          <Card className="bg-muted/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-primary text-base">
-                <Lightbulb className="w-4 h-4" />
-                What's on your mind?
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <p className="text-calm-700 leading-relaxed italic text-lg">
-                "{UNIVERSAL_PROMPT}"
-              </p>
-              <p className="text-xs text-calm-500 mt-2">
-                Write about anything - work, relationships, feelings, dreams, or whatever matters to you right now
+          {/* Universal Journal Prompt - Compact */}
+          <Card className="bg-muted/30">
+            <CardContent className="px-4 py-3">
+              <p className="text-sm text-muted-foreground text-center">
+                What's on your mind today? Nothing is off-limits.
               </p>
             </CardContent>
           </Card>
 
-          {/* Focus Areas Selection */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-calm-700 text-base">
-                <Lightbulb className="w-4 h-4" />
-                What areas would you like support with?
+          {/* Focus Areas Selection - Compact */}
+          <Card className="bg-muted/20">
+            <CardContent className="px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Focus areas (optional)</span>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowFocusAreas(!showFocusAreas)}
-                  className="ml-auto text-xs"
+                  className="text-xs h-6 px-2"
                 >
                   {showFocusAreas ? "Hide" : "Show"}
                 </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
+              </div>
               {showFocusAreas ? (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-1 text-xs">
                   {FOCUS_AREAS.map((area) => (
-                    <div key={area.id} className="flex items-center space-x-2">
+                    <div key={area.id} className="flex items-center space-x-1">
                       <Checkbox
                         id={area.id}
                         checked={selectedFocusAreas.includes(area.id)}
                         onCheckedChange={() => handleFocusAreaToggle(area.id)}
+                        className="h-3 w-3"
                       />
                       <label
                         htmlFor={area.id}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        className="text-xs leading-none cursor-pointer"
                       >
                         <span className="mr-1">{area.emoji}</span>
                         {area.label}
@@ -437,19 +426,19 @@ const JournalEntry = () => {
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1">
                   {selectedFocusAreas.length > 0 ? (
                     selectedFocusAreas.map(areaId => {
                       const area = FOCUS_AREAS.find(a => a.id === areaId);
                       return (
-                        <Badge key={areaId} variant="secondary" className="text-xs">
+                        <Badge key={areaId} variant="secondary" className="text-xs h-5">
                           {area?.emoji} {area?.label}
                         </Badge>
                       );
                     })
                   ) : (
-                    <p className="text-sm text-calm-500 italic">
-                      Optional: Select areas you'd like personalized support with
+                    <p className="text-xs text-muted-foreground">
+                      Select areas for personalized support
                     </p>
                   )}
                 </div>
@@ -457,46 +446,79 @@ const JournalEntry = () => {
             </CardContent>
           </Card>
 
-          {/* Enhanced Mood Tracker */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-calm-700 text-base">
-                <Heart className="w-4 h-4" />
-                How are you feeling?
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Mood ({mood}/10)
-                </label>
-                <MoodTracker value={mood} onChange={setMood} />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Energy Level ({energy}/10)
-                </label>
-                <MoodTracker value={energy} onChange={setEnergy} />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Stress Level ({stress}/10)
-                </label>
-                <MoodTracker value={stress} onChange={setStress} />
+          {/* Compact Mood Tracker */}
+          <Card className="bg-muted/20">
+            <CardContent className="px-4 py-3">
+              <div className="text-sm text-muted-foreground mb-3 text-center">Quick mood check</div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-muted-foreground min-w-[60px]">
+                    Mood
+                  </label>
+                  <div className="flex-1 mx-3">
+                    <Slider
+                      value={[mood]}
+                      onValueChange={(value) => setMood(value[0])}
+                      max={10}
+                      min={1}
+                      step={1}
+                      className="w-full [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground min-w-[30px] text-right">
+                    {mood}/10
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-muted-foreground min-w-[60px]">
+                    Energy
+                  </label>
+                  <div className="flex-1 mx-3">
+                    <Slider
+                      value={[energy]}
+                      onValueChange={(value) => setEnergy(value[0])}
+                      max={10}
+                      min={1}
+                      step={1}
+                      className="w-full [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground min-w-[30px] text-right">
+                    {energy}/10
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-muted-foreground min-w-[60px]">
+                    Stress
+                  </label>
+                  <div className="flex-1 mx-3">
+                    <Slider
+                      value={[stress]}
+                      onValueChange={(value) => setStress(value[0])}
+                      max={10}
+                      min={1}
+                      step={1}
+                      className="w-full [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground min-w-[30px] text-right">
+                    {stress}/10
+                  </span>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Journal Entry with Voice Input */}
-          <Card>
+          {/* Journal Entry - Prominent */}
+          <Card className="border-2 border-primary/20 shadow-lg">
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <label
                     htmlFor="journal-content"
-                    className="text-sm font-medium text-calm-700"
+                    className="text-lg font-medium text-primary"
                   >
                     Your reflection
                   </label>
@@ -520,7 +542,7 @@ const JournalEntry = () => {
                         </>
                       )}
                     </Button>
-                    <span className="text-xs text-calm-500">
+                    <span className="text-xs text-muted-foreground">
                       {wordCount} words
                     </span>
                   </div>
@@ -531,8 +553,8 @@ const JournalEntry = () => {
                   placeholder="What's on your mind? Write freely about your thoughts, feelings, or experiences... Nothing is off-limits."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[200px] border-0 bg-transparent text-calm-800 placeholder:text-calm-400 resize-none focus:ring-0 focus:outline-none text-base leading-relaxed"
-                  style={{ fontSize: "16px" }} // Prevent zoom on iOS
+                  className="min-h-[250px] border-0 bg-transparent text-foreground placeholder:text-muted-foreground resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed"
+                  style={{ fontSize: "18px" }} // Prevent zoom on iOS and make more prominent
                 />
 
                 {/* Voice Input Status */}
@@ -583,19 +605,21 @@ const JournalEntry = () => {
             </Button>
           </div>
 
-          {/* Enhanced Tips */}
-          <div className="mt-8 p-4 bg-calm-50/50 rounded-xl">
-            <h3 className="text-sm font-medium text-calm-700 mb-2">
-              Tips for reflection
-            </h3>
-            <ul className="text-sm text-calm-600 space-y-1">
-              <li>• Write without judgment - this is your safe space</li>
-              <li>• Focus on how you're feeling, not just what happened</li>
-              <li>• Be honest with yourself - it's okay to struggle</li>
-              <li>• Use voice input if typing feels overwhelming</li>
-              <li>• Select focus areas to get more personalized insights</li>
-              <li>• {personas.find(p => p.persona_id === selectedPersona)?.persona_name || 'Pulse'} will provide personalized insights</li>
-            </ul>
+          {/* Subtle Tips */}
+          <div className="mt-6 p-3 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/30">
+            <details className="group">
+              <summary className="text-xs text-muted-foreground cursor-pointer list-none flex items-center gap-2">
+                <span className="group-open:rotate-90 transition-transform">▶</span>
+                Tips for reflection
+              </summary>
+              <ul className="text-xs text-muted-foreground space-y-1 mt-2 ml-4">
+                <li>• Write without judgment - this is your safe space</li>
+                <li>• Focus on how you're feeling, not just what happened</li>
+                <li>• Be honest with yourself - it's okay to struggle</li>
+                <li>• Use voice input if typing feels overwhelming</li>
+                <li>• {personas.find(p => p.persona_id === selectedPersona)?.persona_name || 'Pulse'} will provide personalized insights</li>
+              </ul>
+            </details>
           </div>
         </div>
         )}
