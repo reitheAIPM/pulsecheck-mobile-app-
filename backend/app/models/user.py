@@ -30,6 +30,12 @@ class BetaTestingStatus(str, enum.Enum):
     REJECTED = "rejected"
     BETA_TESTER = "beta_tester"
 
+class SubscriptionTier(str, enum.Enum):
+    """Subscription tiers for premium features"""
+    FREE = "free"
+    PREMIUM = "premium"
+    BETA = "beta"
+
 # Simple Account Creation (Phase 1)
 class UserRegistration(BaseModel):
     """Simple email registration - expandable for OAuth"""

@@ -2,7 +2,7 @@
 # Pydantic models for request/response validation
 # SQLAlchemy models for database operations
 
-from .user import UserCreate, UserUpdate, UserResponse, UserTable
+from .user import UserCreate, UserUpdate, UserResponse, UserTable, SubscriptionTier
 from .checkin import CheckIn, CheckInCreate, CheckInResponse
 from .ai_analysis import AIAnalysis, AIAnalysisResponse
 from .auth import Token, TokenData, LoginRequest
@@ -12,6 +12,7 @@ __all__ = [
     "UserCreate", 
     "UserUpdate",
     "UserResponse",
+    "SubscriptionTier",
     "CheckIn",
     "CheckInCreate",
     "CheckInResponse", 
