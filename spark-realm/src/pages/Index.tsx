@@ -222,14 +222,6 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="max-w-lg mx-auto px-4 py-6">
-        {/* API Status Indicator */}
-        <StatusIndicator
-          status={apiStatus === 'loading' ? 'loading' : apiStatus === 'connected' ? 'success' : 'error'}
-          message={getStatusMessage()}
-          onRetry={apiStatus === 'error' ? handleRefresh : undefined}
-          className="mb-4"
-        />
-
         {/* Welcome Message */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-md text-sm font-medium mb-3 animate-fade-in">

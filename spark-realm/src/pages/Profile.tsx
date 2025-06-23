@@ -39,6 +39,7 @@ import PatternInsights from "@/components/PatternInsights";
 import JournalHistory from "@/components/JournalHistory";
 import { apiService, UserPatternSummary, PersonaRecommendation } from "@/services/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { StatusIndicator } from "@/components/ui/loading-states";
 
 const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -79,6 +80,9 @@ const Profile = () => {
   const [isResettingJournal, setIsResettingJournal] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+  
+  // Debug section state
+  const [apiStatus, setApiStatus] = useState<'loading' | 'connected' | 'error'>('loading');
   const [originalProfile, setOriginalProfile] = useState({
     name: "Alex Chen",
     role: "Senior Software Engineer",
@@ -107,7 +111,29 @@ const Profile = () => {
     loadUserPatterns();
     loadPersonas();
     loadSubscriptionStatus();
+    testApiConnection();
   }, []);
+
+  const testApiConnection = async () => {
+    try {
+      const isConnected = await apiService.testConnection();
+      setApiStatus(isConnected ? 'connected' : 'error');
+    } catch (error) {
+      console.error('API connection test failed:', error);
+      setApiStatus('error');
+    }
+  };
+
+  const getStatusMessage = () => {
+    switch (apiStatus) {
+      case 'loading':
+        return 'Testing connection...';
+      case 'connected':
+        return 'Backend connected';
+      case 'error':
+        return 'Backend disconnected';
+    }
+  };
 
   const loadUserPatterns = async () => {
     setLoadingPatterns(true);
@@ -836,6 +862,25 @@ const Profile = () => {
         )}
 
         {/* Persona Management */}
+
+        {/* Debug Section */}
+        <Card className="border-dashed border-muted-foreground/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm text-muted-foreground">For Debug</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <StatusIndicator
+              status={apiStatus === 'loading' ? 'loading' : apiStatus === 'connected' ? 'success' : 'error'}
+              message={getStatusMessage()}
+              onRetry={apiStatus === 'error' ? testApiConnection : undefined}
+              className="mb-2"
+            />
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div>Environment: <span className="font-mono">Development</span></div>
+              <div>Version: <span className="font-mono">v1.0.0-beta</span></div>
+            </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );
