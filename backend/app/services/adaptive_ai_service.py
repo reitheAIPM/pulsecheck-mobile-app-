@@ -1110,10 +1110,11 @@ Respond naturally as if you're having a real conversation with them.
             
             for persona_key, persona_config in self.personas.items():
                 persona_info = {
-                    "key": persona_key,
+                    "id": persona_key,
                     "name": persona_config["name"],
                     "description": persona_config["description"],
                     "recommended": False,
+                    "available": True,
                     "recommendation_reason": None
                 }
                 
@@ -1149,8 +1150,8 @@ Respond naturally as if you're having a real conversation with them.
             logger.error(f"Error getting available personas: {e}")
             # Return basic persona list as fallback
             return [
-                {"key": "pulse", "name": "Pulse", "description": "Your emotionally intelligent wellness companion", "recommended": True},
-                {"key": "sage", "name": "Sage", "description": "A wise mentor who provides strategic life guidance", "recommended": False},
-                {"key": "spark", "name": "Spark", "description": "An energetic motivator who ignites creativity and action", "recommended": False},
-                {"key": "anchor", "name": "Anchor", "description": "A steady presence who provides stability and grounding", "recommended": False}
+                {"id": "pulse", "name": "Pulse", "description": "Your emotionally intelligent wellness companion", "recommended": True, "available": True},
+                {"id": "sage", "name": "Sage", "description": "A wise mentor who provides strategic life guidance", "recommended": False, "available": True},
+                {"id": "spark", "name": "Spark", "description": "An energetic motivator who ignites creativity and action", "recommended": False, "available": True},
+                {"id": "anchor", "name": "Anchor", "description": "A steady presence who provides stability and grounding", "recommended": False, "available": True}
             ] 
