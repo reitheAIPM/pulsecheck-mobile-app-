@@ -38,7 +38,7 @@ except Exception as e:
         port = 8000
     settings = MinimalSettings()
 
-from app.routers import auth, checkins, journal, admin
+from app.routers import auth, checkins, journal, admin, debugging
 from app.routers.adaptive_ai import router as adaptive_ai_router
 from app.core.monitoring import monitor, log_error, log_performance, check_health, ErrorSeverity, ErrorCategory
 from app.core.database import engine, Base
@@ -563,6 +563,7 @@ app.include_router(journal.router, prefix="/api/v1")
 app.include_router(checkins.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(adaptive_ai_router, prefix="/api/v1")
+app.include_router(debugging.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
