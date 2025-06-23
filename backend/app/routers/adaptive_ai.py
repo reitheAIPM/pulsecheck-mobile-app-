@@ -18,20 +18,36 @@ from app.services.user_pattern_analyzer import UserPatternAnalyzer
 from app.services.pulse_ai import PulseAI
 from app.services.journal_service import JournalService
 from app.core.monitoring import log_error, ErrorSeverity, ErrorCategory
-from app.core.database import get_db
+from app.core.database import get_database
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/adaptive-ai", tags=["Adaptive AI"])
 
-# Service instances (would be injected via dependency injection in production)
-pulse_ai_service = PulseAI()
-pattern_analyzer = UserPatternAnalyzer()
-adaptive_ai_service = AdaptiveAIService(pulse_ai_service, pattern_analyzer)
-journal_service = JournalService()
+# Dependencies for service injection
+def get_journal_service(db = Depends(get_database)):
+    return JournalService()
+
+def get_pulse_ai_service(db = Depends(get_database)):
+    return PulseAI(db=db)
+
+def get_pattern_analyzer(db = Depends(get_database)):
+    return UserPatternAnalyzer(db=db)
+
+def get_adaptive_ai_service(
+    db = Depends(get_database),
+    pulse_ai = Depends(get_pulse_ai_service),
+    pattern_analyzer = Depends(get_pattern_analyzer)
+):
+    return AdaptiveAIService(pulse_ai, pattern_analyzer)
 
 @router.post("/analyze-patterns", response_model=PatternAnalysisResponse)
-async def analyze_user_patterns(request: PatternAnalysisRequest):
+async def analyze_user_patterns(
+    request: PatternAnalysisRequest,
+    journal_service = Depends(get_journal_service),
+    pattern_analyzer = Depends(get_pattern_analyzer),
+    adaptive_ai_service = Depends(get_adaptive_ai_service)
+):
     """
     Analyze user patterns for adaptive AI responses
     """
@@ -137,7 +153,11 @@ async def analyze_user_patterns(request: PatternAnalysisRequest):
         )
 
 @router.post("/generate-response", response_model=AdaptiveResponseResponse)
-async def generate_adaptive_response(request: AdaptiveResponseRequest):
+async def generate_adaptive_response(
+    request: AdaptiveResponseRequest,
+    journal_service = Depends(get_journal_service),
+    adaptive_ai_service = Depends(get_adaptive_ai_service)
+):
     """
     Generate adaptive AI response based on user patterns
     """
@@ -201,7 +221,12 @@ async def generate_adaptive_response(request: AdaptiveResponseRequest):
         )
 
 @router.get("/personas", response_model=List[PersonaRecommendation])
-async def get_available_personas(user_id: str):
+async def get_available_personas(
+    user_id: str,
+    journal_service = Depends(get_journal_service),
+    pattern_analyzer = Depends(get_pattern_analyzer),
+    adaptive_ai_service = Depends(get_adaptive_ai_service)
+):
     """
     Get available personas for user with recommendations
     """
@@ -243,7 +268,11 @@ async def get_available_personas(user_id: str):
         )
 
 @router.get("/patterns/{user_id}", response_model=UserPatternSummary)
-async def get_user_patterns(user_id: str):
+async def get_user_patterns(
+    user_id: str,
+    journal_service = Depends(get_journal_service),
+    pattern_analyzer = Depends(get_pattern_analyzer)
+):
     """
     Get user pattern summary
     """
@@ -304,7 +333,11 @@ async def get_user_patterns(user_id: str):
         )
 
 @router.post("/refresh-patterns/{user_id}")
-async def refresh_user_patterns(user_id: str):
+async def refresh_user_patterns(
+    user_id: str,
+    journal_service = Depends(get_journal_service),
+    pattern_analyzer = Depends(get_pattern_analyzer)
+):
     """
     Force refresh of user patterns (clear cache and re-analyze)
     """

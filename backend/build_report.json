@@ -1,0 +1,188 @@
+{
+  "build_status": "success",
+  "pipeline_steps": [
+    {
+      "name": "\ud83d\udd0d Import Validation",
+      "status": "success",
+      "message": "\u2705 Completed successfully",
+      "duration_ms": 693,
+      "ai_context": null
+    },
+    {
+      "name": "\ud83d\udd27 Auto-Fix Critical Issues",
+      "status": "success",
+      "message": "\u2705 Completed successfully",
+      "duration_ms": 0,
+      "ai_context": null
+    },
+    {
+      "name": "\u2705 Pre-Deployment Validation",
+      "status": "success",
+      "message": "\u2705 Completed successfully",
+      "duration_ms": 969,
+      "ai_context": null
+    },
+    {
+      "name": "\ud83c\udfe5 Health Check Test",
+      "status": "success",
+      "message": "\u2705 Completed successfully",
+      "duration_ms": 27,
+      "ai_context": null
+    }
+  ],
+  "failed_steps": 0,
+  "total_steps": 4,
+  "reports": {
+    "import_validation": {
+      "total_files_checked": 75,
+      "import_issues": [],
+      "critical_issues": 0,
+      "warnings": 0,
+      "ai_debugging_summary": {
+        "total_issues": 0,
+        "critical_issues": 0,
+        "blocks_deployment": false,
+        "most_common_errors": [],
+        "fix_recommendations": [
+          "\u2705 All critical imports validated successfully"
+        ],
+        "deployment_status": "ready"
+      }
+    },
+    "pre_deployment": {
+      "validation_status": "passed",
+      "summary": {
+        "passed": 16,
+        "failed": 0,
+        "warnings": 0,
+        "critical_failures": 0
+      },
+      "results": [
+        {
+          "component": "Import: app.services.journal_service.JournalService",
+          "status": "pass",
+          "message": "\u2705 JournalService imported successfully",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Import: app.services.auth_service.AuthService",
+          "status": "pass",
+          "message": "\u2705 AuthService imported successfully",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Import: app.services.user_service.UserService",
+          "status": "pass",
+          "message": "\u2705 UserService imported successfully",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Import: app.models.journal.JournalEntryResponse",
+          "status": "pass",
+          "message": "\u2705 JournalEntryResponse imported successfully",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Import: app.models.user.UserResponse",
+          "status": "pass",
+          "message": "\u2705 UserResponse imported successfully",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Import: app.core.config.settings",
+          "status": "pass",
+          "message": "\u2705 settings imported successfully",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Import: app.core.database.get_db",
+          "status": "pass",
+          "message": "\u2705 get_db imported successfully",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Environment: SUPABASE_URL",
+          "status": "pass",
+          "message": "\u2705 SUPABASE_URL = https://...",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Environment: SUPABASE_ANON_KEY",
+          "status": "pass",
+          "message": "\u2705 SUPABASE_ANON_KEY = eyJhbGci...",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Environment: SUPABASE_SERVICE_KEY",
+          "status": "pass",
+          "message": "\u2705 SUPABASE_SERVICE_KEY = eyJhbGci...",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Environment: SECRET_KEY",
+          "status": "pass",
+          "message": "\u2705 SECRET_KEY = dr3catCe...",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Environment: OPENAI_API_KEY",
+          "status": "pass",
+          "message": "\u2705 OPENAI_API_KEY = sk-proj-...",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Database Models",
+          "status": "pass",
+          "message": "\u2705 All database models imported successfully",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "API Endpoints",
+          "status": "pass",
+          "message": "\u2705 All router modules imported successfully",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Service Dependencies",
+          "status": "pass",
+          "message": "\u2705 All service classes can be imported",
+          "details": null,
+          "ai_context": null
+        },
+        {
+          "component": "Service Instantiation",
+          "status": "pass",
+          "message": "\u2705 Services can be instantiated with current config",
+          "details": null,
+          "ai_context": null
+        }
+      ],
+      "deployment_ready": true,
+      "ai_recommendations": [
+        "\u2705 DEPLOYMENT READY - All critical validations passed",
+        "\ud83d\ude80 Safe to deploy to Railway"
+      ]
+    }
+  },
+  "deployment_ready": true,
+  "ai_recommendations": [
+    "\ud83c\udf89 BUILD SUCCESSFUL - All pipeline steps completed",
+    "\u2705 Ready for Railway deployment",
+    "\ud83d\ude80 All critical validations passed",
+    "\ud83d\udccb Comprehensive build report available"
+  ]
+}

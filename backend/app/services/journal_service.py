@@ -53,6 +53,10 @@ class JournalService:
     
     async def get_entries(self, user_id: str, limit: int = 50) -> List[JournalEntryResponse]:
         """Get journal entries for a user"""
+        return await self.get_user_journal_entries(user_id, limit)
+    
+    async def get_user_journal_entries(self, user_id: str, limit: int = 50) -> List[JournalEntryResponse]:
+        """Get journal entries for a user"""
         try:
             result = self.supabase.table("journal_entries")\
                 .select("*")\
