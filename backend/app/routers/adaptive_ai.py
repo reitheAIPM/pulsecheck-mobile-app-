@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 import logging
 import traceback
+from datetime import datetime
 
 from app.models.ai_insights import (
     PatternAnalysisRequest, PatternAnalysisResponse,
@@ -21,6 +22,9 @@ from app.services.journal_service import JournalService
 from app.services.persona_service import persona_service
 from app.core.monitoring import log_error, ErrorSeverity, ErrorCategory
 from app.core.database import get_database
+
+# Import authentication from journal router
+from app.routers.journal import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +161,7 @@ async def analyze_user_patterns(
 @router.post("/generate-response", response_model=AdaptiveResponseResponse)
 async def generate_adaptive_response(
     request: AdaptiveResponseRequest,
+    current_user: dict = Depends(get_current_user),
     journal_service = Depends(get_journal_service),
     adaptive_ai_service = Depends(get_adaptive_ai_service)
 ):
@@ -164,30 +169,33 @@ async def generate_adaptive_response(
     Generate adaptive AI response based on user patterns
     """
     try:
-        logger.info(f"Generating adaptive response for user {request.user_id} with persona {request.persona}")
+        # Use authenticated user ID for security
+        authenticated_user_id = current_user["id"]
+        logger.info(f"Generating adaptive response for user {authenticated_user_id} with persona {request.persona}")
         
         # Create a journal entry object for analysis
         journal_entry = JournalEntryResponse(
             id="temp",
-            user_id=request.user_id,
+            user_id=authenticated_user_id,
             content=request.journal_content,
-            created_at=None,  # Will be set by service
-            mood_score=None,
-            energy_score=None,
-            stress_score=None
+            mood_level=5,  # Default values
+            energy_level=5,
+            stress_level=5,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
         
         # Get user's journal history for pattern analysis
         journal_history = []
         if request.include_pattern_analysis:
             journal_history = await journal_service.get_user_journal_entries(
-                user_id=request.user_id,
+                user_id=authenticated_user_id,
                 limit=20  # Use last 20 entries for context
             )
         
         # Generate adaptive response
         ai_response = await adaptive_ai_service.generate_adaptive_response(
-            user_id=request.user_id,
+            user_id=authenticated_user_id,
             journal_entry=journal_entry,
             journal_history=journal_history,
             persona=request.persona
@@ -216,7 +224,7 @@ async def generate_adaptive_response(
         
     except Exception as e:
         log_error(e, ErrorSeverity.HIGH, ErrorCategory.API_ENDPOINT,
-                 {"user_id": request.user_id, "operation": "generate_adaptive_response"})
+                 {"user_id": authenticated_user_id, "operation": "generate_adaptive_response"})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate adaptive response"
@@ -225,6 +233,7 @@ async def generate_adaptive_response(
 @router.get("/personas", response_model=List[PersonaRecommendation])
 async def get_available_personas(
     user_id: str = None,
+    current_user: dict = Depends(get_current_user),
     journal_service = Depends(get_journal_service),
     pattern_analyzer = Depends(get_pattern_analyzer),
     adaptive_ai_service = Depends(get_adaptive_ai_service)
@@ -233,25 +242,27 @@ async def get_available_personas(
     Get available personas for user with recommendations
     """
     try:
-        logger.info(f"Getting available personas for user {user_id or 'anonymous'}")
+        # Use authenticated user ID instead of parameter
+        authenticated_user_id = current_user["id"]
+        logger.info(f"Getting available personas for user {authenticated_user_id}")
         
-        # Get user patterns for recommendations (if user_id provided)
+        # Get user patterns for recommendations
         user_patterns = None
         current_entry = None
         
-        if user_id:
+        if authenticated_user_id:
             journal_entries = await journal_service.get_user_journal_entries(
-                user_id=user_id,
+                user_id=authenticated_user_id,
                 limit=10
             )
             
             if journal_entries:
-                user_patterns = await pattern_analyzer.analyze_user_patterns(user_id, journal_entries)
+                user_patterns = await pattern_analyzer.analyze_user_patterns(authenticated_user_id, journal_entries)
                 current_entry = journal_entries[0]  # Most recent entry
         
         # Get persona recommendations using the new persona service
         recommendations = persona_service.recommend_personas(
-            user_id=user_id,
+            user_id=authenticated_user_id,
             user_patterns=user_patterns,
             current_entry=current_entry
         )
@@ -261,7 +272,7 @@ async def get_available_personas(
     except Exception as e:
         # AI-optimized error context for debugging
         error_context = {
-            "user_id": user_id,
+            "user_id": authenticated_user_id,
             "operation": "get_personas",
             "error_type": type(e).__name__,
             "error_message": str(e),
