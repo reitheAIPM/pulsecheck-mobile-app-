@@ -143,10 +143,10 @@ class SubscriptionStatus(BaseModel):
 class UserTable(Base):
     __tablename__ = "users"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(String, primary_key=True)  # Changed to String to match user IDs
     email = Column(String, unique=True, nullable=False)
-    name = Column(String, nullable=False)
-    password_hash = Column(String, nullable=False)
+    name = Column(String, nullable=True, default="User")
+    password_hash = Column(String, nullable=True)  # Made nullable for OAuth users
     tech_role = Column(String, nullable=True)
     
     # Account management
@@ -158,6 +158,18 @@ class UserTable(Base):
     beta_testing_status = Column(SQLEnum(BetaTestingStatus), default=BetaTestingStatus.PENDING)
     beta_testing_requested_at = Column(DateTime(timezone=True), nullable=True)
     beta_testing_approved_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Subscription and Premium Features
+    is_beta_tester = Column(Boolean, default=False)
+    beta_premium_enabled = Column(Boolean, default=False)
+    subscription_tier = Column(SQLEnum(SubscriptionTier), default=SubscriptionTier.FREE)
+    premium_expires_at = Column(DateTime(timezone=True), nullable=True)
+    beta_features_enabled = Column(Boolean, default=False)
+    
+    # AI Usage Tracking
+    ai_requests_today = Column(Integer, default=0)
+    ai_requests_this_month = Column(Integer, default=0)
+    last_ai_request = Column(DateTime(timezone=True), nullable=True)
     
     # User preferences and settings
     notification_preferences = Column(Text, nullable=True)  # JSON string
