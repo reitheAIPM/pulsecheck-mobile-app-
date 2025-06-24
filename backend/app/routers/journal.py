@@ -47,7 +47,8 @@ async def test_ai_response():
             stress_level=4,
             work_challenges=["Debugging AI issues"],
             work_hours=8,
-            created_at="2024-01-01T00:00:00Z"
+            created_at="2024-01-01T00:00:00Z",
+            updated_at="2024-01-01T00:00:00Z"
         )
         
         # Get PulseAI service
