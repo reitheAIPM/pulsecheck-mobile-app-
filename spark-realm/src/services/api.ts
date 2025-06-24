@@ -1,5 +1,4 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import { supabase } from './authService';
 
 // Types for API responses
 export interface HealthCheck {
@@ -202,7 +201,6 @@ class ApiService {
       baseURL: 'https://pulsecheck-mobile-app-production.up.railway.app',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'PulseCheck-Web/1.0',
       },
       timeout: 30000,
     });
@@ -210,29 +208,23 @@ class ApiService {
     // Add request interceptor to include authentication
     this.client.interceptors.request.use(async (config) => {
       try {
-        // Get current Supabase session
-        const { data: { session } } = await supabase.auth.getSession();
+        // Get auth token from localStorage (mock auth system)
+        const authToken = localStorage.getItem('authToken');
         
-        if (session?.user) {
-          // For now, keep using X-User-Id header for backend compatibility
-          // This will be replaced with JWT tokens once backend is updated
-          config.headers['X-User-Id'] = session.user.id;
-          this.currentUserId = session.user.id;
-          
-          // Also add Authorization header for future use
-          config.headers['Authorization'] = `Bearer ${session.access_token}`;
+        if (authToken) {
+          config.headers['X-User-Id'] = authToken;
+          this.currentUserId = authToken;
         } else {
-          // Fallback to the old system for now
+          // Generate a fallback user ID for unauthenticated requests
           if (!this.currentUserId) {
             this.currentUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
           }
           config.headers['X-User-Id'] = this.currentUserId;
         }
         
-        // Log request for debugging
+        // Simplified logging - removed verbose debugging
         console.log('API Request:', config.method?.toUpperCase(), config.url);
-        console.log('Request params:', config.params);
-        console.log('Request headers:', config.headers);
+        if (config.params) console.log('Request params:', config.params);
         
         return config;
       } catch (error) {
@@ -309,8 +301,8 @@ class ApiService {
   }
 
   async resetJournal(): Promise<any> {
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id || this.currentUserId;
+    const authToken = localStorage.getItem('authToken');
+    const userId = authToken || this.currentUserId;
     
     const response = await this.client.delete(`/api/v1/journal/reset/${userId}`, {
       params: { confirm: true }
@@ -323,13 +315,23 @@ class ApiService {
     journal_content: string;
     persona?: string;
     include_pattern_analysis?: boolean;
+    user_id?: string;
+    force_persona?: boolean;
+    response_preferences?: any;
   }): Promise<AIResponse> {
     console.log('Generating adaptive response:', request);
     
+    // Get the user ID from the request or fallback to current user
+    const authToken = localStorage.getItem('authToken');
+    const userId = request.user_id || authToken || this.currentUserId;
+    
     const response = await this.client.post('/api/v1/adaptive-ai/generate-response', {
+      user_id: userId,
       journal_content: request.journal_content,
       persona: request.persona || 'auto',
-      include_pattern_analysis: request.include_pattern_analysis !== false
+      force_persona: request.force_persona || false,
+      include_pattern_analysis: request.include_pattern_analysis !== false,
+      response_preferences: request.response_preferences || {}
     });
     
     console.log('Adaptive response generated:', response.data);
@@ -337,8 +339,8 @@ class ApiService {
   }
 
   async getUserPatterns(): Promise<UserPatterns> {
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id || this.currentUserId;
+    const authToken = localStorage.getItem('authToken');
+    const userId = authToken || this.currentUserId;
     
     console.log('Fetching user patterns for:', userId);
     
@@ -348,8 +350,8 @@ class ApiService {
   }
 
   async getAvailablePersonas(): Promise<PersonaInfo[]> {
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id || this.currentUserId;
+    const authToken = localStorage.getItem('authToken');
+    const userId = authToken || this.currentUserId;
     
     console.log('Fetching available personas for user:', userId);
     
@@ -362,8 +364,8 @@ class ApiService {
   }
 
   async getSubscriptionStatus(): Promise<any> {
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id || this.currentUserId;
+    const authToken = localStorage.getItem('authToken');
+    const userId = authToken || this.currentUserId;
     
     console.log('Getting subscription status for user:', userId);
     
@@ -386,32 +388,32 @@ class ApiService {
     }
   }
 
-  // User management (for Supabase Auth integration)
+  // User management (for mock auth integration)
   async getCurrentUser(): Promise<any> {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.user || null;
+    const authToken = localStorage.getItem('authToken');
+    const storedUser = localStorage.getItem('currentUser');
+    
+    if (authToken && storedUser) {
+      return JSON.parse(storedUser);
+    }
+    
+    return null;
   }
 
   async updateUserProfile(updates: any): Promise<any> {
-    // Use Supabase to update profile directly
-    const { data: { session } } = await supabase.auth.getSession();
+    const authToken = localStorage.getItem('authToken');
+    const storedUser = localStorage.getItem('currentUser');
     
-    if (!session?.user) {
+    if (!authToken || !storedUser) {
       throw new Error('No authenticated user');
     }
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', session.user.id)
-      .select()
-      .single();
+    // Update user in localStorage for mock auth
+    const currentUser = JSON.parse(storedUser);
+    const updatedUser = { ...currentUser, ...updates };
+    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
 
-    if (error) {
-      throw error;
-    }
-
-    return data;
+    return updatedUser;
   }
 
   // Analytics

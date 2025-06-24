@@ -250,7 +250,16 @@ const JournalEntry = () => {
   };
 
   const handleSubmit = async () => {
-    if (!content.trim()) return;
+    // Validate content length (backend requires min 10 characters)
+    if (!content.trim()) {
+      alert('Please write something before saving your reflection.');
+      return;
+    }
+    
+    if (content.trim().length < 10) {
+      alert('Please write at least 10 characters to save your reflection.');
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -543,8 +552,12 @@ const JournalEntry = () => {
                         </>
                       )}
                     </Button>
-                    <span className="text-xs text-muted-foreground">
-                      {wordCount} words
+                    <span className={`text-xs ${
+                      content.trim().length < 10 
+                        ? 'text-orange-500' 
+                        : 'text-muted-foreground'
+                    }`}>
+                      {content.trim().length}/10 min • {wordCount} words
                     </span>
                   </div>
                 </div>
@@ -594,7 +607,7 @@ const JournalEntry = () => {
 
             <Button
               onClick={handleSubmit}
-              disabled={!content.trim() || isSubmitting}
+              disabled={!content.trim() || content.trim().length < 10 || isSubmitting}
               className="gap-2 min-w-[120px]"
             >
               {isSubmitting ? (

@@ -1,218 +1,180 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = 'https://qwpwlubxhtuzvmvajjjr.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3cHdsdWJ4aHR1enZtdmFqampyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU2Nzk1NzksImV4cCI6MjA1MTI1NTU3OX0.bEXYwXp5CjOJ_JBYoF9-jdZPE4-RSwDFzSR0_5YRyTQ'
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
+// Mock authentication service for MVP
 export interface UserProfile {
-  id: string
-  email: string
-  name: string
-  tech_role?: string
-  company?: string
-  created_at: string
+  id: string;
+  email: string;
+  name: string;
+  tech_role?: string;
+  company?: string;
+  created_at: string;
 }
 
 export interface RegistrationData {
-  email: string
-  password: string
-  name: string
-  tech_role?: string
-  company?: string
+  email: string;
+  password: string;
+  name: string;
+  tech_role?: string;
+  company?: string;
 }
 
 export interface LoginData {
-  email: string
-  password: string
+  email: string;
+  password: string;
 }
 
 class AuthService {
-  
-  async register(data: RegistrationData): Promise<{ user: UserProfile; error: string | null }> {
+  private currentUser: UserProfile | null = null;
+  private authToken: string | null = null;
+
+  // Generate a user ID for mock auth
+  private generateUserId(): string {
+    return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  async register(data: RegistrationData): Promise<{ user: UserProfile | null; error: string | null }> {
     try {
-      // Register with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // For MVP, we'll create a mock user since we're using backend mock auth
+      const userId = this.generateUserId();
+      
+      const user: UserProfile = {
+        id: userId,
         email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            name: data.name,
-            tech_role: data.tech_role,
-            company: data.company
-          }
-        }
-      })
-
-      if (authError) {
-        return { user: null as any, error: authError.message }
-      }
-
-      if (!authData.user) {
-        return { user: null as any, error: 'Registration failed' }
-      }
-
-      // The profile will be created automatically by the database trigger
-      const profile: UserProfile = {
-        id: authData.user.id,
-        email: authData.user.email!,
         name: data.name,
         tech_role: data.tech_role,
         company: data.company,
-        created_at: authData.user.created_at
-      }
+        created_at: new Date().toISOString()
+      };
 
-      return { user: profile, error: null }
+      // Store auth token for API calls
+      this.authToken = userId;
+      this.currentUser = user;
+
+      // Store in localStorage for persistence
+      localStorage.setItem('authToken', userId);
+      localStorage.setItem('currentUser', JSON.stringify(user));
+
+      return { user, error: null };
     } catch (error) {
-      console.error('Registration error:', error)
-      return { user: null as any, error: 'Registration failed' }
+      console.error('Registration error:', error);
+      return { user: null, error: 'Registration failed' };
     }
   }
 
-  async login(data: LoginData): Promise<{ user: UserProfile; error: string | null }> {
+  async login(data: LoginData): Promise<{ user: UserProfile | null; error: string | null }> {
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      // For MVP, we'll simulate login with mock user
+      // In production, this would call the backend /api/v1/auth/login endpoint
+      
+      const userId = this.generateUserId();
+      const user: UserProfile = {
+        id: userId,
         email: data.email,
-        password: data.password
-      })
+        name: data.email.split('@')[0], // Extract name from email for demo
+        created_at: new Date().toISOString()
+      };
 
-      if (authError) {
-        return { user: null as any, error: authError.message }
-      }
+      // Store auth token for API calls
+      this.authToken = userId;
+      this.currentUser = user;
 
-      if (!authData.user) {
-        return { user: null as any, error: 'Login failed' }
-      }
+      // Store in localStorage for persistence
+      localStorage.setItem('authToken', userId);
+      localStorage.setItem('currentUser', JSON.stringify(user));
 
-      // Get user profile from database
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single()
-
-      if (profileError || !profileData) {
-        // If profile doesn't exist, create it (fallback)
-        const profile: UserProfile = {
-          id: authData.user.id,
-          email: authData.user.email!,
-          name: authData.user.user_metadata?.name || 'User',
-          tech_role: authData.user.user_metadata?.tech_role,
-          company: authData.user.user_metadata?.company,
-          created_at: authData.user.created_at
-        }
-        return { user: profile, error: null }
-      }
-
-      return { user: profileData as UserProfile, error: null }
+      return { user, error: null };
     } catch (error) {
-      console.error('Login error:', error)
-      return { user: null as any, error: 'Login failed' }
+      console.error('Login error:', error);
+      return { user: null, error: 'Login failed' };
     }
   }
 
   async logout(): Promise<{ error: string | null }> {
     try {
-      const { error } = await supabase.auth.signOut()
-      return { error: error?.message || null }
+      // Clear stored auth data
+      this.authToken = null;
+      this.currentUser = null;
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('currentUser');
+
+      return { error: null };
     } catch (error) {
-      console.error('Logout error:', error)
-      return { error: 'Logout failed' }
+      console.error('Logout error:', error);
+      return { error: 'Logout failed' };
     }
   }
 
   async getCurrentUser(): Promise<{ user: UserProfile | null; error: string | null }> {
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError || !session?.user) {
-        return { user: null, error: sessionError?.message || 'No active session' }
+      // Check if user is already loaded
+      if (this.currentUser) {
+        return { user: this.currentUser, error: null };
       }
 
-      // Get user profile from database
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single()
+      // Try to restore from localStorage
+      const storedUser = localStorage.getItem('currentUser');
+      const storedToken = localStorage.getItem('authToken');
 
-      if (profileError || !profileData) {
-        // Fallback to auth user data
-        const profile: UserProfile = {
-          id: session.user.id,
-          email: session.user.email!,
-          name: session.user.user_metadata?.name || 'User',
-          tech_role: session.user.user_metadata?.tech_role,
-          company: session.user.user_metadata?.company,
-          created_at: session.user.created_at
-        }
-        return { user: profile, error: null }
+      if (storedUser && storedToken) {
+        this.currentUser = JSON.parse(storedUser);
+        this.authToken = storedToken;
+        return { user: this.currentUser, error: null };
       }
 
-      return { user: profileData as UserProfile, error: null }
+      return { user: null, error: 'No active session' };
     } catch (error) {
-      console.error('Get current user error:', error)
-      return { user: null, error: 'Failed to get current user' }
+      console.error('Get current user error:', error);
+      return { user: null, error: 'Failed to get current user' };
     }
   }
 
   async updateProfile(updates: Partial<UserProfile>): Promise<{ user: UserProfile | null; error: string | null }> {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      if (!this.currentUser) {
+        return { user: null, error: 'No active session' };
+      }
+
+      // Update current user object
+      this.currentUser = { ...this.currentUser, ...updates };
       
-      if (!session?.user) {
-        return { user: null, error: 'No active session' }
-      }
+      // Store updated user in localStorage
+      localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', session.user.id)
-        .select()
-        .single()
-
-      if (error) {
-        return { user: null, error: error.message }
-      }
-
-      return { user: data as UserProfile, error: null }
+      return { user: this.currentUser, error: null };
     } catch (error) {
-      console.error('Update profile error:', error)
-      return { user: null, error: 'Failed to update profile' }
+      console.error('Update profile error:', error);
+      return { user: null, error: 'Failed to update profile' };
     }
   }
 
-  onAuthStateChange(callback: (user: UserProfile | null) => void) {
-    return supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const { user } = await this.getCurrentUser()
-        callback(user)
-      } else {
-        callback(null)
-      }
-    })
+  // Get the auth token for API requests
+  getAuthToken(): string | null {
+    return this.authToken || localStorage.getItem('authToken');
   }
 
-  // OAuth methods for future expansion
-  async signInWithGoogle(): Promise<{ error: string | null }> {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin
+  // Auth state change handler (simplified for mock auth)
+  onAuthStateChange(callback: (user: UserProfile | null) => void) {
+    // Initial call with current user
+    callback(this.currentUser);
+
+    // Return an unsubscribe function
+    return {
+      data: {
+        subscription: {
+          unsubscribe: () => {
+            // Mock unsubscribe
+          }
+        }
       }
-    })
-    return { error: error?.message || null }
+    };
+  }
+
+  // OAuth methods (disabled for MVP)
+  async signInWithGoogle(): Promise<{ error: string | null }> {
+    return { error: 'OAuth not implemented in MVP' };
   }
 
   async signInWithGitHub(): Promise<{ error: string | null }> {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: window.location.origin
-      }
-    })
-    return { error: error?.message || null }
+    return { error: 'OAuth not implemented in MVP' };
   }
 }
 
-export const authService = new AuthService() 
+export const authService = new AuthService(); 

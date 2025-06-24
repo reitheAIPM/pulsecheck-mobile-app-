@@ -8,7 +8,7 @@ import { StatusIndicator, LoadingCard, EmptyState } from "@/components/ui/loadin
 import FollowUpPrompts from "@/components/FollowUpPrompts";
 import { apiService } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
-import { getCurrentUserId } from "@/utils/userSession";
+import { authService } from "@/services/authService";
 
 // Mock data for development
 const mockEntries = [
@@ -60,8 +60,23 @@ const Index = () => {
   const [premiumEnabled, setPremiumEnabled] = useState(false);
   const [hasNotifications, setHasNotifications] = useState(false);
   
-  // Get dynamic user ID from browser session
-  const userId = getCurrentUserId();
+  // Get authenticated user ID
+  const [userId, setUserId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const getUserId = async () => {
+      // The authToken IS the user ID in our mock auth system
+      const authToken = localStorage.getItem('authToken');
+      if (authToken) {
+        setUserId(authToken);
+      } else {
+        // Try to get user from authService as fallback
+        const { user } = await authService.getCurrentUser();
+        setUserId(user?.id || null);
+      }
+    };
+    getUserId();
+  }, []);
 
   useEffect(() => {
     // Test API connection on component mount
@@ -77,8 +92,10 @@ const Index = () => {
             duration: 3000,
           });
           
-          // Load real journal entries when connected
-          loadRealEntries();
+          // Load real journal entries when connected and user ID is available
+          if (userId) {
+            loadRealEntries();
+          }
         }
       } catch (error) {
         console.error('API connection test failed:', error);
@@ -93,12 +110,12 @@ const Index = () => {
     };
 
     testApiConnection();
-  }, []);
+  }, [userId]); // Add userId as dependency
 
   // Add effect to reload entries when returning to this page
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && apiStatus === 'connected') {
+      if (document.visibilityState === 'visible' && apiStatus === 'connected' && userId) {
         // Reload entries when page becomes visible and we're connected
         loadRealEntries();
       }
@@ -106,7 +123,7 @@ const Index = () => {
 
     // Also reload when the page gains focus
     const handleFocus = () => {
-      if (apiStatus === 'connected') {
+      if (apiStatus === 'connected' && userId) {
         loadRealEntries();
       }
     };
@@ -118,14 +135,19 @@ const Index = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [apiStatus]); // Dependency on apiStatus to only run when connected
+  }, [apiStatus, userId]); // Dependencies on apiStatus and userId
 
   const loadRealEntries = async () => {
+    if (!userId) {
+      console.log('No user ID available, skipping entry load');
+      return;
+    }
+    
     setIsLoadingEntries(true);
     try {
       console.log('Loading entries for user:', userId); // Debug log
       const realEntries = await apiService.getJournalEntries();
-      console.log('Loaded real entries:', realEntries);
+      console.log('Raw API response:', realEntries);
       
       // Transform the entries to match the expected format
       const transformedEntries = realEntries.map(entry => ({
@@ -140,12 +162,14 @@ const Index = () => {
       setEntries(transformedEntries);
       
       if (realEntries.length === 0) {
+        console.log('No entries found - showing empty state');
         toast({
           title: "No entries yet",
           description: "Start your wellness journey by creating your first entry!",
           duration: 3000,
         });
       } else {
+        console.log(`Successfully loaded ${realEntries.length} entries`);
         toast({
           title: "Entries loaded",
           description: `Found ${realEntries.length} reflection${realEntries.length === 1 ? '' : 's'}.`,
@@ -154,13 +178,14 @@ const Index = () => {
       }
     } catch (error) {
       console.error('Failed to load real entries:', error);
+      console.error('Error details:', error.response?.data || error.message);
       toast({
         title: "Loading failed",
-        description: "Unable to load your entries. Showing sample data instead.",
+        description: "Unable to load your entries. Please try refreshing.",
         variant: "destructive",
         duration: 3000,
       });
-      // Keep mock data as fallback
+      // Don't set mock data - let empty state show instead
     } finally {
       setIsLoadingEntries(false);
     }
@@ -307,18 +332,42 @@ const Index = () => {
               <span>Your recent reflections</span>
             </div>
             
-            {apiStatus === 'connected' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLoadEntries}
-                disabled={isLoadingEntries}
-                className="h-8 px-2 text-xs"
-              >
-                {isLoadingEntries ? 'Loading...' : 'Refresh'}
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Debug Info */}
+              <div className="text-xs text-muted-foreground">
+                Status: {apiStatus} | User: {userId ? 'Yes' : 'No'}
+              </div>
+              
+              {apiStatus === 'connected' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLoadEntries}
+                  disabled={isLoadingEntries}
+                  className="h-8 px-2 text-xs"
+                >
+                  {isLoadingEntries ? 'Loading...' : 'Refresh'}
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* Manual Load Button for Debugging */}
+          {apiStatus === 'connected' && entries.length === 0 && !isLoadingEntries && (
+            <div className="text-center py-4">
+              <Button
+                onClick={handleLoadEntries}
+                variant="outline"
+                className="gap-2"
+              >
+                <Heart className="w-4 h-4" />
+                Load My Entries
+              </Button>
+              <p className="text-xs text-muted-foreground mt-2">
+                Debug: API connected, user ID: {userId}, entries: {entries.length}
+              </p>
+            </div>
+          )}
 
           {isLoadingEntries ? (
             <div className="space-y-4">

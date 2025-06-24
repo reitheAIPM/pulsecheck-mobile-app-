@@ -49,8 +49,8 @@ export default function Auth() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const session = await authService.getCurrentSession();
-        if (session?.user) {
+        const { user: currentUser } = await authService.getCurrentUser();
+        if (currentUser) {
           console.log('User already authenticated, redirecting to home');
           navigate('/');
         }
@@ -82,7 +82,7 @@ export default function Auth() {
       errorHandler.handleError(
         new Error(`Auth ${event}: ${JSON.stringify(data)}`),
         ErrorSeverity.MEDIUM,
-        ErrorCategory.AUTH,
+        ErrorCategory.AUTHENTICATION,
         debugContext
       );
     } else {
@@ -143,13 +143,13 @@ export default function Auth() {
         // Login flow
         logAuthEvent('login_attempt', { email: state.email });
         
-        const { user, session, error } = await authService.signIn(state.email, state.password);
+        const { user, error } = await authService.login({ email: state.email, password: state.password });
 
         if (error) {
-          throw new Error(error.message);
+          throw new Error(error);
         }
 
-        if (user && session) {
+        if (user) {
           logAuthEvent('login_success', { userId: user.id });
           setState(prev => ({ 
             ...prev, 
@@ -157,42 +157,33 @@ export default function Auth() {
             error: null 
           }));
           
-          // Redirect after success message
-          setTimeout(() => navigate('/'), 1500);
+          // Navigate immediately without delay to prevent blank pages
+          navigate('/', { replace: true });
         }
       } else {
         // Registration flow
         logAuthEvent('registration_attempt', { email: state.email, name: state.name });
         
-        const { user, session, error } = await authService.signUp(
-          state.email, 
-          state.password, 
-          { name: state.name }
-        );
+        const { user, error } = await authService.register({
+          email: state.email,
+          password: state.password,
+          name: state.name
+        });
 
         if (error) {
-          throw new Error(error.message);
+          throw new Error(error);
         }
 
         if (user) {
           logAuthEvent('registration_success', { userId: user.id });
           setState(prev => ({ 
             ...prev, 
-            success: 'Account created successfully! Please check your email for verification.',
+            success: 'Account created successfully! Welcome to PulseCheck.',
             error: null 
           }));
           
-          // Switch to login mode after successful registration
-          setTimeout(() => {
-            setIsLogin(true);
-            setState(prev => ({ 
-              ...prev, 
-              password: '', 
-              confirmPassword: '', 
-              name: '',
-              success: null
-            }));
-          }, 3000);
+          // Navigate immediately to prevent blank pages
+          navigate('/', { replace: true });
         }
       }
     } catch (error: any) {
