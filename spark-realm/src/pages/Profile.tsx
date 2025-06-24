@@ -980,7 +980,7 @@ const Profile = () => {
                     <span className="ml-2">
                       {userSession.expires_at 
                         ? new Date(userSession.expires_at * 1000).toLocaleString()
-                        : 'N/A'
+                        : 'Development session (no expiration)'
                       }
                     </span>
                   </div>
