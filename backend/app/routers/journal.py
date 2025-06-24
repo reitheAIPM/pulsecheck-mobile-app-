@@ -499,8 +499,9 @@ async def update_journal_entry(
 @router.delete("/entries/{entry_id}", status_code=204)
 async def delete_journal_entry(
     entry_id: str,
+    request: Request,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_with_request)
 ):
     """Delete a journal entry"""
     try:

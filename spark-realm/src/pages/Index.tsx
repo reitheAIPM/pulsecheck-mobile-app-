@@ -202,6 +202,11 @@ const Index = () => {
     navigate(`/pulse/${entryId}`);
   };
 
+  const handleEntryDeleted = (deletedEntryId: string) => {
+    // Remove the deleted entry from the local state
+    setEntries(prevEntries => prevEntries.filter(entry => entry.id !== deletedEntryId));
+  };
+
   const handleNewEntry = () => {
     navigate("/journal"); // Fix: Changed from "/new-entry" to "/journal"
   };
@@ -393,6 +398,7 @@ const Index = () => {
                   <JournalCard
                     entry={entry}
                     onPulseClick={handlePulseClick}
+                    onEntryDeleted={handleEntryDeleted}
                   />
                 </div>
               ))}

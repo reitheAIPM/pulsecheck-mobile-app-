@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Heart, MessageCircle, Clock, Brain, Share2, MoreHorizontal } from "lucide-react";
+import { Heart, MessageCircle, Clock, Brain, Share2, MoreHorizontal, Trash2, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +10,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { apiService } from "@/services/api";
 
 interface JournalEntry {
   id: string;
@@ -26,11 +37,16 @@ interface JournalEntry {
 interface JournalCardProps {
   entry: JournalEntry;
   onPulseClick?: (entryId: string) => void;
+  onEntryDeleted?: (entryId: string) => void;
 }
 
-export function JournalCard({ entry, onPulseClick }: JournalCardProps) {
+export function JournalCard({ entry, onPulseClick, onEntryDeleted }: JournalCardProps) {
   const [liked, setLiked] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -91,6 +107,29 @@ export function JournalCard({ entry, onPulseClick }: JournalCardProps) {
     navigator.clipboard.writeText(entry.content);
   };
 
+  const handleDeleteEntry = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await apiService.deleteJournalEntry(entry.id);
+      
+      // Call the callback to update parent component
+      if (onEntryDeleted) {
+        onEntryDeleted(entry.id);
+      }
+      
+      setDeleteDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to delete journal entry:', error);
+      alert('Failed to delete entry. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <Card className="w-full bg-card border hover:border-primary/20 transition-all duration-300 hover:shadow-md group">
       <CardContent className="p-4">
@@ -124,10 +163,19 @@ export function JournalCard({ entry, onPulseClick }: JournalCardProps) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleCopy}>
+                  <Copy className="h-4 w-4 mr-2" />
                   Copy text
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleShare}>
+                  <Share2 className="h-4 w-4 mr-2" />
                   Share
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={handleDeleteEntry}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete entry
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -231,6 +279,32 @@ export function JournalCard({ entry, onPulseClick }: JournalCardProps) {
 
         </div>
       </CardContent>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Journal Entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this journal entry. This action cannot be undone.
+              <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
+                <strong>Entry preview:</strong> {entry.content.substring(0, 100)}
+                {entry.content.length > 100 && '...'}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Entry'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
