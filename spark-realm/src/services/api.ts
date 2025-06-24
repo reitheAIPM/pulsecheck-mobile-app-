@@ -1,4 +1,5 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
+import { authService } from './authService';
 
 // Types for API responses
 export interface HealthCheck {
@@ -194,54 +195,72 @@ export interface BetaToggleResponse {
 
 class ApiService {
   private client: AxiosInstance;
-  private currentUserId: string | null = null;
+  private baseURL: string;
 
   constructor() {
+    // Use environment variable for API URL, fallback to Railway production
+    this.baseURL = import.meta.env.VITE_API_URL || 'https://pulsecheck-mobile-app-production.up.railway.app';
+    
     this.client = axios.create({
-      baseURL: 'https://pulsecheck-mobile-app-production.up.railway.app',
+      baseURL: this.baseURL,
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
-      timeout: 30000,
+      timeout: 30000, // 30 second timeout
     });
 
-    // Add request interceptor to include authentication
-    this.client.interceptors.request.use(async (config) => {
-      try {
-        // Get auth token from localStorage (mock auth system)
-        const authToken = localStorage.getItem('authToken');
+    // Add request interceptor to include auth token
+    this.client.interceptors.request.use(
+      (config) => {
+        // Get auth token from authService
+        const token = authService.getAuthToken();
         
-        if (authToken) {
-          config.headers['X-User-Id'] = authToken;
-          this.currentUserId = authToken;
-        } else {
-          // Generate a fallback user ID for unauthenticated requests
-          if (!this.currentUserId) {
-            this.currentUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          }
-          config.headers['X-User-Id'] = this.currentUserId;
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        } else if (authService.isDevelopmentMode()) {
+          // Fallback to development mode
+          const devUser = authService.getDevelopmentUser();
+          config.headers['X-User-Id'] = devUser.id;
         }
-        
-        // Simplified logging - removed verbose debugging
-        console.log('API Request:', config.method?.toUpperCase(), config.url);
-        if (config.params) console.log('Request params:', config.params);
-        
-        return config;
-      } catch (error) {
-        console.error('Request interceptor error:', error);
-        return config;
-      }
-    });
 
-    // Add response interceptor for logging
-    this.client.interceptors.response.use(
-      (response: AxiosResponse) => {
-        console.log('API Response:', response.status, response.config.url);
-        return response;
+        console.log(`🌐 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        if (config.data) {
+          console.log('📤 Request data:', config.data);
+        }
+
+        return config;
       },
       (error) => {
-        console.log('API Response Error:', error.response?.data || error.message);
-        throw error;
+        console.error('❌ Request interceptor error:', error);
+        return Promise.reject(error);
+      }
+    );
+
+    // Add response interceptor for better error handling
+    this.client.interceptors.response.use(
+      (response) => {
+        console.log(`✅ API Response: ${response.status} ${response.config.url}`);
+        if (response.data) {
+          console.log('📥 Response data:', response.data);
+        }
+        return response;
+      },
+      (error: AxiosError) => {
+        console.error(`❌ API Error: ${error.response?.status} ${error.config?.url}`);
+        
+        if (error.response?.status === 401) {
+          // Unauthorized - redirect to login
+          console.log('🚪 Unauthorized - clearing auth and redirecting to login');
+          authService.signOut();
+          window.location.href = '/auth';
+        }
+        
+        if (error.response?.data) {
+          console.error('📥 Error response:', error.response.data);
+        }
+        
+        return Promise.reject(error);
       }
     );
   }
@@ -249,7 +268,7 @@ class ApiService {
   // Health check
   async testConnection(): Promise<boolean> {
     try {
-      console.log('Testing connection to:', this.client.defaults.baseURL);
+      console.log('Testing connection to:', this.baseURL);
       await this.healthCheck();
       console.log('Connection test successful:', { connected: true });
       return true;
@@ -267,7 +286,7 @@ class ApiService {
   // Journal entries
   async getJournalEntries(page: number = 1, perPage: number = 30): Promise<JournalEntry[]> {
     console.log(`Fetching journal entries, page: ${page} per_page: ${perPage}`);
-    console.log('Full URL will be:', `${this.client.defaults.baseURL}/api/v1/journal/entries`);
+    console.log('Full URL will be:', `${this.baseURL}/api/v1/journal/entries`);
     
     const response = await this.client.get('/api/v1/journal/entries', {
       params: { page, per_page: perPage }
@@ -284,7 +303,7 @@ class ApiService {
 
   async createJournalEntry(entry: CreateJournalEntry): Promise<JournalEntry> {
     console.log('Creating journal entry:', entry);
-    console.log('Full URL will be:', `${this.client.defaults.baseURL}/api/v1/journal/entries`);
+    console.log('Full URL will be:', `${this.baseURL}/api/v1/journal/entries`);
     
     const response = await this.client.post('/api/v1/journal/entries', entry);
     console.log('Journal entry created successfully:', response.data);
@@ -301,8 +320,8 @@ class ApiService {
   }
 
   async resetJournal(): Promise<any> {
-    const authToken = localStorage.getItem('authToken');
-    const userId = authToken || this.currentUserId;
+    const user = await authService.getCurrentUser();
+    const userId = user?.id || authService.getDevelopmentUser().id;
     
     const response = await this.client.delete(`/api/v1/journal/reset/${userId}`, {
       params: { confirm: true }
@@ -322,8 +341,8 @@ class ApiService {
     console.log('Generating adaptive response:', request);
     
     // Get the user ID from the request or fallback to current user
-    const authToken = localStorage.getItem('authToken');
-    const userId = request.user_id || authToken || this.currentUserId;
+    const user = await authService.getCurrentUser();
+    const userId = request.user_id || user?.id || authService.getDevelopmentUser().id;
     
     const response = await this.client.post('/api/v1/adaptive-ai/generate-response', {
       user_id: userId,
@@ -339,8 +358,8 @@ class ApiService {
   }
 
   async getUserPatterns(): Promise<UserPatterns> {
-    const authToken = localStorage.getItem('authToken');
-    const userId = authToken || this.currentUserId;
+    const user = await authService.getCurrentUser();
+    const userId = user?.id || authService.getDevelopmentUser().id;
     
     console.log('Fetching user patterns for:', userId);
     
@@ -350,8 +369,8 @@ class ApiService {
   }
 
   async getAvailablePersonas(): Promise<PersonaInfo[]> {
-    const authToken = localStorage.getItem('authToken');
-    const userId = authToken || this.currentUserId;
+    const user = await authService.getCurrentUser();
+    const userId = user?.id || authService.getDevelopmentUser().id;
     
     console.log('Fetching available personas for user:', userId);
     
@@ -364,8 +383,8 @@ class ApiService {
   }
 
   async getSubscriptionStatus(): Promise<any> {
-    const authToken = localStorage.getItem('authToken');
-    const userId = authToken || this.currentUserId;
+    const user = await authService.getCurrentUser();
+    const userId = user?.id || authService.getDevelopmentUser().id;
     
     console.log('Getting subscription status for user:', userId);
     
@@ -433,8 +452,6 @@ class ApiService {
     }
   }
 
-
-
   // Pulse AI endpoints
   async getPulseResponse(entryId: string): Promise<PulseResponse> {
     const response: AxiosResponse<PulseResponse> = await this.client.get(`/api/v1/journal/entries/${entryId}/pulse`);
@@ -464,8 +481,6 @@ class ApiService {
     console.log('Adaptive Pulse response received:', response.data);
     return response.data;
   }
-
-
 
   // Enhanced error handling utility with AI debugging
   handleError(error: any, context?: Record<string, any>): string {
@@ -499,7 +514,7 @@ class ApiService {
 
   // Utility methods
   getBaseUrl(): string {
-    return this.client.defaults.baseURL;
+    return this.baseURL;
   }
 
   // Beta testing endpoints

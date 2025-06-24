@@ -1,181 +1,173 @@
-// Mock authentication service for MVP
-export interface UserProfile {
+import { createClient } from '@supabase/supabase-js';
+
+// Supabase configuration
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export interface User {
   id: string;
   email: string;
-  name: string;
+  name?: string;
   tech_role?: string;
-  company?: string;
-  created_at: string;
 }
 
-export interface RegistrationData {
-  email: string;
-  password: string;
-  name: string;
-  tech_role?: string;
-  company?: string;
-}
-
-export interface LoginData {
-  email: string;
-  password: string;
+export interface AuthTokens {
+  access_token: string;
+  refresh_token: string;
+  expires_at?: number;
 }
 
 class AuthService {
-  private currentUser: UserProfile | null = null;
-  private authToken: string | null = null;
-
-  // Generate a consistent user ID based on email for mock auth
-  private generateUserId(email: string): string {
-    // Create a consistent hash-like ID based on email
-    // This ensures the same email always gets the same user ID
-    const emailHash = email.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const timestamp = 1750733000000; // Fixed timestamp for consistency
-    return `user_${emailHash}_${timestamp}`;
-  }
-
-  async register(data: RegistrationData): Promise<{ user: UserProfile | null; error: string | null }> {
+  async signUp(email: string, password: string, name?: string, techRole?: string) {
     try {
-      // Generate consistent user ID based on email
-      const userId = this.generateUserId(data.email);
-      
-      const user: UserProfile = {
-        id: userId,
-        email: data.email,
-        name: data.name,
-        tech_role: data.tech_role,
-        company: data.company,
-        created_at: new Date().toISOString()
-      };
-
-      // Store auth token for API calls
-      this.authToken = userId;
-      this.currentUser = user;
-
-      // Store in localStorage for persistence
-      localStorage.setItem('authToken', userId);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-
-      return { user, error: null };
-    } catch (error) {
-      console.error('Registration error:', error);
-      return { user: null, error: 'Registration failed' };
-    }
-  }
-
-  async login(data: LoginData): Promise<{ user: UserProfile | null; error: string | null }> {
-    try {
-      // Generate consistent user ID based on email (same as registration)
-      const userId = this.generateUserId(data.email);
-      const user: UserProfile = {
-        id: userId,
-        email: data.email,
-        name: data.email.split('@')[0], // Extract name from email for demo
-        created_at: new Date().toISOString()
-      };
-
-      // Store auth token for API calls
-      this.authToken = userId;
-      this.currentUser = user;
-
-      // Store in localStorage for persistence
-      localStorage.setItem('authToken', userId);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-
-      return { user, error: null };
-    } catch (error) {
-      console.error('Login error:', error);
-      return { user: null, error: 'Login failed' };
-    }
-  }
-
-  async logout(): Promise<{ error: string | null }> {
-    try {
-      // Clear stored auth data
-      this.authToken = null;
-      this.currentUser = null;
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('currentUser');
-
-      return { error: null };
-    } catch (error) {
-      console.error('Logout error:', error);
-      return { error: 'Logout failed' };
-    }
-  }
-
-  async getCurrentUser(): Promise<{ user: UserProfile | null; error: string | null }> {
-    try {
-      // Check if user is already loaded
-      if (this.currentUser) {
-        return { user: this.currentUser, error: null };
-      }
-
-      // Try to restore from localStorage
-      const storedUser = localStorage.getItem('currentUser');
-      const storedToken = localStorage.getItem('authToken');
-
-      if (storedUser && storedToken) {
-        this.currentUser = JSON.parse(storedUser);
-        this.authToken = storedToken;
-        return { user: this.currentUser, error: null };
-      }
-
-      return { user: null, error: 'No active session' };
-    } catch (error) {
-      console.error('Get current user error:', error);
-      return { user: null, error: 'Failed to get current user' };
-    }
-  }
-
-  async updateProfile(updates: Partial<UserProfile>): Promise<{ user: UserProfile | null; error: string | null }> {
-    try {
-      if (!this.currentUser) {
-        return { user: null, error: 'No active session' };
-      }
-
-      // Update current user object
-      this.currentUser = { ...this.currentUser, ...updates };
-      
-      // Store updated user in localStorage
-      localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-
-      return { user: this.currentUser, error: null };
-    } catch (error) {
-      console.error('Update profile error:', error);
-      return { user: null, error: 'Failed to update profile' };
-    }
-  }
-
-  // Get the auth token for API requests
-  getAuthToken(): string | null {
-    return this.authToken || localStorage.getItem('authToken');
-  }
-
-  // Auth state change handler (simplified for mock auth)
-  onAuthStateChange(callback: (user: UserProfile | null) => void) {
-    // Initial call with current user
-    callback(this.currentUser);
-
-    // Return an unsubscribe function
-    return {
-      data: {
-        subscription: {
-          unsubscribe: () => {
-            // Mock unsubscribe
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name || 'User',
+            tech_role: techRole || 'user'
           }
         }
+      });
+
+      if (error) throw error;
+
+      return {
+        user: data.user,
+        session: data.session,
+        needsEmailConfirmation: !data.session
+      };
+    } catch (error) {
+      console.error('Sign up error:', error);
+      throw error;
+    }
+  }
+
+  async signIn(email: string, password: string) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) throw error;
+
+      // Store tokens in localStorage
+      if (data.session) {
+        localStorage.setItem('auth_tokens', JSON.stringify({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+          expires_at: data.session.expires_at
+        }));
       }
+
+      return data;
+    } catch (error) {
+      console.error('Sign in error:', error);
+      throw error;
+    }
+  }
+
+  async signOut() {
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      // Clear stored tokens
+      localStorage.removeItem('auth_tokens');
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error('Sign out error:', error);
+      throw error;
+    }
+  }
+
+  async getCurrentUser(): Promise<User | null> {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      if (error) throw error;
+      
+      if (user) {
+        return {
+          id: user.id,
+          email: user.email || '',
+          name: user.user_metadata?.name || 'User',
+          tech_role: user.user_metadata?.tech_role || 'user'
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Get user error:', error);
+      return null;
+    }
+  }
+
+  async getSession() {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) throw error;
+      
+      return session;
+    } catch (error) {
+      console.error('Get session error:', error);
+      return null;
+    }
+  }
+
+  getAuthToken(): string | null {
+    try {
+      const tokens = localStorage.getItem('auth_tokens');
+      if (tokens) {
+        const parsed = JSON.parse(tokens) as AuthTokens;
+        
+        // Check if token is expired
+        if (parsed.expires_at && parsed.expires_at < Date.now() / 1000) {
+          localStorage.removeItem('auth_tokens');
+          return null;
+        }
+        
+        return parsed.access_token;
+      }
+    } catch (error) {
+      console.error('Get auth token error:', error);
+    }
+    
+    return null;
+  }
+
+  onAuthStateChange(callback: (user: User | null) => void) {
+    return supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        callback({
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.name || 'User',
+          tech_role: session.user.user_metadata?.tech_role || 'user'
+        });
+      } else {
+        callback(null);
+      }
+    });
+  }
+
+  // Development mode fallback
+  getDevelopmentUser(): User {
+    return {
+      id: 'user_reiale01gmailcom_1750733000000',
+      email: 'rei.ale01@gmail.com',
+      name: 'Rei (Development User)',
+      tech_role: 'beta_tester'
     };
   }
 
-  // OAuth methods (disabled for MVP)
-  async signInWithGoogle(): Promise<{ error: string | null }> {
-    return { error: 'OAuth not implemented in MVP' };
-  }
-
-  async signInWithGitHub(): Promise<{ error: string | null }> {
-    return { error: 'OAuth not implemented in MVP' };
+  isDevelopmentMode(): boolean {
+    return !supabaseUrl.includes('supabase.co') || !supabaseAnonKey || supabaseAnonKey === 'your-anon-key';
   }
 }
 
