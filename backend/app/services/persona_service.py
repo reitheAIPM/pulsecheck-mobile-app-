@@ -263,6 +263,7 @@ class PersonaService:
                     description=persona.description,
                     recommended=score > 0.7,
                     available=True,
+                    requires_premium=persona_id != "pulse",  # Only Pulse is free, others require premium
                     recommendation_score=score,
                     recommendation_reasons=reasons[:3]  # Top 3 reasons
                 )
@@ -489,6 +490,7 @@ class PersonaService:
                 description="Your emotionally intelligent wellness companion",
                 recommended=True,
                 available=True,
+                requires_premium=False,  # Pulse is free
                 recommendation_score=0.9,
                 recommendation_reasons=["Default wellness companion", "Emotionally supportive"]
             ),
@@ -498,6 +500,7 @@ class PersonaService:
                 description="A wise mentor who provides strategic life guidance",
                 recommended=False,
                 available=True,
+                requires_premium=True,  # Sage requires premium
                 recommendation_score=0.7,
                 recommendation_reasons=["Strategic guidance", "Life perspective"]
             ),
@@ -507,6 +510,7 @@ class PersonaService:
                 description="An energetic motivator who ignites creativity and action",
                 recommended=False,
                 available=True,
+                requires_premium=True,  # Spark requires premium
                 recommendation_score=0.6,
                 recommendation_reasons=["Motivation boost", "Creative energy"]
             ),
@@ -516,6 +520,7 @@ class PersonaService:
                 description="A steady presence who provides stability and grounding",
                 recommended=False,
                 available=True,
+                requires_premium=True,  # Anchor requires premium
                 recommendation_score=0.5,
                 recommendation_reasons=["Grounding support", "Practical guidance"]
             )
