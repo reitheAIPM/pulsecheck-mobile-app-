@@ -31,13 +31,13 @@ async def get_current_user_from_request(request: Request):
     """Get current user from request headers"""
     user_id = request.headers.get('X-User-Id')
     if not user_id:
-        user_id = "user_123"
+        user_id = "user_reiale01gmailcom_1750733000000"  # Use consistent user ID for your email
     
     return {
         "id": user_id,
-        "email": f"demo-{user_id.split('_')[-1] if '_' in user_id else 'default'}@pulsecheck.app",
+        "email": f"rei.ale01@gmail.com" if user_id == "user_reiale01gmailcom_1750733000000" else f"demo-{user_id.split('_')[-1] if '_' in user_id else 'default'}@pulsecheck.app",
         "tech_role": "beta_tester",
-        "name": f"Beta User {user_id.split('_')[-1] if '_' in user_id else 'Default'}"
+        "name": f"Rei (Beta User)" if user_id == "user_reiale01gmailcom_1750733000000" else f"Beta User {user_id.split('_')[-1] if '_' in user_id else 'Default'}"
     }
 
 logger = logging.getLogger(__name__)

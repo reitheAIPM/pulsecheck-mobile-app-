@@ -92,12 +92,13 @@ async def get_current_user_with_request(request: Request):
 
 # Wrapper for endpoints that don't need request
 async def get_current_user():
-    """Fallback for endpoints without request access"""
+    """Fallback for endpoints without request access - use header if available"""
+    # This is a simplified fallback - in practice, endpoints should use get_current_user_with_request
     return {
-        "id": "user_123",
-        "email": "demo@pulsecheck.app",
+        "id": "user_reiale01gmailcom_1750733000000",  # Use the consistent user ID for your email
+        "email": "rei.ale01@gmail.com",
         "tech_role": "beta_tester", 
-        "name": "Beta User Default"
+        "name": "Rei (Beta User)"
     }
 
 @router.post("/entries", response_model=JournalEntryResponse)
@@ -313,10 +314,11 @@ async def get_ai_analysis(
 
 @router.get("/entries", response_model=JournalEntriesResponse)
 async def get_journal_entries(
+    request: Request,
     page: int = 1,
     per_page: int = 10,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_with_request)
 ):
     """
     Get paginated list of user's journal entries

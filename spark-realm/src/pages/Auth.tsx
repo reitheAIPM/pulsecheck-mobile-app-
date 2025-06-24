@@ -52,7 +52,9 @@ export default function Auth() {
         const { user: currentUser } = await authService.getCurrentUser();
         if (currentUser) {
           console.log('User already authenticated, redirecting to home');
-          navigate('/');
+          // Use replace to prevent history issues
+          window.location.replace('/');
+          return;
         }
       } catch (error) {
         console.log('No active session found');
@@ -60,7 +62,7 @@ export default function Auth() {
     };
 
     checkAuth();
-  }, [navigate]);
+  }, []);
 
   // AI Debug: Log authentication attempts and errors
   const logAuthEvent = (event: string, data: any, isError: boolean = false) => {
@@ -157,10 +159,10 @@ export default function Auth() {
             error: null 
           }));
           
-          // Small delay to ensure state is updated before navigation
+          // Use window.location.replace to prevent navigation throttling
           setTimeout(() => {
-            navigate('/', { replace: true });
-          }, 100);
+            window.location.replace('/');
+          }, 200);
         }
       } else {
         // Registration flow
@@ -184,10 +186,10 @@ export default function Auth() {
             error: null 
           }));
           
-          // Small delay to ensure state is updated before navigation
+          // Use window.location.replace to prevent navigation throttling
           setTimeout(() => {
-            navigate('/', { replace: true });
-          }, 100);
+            window.location.replace('/');
+          }, 200);
         }
       }
     } catch (error: any) {
