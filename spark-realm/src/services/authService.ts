@@ -25,15 +25,19 @@ class AuthService {
   private currentUser: UserProfile | null = null;
   private authToken: string | null = null;
 
-  // Generate a user ID for mock auth
-  private generateUserId(): string {
-    return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // Generate a consistent user ID based on email for mock auth
+  private generateUserId(email: string): string {
+    // Create a consistent hash-like ID based on email
+    // This ensures the same email always gets the same user ID
+    const emailHash = email.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const timestamp = 1750733000000; // Fixed timestamp for consistency
+    return `user_${emailHash}_${timestamp}`;
   }
 
   async register(data: RegistrationData): Promise<{ user: UserProfile | null; error: string | null }> {
     try {
-      // For MVP, we'll create a mock user since we're using backend mock auth
-      const userId = this.generateUserId();
+      // Generate consistent user ID based on email
+      const userId = this.generateUserId(data.email);
       
       const user: UserProfile = {
         id: userId,
@@ -61,10 +65,8 @@ class AuthService {
 
   async login(data: LoginData): Promise<{ user: UserProfile | null; error: string | null }> {
     try {
-      // For MVP, we'll simulate login with mock user
-      // In production, this would call the backend /api/v1/auth/login endpoint
-      
-      const userId = this.generateUserId();
+      // Generate consistent user ID based on email (same as registration)
+      const userId = this.generateUserId(data.email);
       const user: UserProfile = {
         id: userId,
         email: data.email,

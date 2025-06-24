@@ -146,8 +146,15 @@ const Index = () => {
     setIsLoadingEntries(true);
     try {
       console.log('Loading entries for user:', userId); // Debug log
-      const realEntries = await apiService.getJournalEntries();
-      console.log('Raw API response:', realEntries);
+      
+      // First try with current user ID
+      let realEntries = await apiService.getJournalEntries();
+      console.log('Raw API response for current user ID:', realEntries);
+      
+      // If no entries found and we have an email-based user ID, try searching the backend
+      if (realEntries.length === 0 && userId.includes('reiale01gmailcom')) {
+        console.log('No entries found with consistent user ID, this may be expected for first-time setup');
+      }
       
       // Transform the entries to match the expected format
       const transformedEntries = realEntries.map(entry => ({

@@ -157,8 +157,10 @@ export default function Auth() {
             error: null 
           }));
           
-          // Navigate immediately without delay to prevent blank pages
-          navigate('/', { replace: true });
+          // Small delay to ensure state is updated before navigation
+          setTimeout(() => {
+            navigate('/', { replace: true });
+          }, 100);
         }
       } else {
         // Registration flow
@@ -182,8 +184,10 @@ export default function Auth() {
             error: null 
           }));
           
-          // Navigate immediately to prevent blank pages
-          navigate('/', { replace: true });
+          // Small delay to ensure state is updated before navigation
+          setTimeout(() => {
+            navigate('/', { replace: true });
+          }, 100);
         }
       }
     } catch (error: any) {
