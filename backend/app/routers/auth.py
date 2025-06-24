@@ -11,17 +11,22 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from ..core.config import settings
 from ..core.database import get_database, Database
-from ..models.user import UserResponse, UserProfile
+from ..models.user import UserResponse, UserProfile, UserTable, BetaToggleRequest
 from ..core.monitoring import log_error, ErrorSeverity, ErrorCategory
+from ..services.subscription_service import SubscriptionService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 # HTTP Bearer for JWT tokens
 security = HTTPBearer(auto_error=False)
+
+# Initialize subscription service
+subscription_service = SubscriptionService()
 
 class AuthUser(BaseModel):
     id: str
@@ -268,6 +273,129 @@ async def auth_health():
         "timestamp": datetime.now().isoformat(),
         "supabase_configured": bool(settings.supabase_url and settings.supabase_anon_key)
     }
+
+# Subscription and Beta Testing Endpoints
+
+@router.get("/subscription-status/{user_id}")
+async def get_subscription_status(
+    user_id: str,
+    db: Database = Depends(get_database)
+):
+    """
+    Get subscription status for a user
+    """
+    try:
+        # Get database session
+        db_session = db.get_session()
+        
+        # Find user in database
+        user = db_session.query(UserTable).filter(UserTable.id == user_id).first()
+        if not user:
+            # Create user record if doesn't exist (for beta testing)
+            user = UserTable(
+                id=user_id,
+                email="rei.ale01@gmail.com",  # Development user
+                is_beta_tester=True,
+                beta_premium_enabled=False,
+                subscription_tier="free"
+            )
+            db_session.add(user)
+            db_session.commit()
+            db_session.refresh(user)
+        
+        # Get subscription status
+        status = subscription_service.get_user_subscription_status(user)
+        
+        return status
+        
+    except Exception as e:
+        logger.error(f"Error getting subscription status for user {user_id}: {e}")
+        # Return fallback status
+        return {
+            "tier": "free",
+            "is_premium_active": False,
+            "premium_expires_at": None,
+            "is_beta_tester": True,
+            "beta_premium_enabled": False,
+            "available_personas": ["pulse"],
+            "ai_requests_today": 0,
+            "daily_limit": 50,
+            "beta_mode": True,
+            "premium_features": {
+                "advanced_personas": False,
+                "pattern_insights": False,
+                "unlimited_history": False,
+                "priority_support": False
+            }
+        }
+
+class BetaToggleRequestAPI(BaseModel):
+    user_id: str
+    enabled: bool
+
+@router.post("/beta/toggle-premium")
+async def toggle_beta_premium(
+    request: BetaToggleRequestAPI,
+    db: Database = Depends(get_database)
+):
+    """
+    Toggle premium features for beta tester (FREE during beta)
+    """
+    try:
+        # Get database session
+        db_session = db.get_session()
+        
+        # Use subscription service to toggle
+        result = subscription_service.toggle_beta_premium(
+            db_session, 
+            request.user_id, 
+            request.enabled
+        )
+        
+        if result["success"]:
+            logger.info(f"Beta premium toggled for user {request.user_id}: {request.enabled}")
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error toggling beta premium for user {request.user_id}: {e}")
+        return {
+            "success": False,
+            "error": "Failed to toggle premium features",
+            "beta_premium_enabled": False,
+            "message": "An error occurred while updating premium settings"
+        }
+
+@router.post("/beta/make-tester")
+async def make_beta_tester(
+    request: dict,
+    db: Database = Depends(get_database)
+):
+    """
+    Grant beta tester status to a user
+    """
+    try:
+        user_id = request.get("user_id")
+        if not user_id:
+            return {"success": False, "error": "User ID is required"}
+        
+        # Get database session
+        db_session = db.get_session()
+        
+        # Use subscription service to make user beta tester
+        result = subscription_service.make_user_beta_tester(db_session, user_id)
+        
+        if result["success"]:
+            logger.info(f"User {user_id} granted beta tester status")
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error making user beta tester: {e}")
+        return {
+            "success": False,
+            "error": "Failed to grant beta tester status"
+        }
 
 # Export the dependencies for use in other routers
 get_current_user = get_current_user_with_fallback 
