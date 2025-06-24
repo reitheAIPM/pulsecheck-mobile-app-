@@ -46,6 +46,29 @@ class AuthService {
     }
   }
 
+  // Wrapper method for Auth component compatibility
+  async register({ email, password, name, techRole }: { email: string; password: string; name?: string; techRole?: string }) {
+    try {
+      const result = await this.signUp(email, password, name, techRole);
+      
+      if (result.user) {
+        return {
+          user: {
+            id: result.user.id,
+            email: result.user.email || '',
+            name: result.user.user_metadata?.name || name || 'User',
+            tech_role: result.user.user_metadata?.tech_role || techRole || 'user'
+          },
+          error: null
+        };
+      }
+      
+      return { user: null, error: 'Registration failed' };
+    } catch (error: any) {
+      return { user: null, error: error.message || 'Registration failed' };
+    }
+  }
+
   async signIn(email: string, password: string) {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -71,6 +94,29 @@ class AuthService {
     }
   }
 
+  // Wrapper method for Auth component compatibility
+  async login({ email, password }: { email: string; password: string }) {
+    try {
+      const result = await this.signIn(email, password);
+      
+      if (result.user) {
+        return {
+          user: {
+            id: result.user.id,
+            email: result.user.email || '',
+            name: result.user.user_metadata?.name || 'User',
+            tech_role: result.user.user_metadata?.tech_role || 'user'
+          },
+          error: null
+        };
+      }
+      
+      return { user: null, error: 'Login failed' };
+    } catch (error: any) {
+      return { user: null, error: error.message || 'Login failed' };
+    }
+  }
+
   async signOut() {
     try {
       const { error } = await supabase.auth.signOut();
@@ -85,7 +131,7 @@ class AuthService {
     }
   }
 
-  async getCurrentUser(): Promise<User | null> {
+  async getCurrentUser(): Promise<{ user: User | null }> {
     try {
       const { data: { user }, error } = await supabase.auth.getUser();
       
@@ -93,17 +139,19 @@ class AuthService {
       
       if (user) {
         return {
-          id: user.id,
-          email: user.email || '',
-          name: user.user_metadata?.name || 'User',
-          tech_role: user.user_metadata?.tech_role || 'user'
+          user: {
+            id: user.id,
+            email: user.email || '',
+            name: user.user_metadata?.name || 'User',
+            tech_role: user.user_metadata?.tech_role || 'user'
+          }
         };
       }
       
-      return null;
+      return { user: null };
     } catch (error) {
       console.error('Get user error:', error);
-      return null;
+      return { user: null };
     }
   }
 
