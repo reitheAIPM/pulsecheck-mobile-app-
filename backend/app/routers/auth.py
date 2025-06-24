@@ -284,53 +284,33 @@ async def get_subscription_status(
     """
     Get subscription status for a user
     """
-    try:
-        # Get database session
-        db_session = db.get_session()
-        
-        # Find user in database
-        user = db_session.query(UserTable).filter(UserTable.id == user_id).first()
-        if not user:
-            # Create user record if doesn't exist (for beta testing)
-            logger.info(f"Creating new user record for subscription status: {user_id}")
-            user = UserTable(
-                id=user_id,
-                email="rei.ale01@gmail.com",  # Development user
-                name="Rei (Development User)",
-                is_beta_tester=True,
-                beta_premium_enabled=False,
-                subscription_tier=SubscriptionTier.FREE
-            )
-            db_session.add(user)
-            db_session.commit()
-            db_session.refresh(user)
-            logger.info(f"User record created for subscription status: {user_id}")
-        
-        # Get subscription status using the subscription service
-        status = subscription_service.get_user_subscription_status(user)
-        
-        return status
-        
-    except Exception as e:
-        logger.error(f"Error getting subscription status for user {user_id}: {e}")
-        # Return fallback status - always return beta tester with 4 personas
-        return {
-            "tier": "free",
-            "is_premium_active": False,
-            "premium_expires_at": None,
-            "is_beta_tester": True,
-            "beta_premium_enabled": False,
-            "available_personas": ["pulse", "sage", "spark", "anchor"],  # Show all 4 personas
-            "ai_requests_today": 0,
-            "daily_limit": 50,
-            "beta_mode": True,
-            "premium_features": {
-                "advanced_personas": True,  # Enable for beta testing
-                "pattern_insights": True,
-                "unlimited_history": True,
-                "priority_support": True
-            }
+    # For now, always return beta tester status with all personas
+    # This is a temporary fix to unblock frontend testing
+    logger.info(f"Getting subscription status for user: {user_id}")
+    
+    # Check if user has premium enabled from memory
+    is_premium_enabled = _premium_status.get(user_id, False)
+    
+    return {
+        "tier": "free",
+        "is_premium_active": is_premium_enabled,
+        "premium_expires_at": None,
+        "is_beta_tester": True,
+        "beta_premium_enabled": is_premium_enabled,
+        "available_personas": ["pulse", "sage", "spark", "anchor"],  # Always show all 4 for beta
+        "ai_requests_today": 0,
+        "daily_limit": 50,
+        "beta_mode": True,
+        "premium_features": {
+            "advanced_personas": is_premium_enabled,
+            "pattern_insights": is_premium_enabled,
+            "unlimited_history": is_premium_enabled,
+            "priority_support": is_premium_enabled
         }
+    }
+
+# Store premium status in memory temporarily (will be moved to database later)
+_premium_status = {}
 
 class BetaToggleRequestAPI(BaseModel):
     user_id: str
@@ -344,67 +324,34 @@ async def toggle_beta_premium(
     """
     Toggle premium features for beta tester (FREE during beta)
     """
-    try:
-        # Get database session
-        db_session = db.get_session()
-        
-        # First, ensure user exists in database
-        user = db_session.query(UserTable).filter(UserTable.id == request.user_id).first()
-        if not user:
-            # Create user record if doesn't exist (for beta testing)
-            logger.info(f"Creating new user record for {request.user_id}")
-            user = UserTable(
-                id=request.user_id,
-                email="rei.ale01@gmail.com",  # Development user
-                name="Rei (Development User)",
-                is_beta_tester=True,
-                beta_premium_enabled=False,
-                subscription_tier=SubscriptionTier.FREE
-            )
-            db_session.add(user)
-            db_session.commit()
-            db_session.refresh(user)
-            logger.info(f"User record created successfully for {request.user_id}")
-        
-        # Now toggle premium using subscription service
-        result = subscription_service.toggle_beta_premium(
-            db_session, 
-            request.user_id, 
-            request.enabled
-        )
-        
-        if result["success"]:
-            logger.info(f"Beta premium toggled for user {request.user_id}: {request.enabled}")
-        else:
-            logger.error(f"Failed to toggle premium for user {request.user_id}: {result.get('error')}")
-        
-        return result
-        
-    except Exception as e:
-        logger.error(f"Database error toggling beta premium for user {request.user_id}: {e}")
-        # Return fallback response with the requested state
-        return {
-            "success": True,  # Return success for now to unblock frontend
+    logger.info(f"Toggling premium for user {request.user_id}: {request.enabled}")
+    
+    # Store in memory for now
+    _premium_status[request.user_id] = request.enabled
+    
+    # Return success response with correct data
+    return {
+        "success": True,
+        "beta_premium_enabled": request.enabled,
+        "subscription_status": {
+            "tier": "free",
+            "is_premium_active": request.enabled,
+            "premium_expires_at": None,
+            "is_beta_tester": True,
             "beta_premium_enabled": request.enabled,
-            "subscription_status": {
-                "tier": "free",
-                "is_premium_active": request.enabled,
-                "premium_expires_at": None,
-                "is_beta_tester": True,
-                "beta_premium_enabled": request.enabled,
-                "available_personas": ["pulse", "sage", "spark", "anchor"] if request.enabled else ["pulse"],
-                "ai_requests_today": 0,
-                "daily_limit": 50,
-                "beta_mode": True,
-                "premium_features": {
-                    "advanced_personas": request.enabled,
-                    "pattern_insights": request.enabled,
-                    "unlimited_history": request.enabled,
-                    "priority_support": request.enabled
-                }
-            },
-            "message": f"Beta premium features {'enabled' if request.enabled else 'disabled'} (FREE during beta) - using fallback due to database issue"
-        }
+            "available_personas": ["pulse", "sage", "spark", "anchor"],  # Always all 4 for beta
+            "ai_requests_today": 0,
+            "daily_limit": 50,
+            "beta_mode": True,
+            "premium_features": {
+                "advanced_personas": request.enabled,
+                "pattern_insights": request.enabled,
+                "unlimited_history": request.enabled,
+                "priority_support": request.enabled
+            }
+        },
+        "message": f"Beta premium features {'enabled' if request.enabled else 'disabled'} (FREE during beta)"
+    }
 
 @router.post("/beta/make-tester")
 async def make_beta_tester(
