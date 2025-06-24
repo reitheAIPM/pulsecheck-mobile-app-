@@ -96,12 +96,6 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
 
   const premiumPersonas = personas.filter(p => p.requires_premium);
 
-  // Debug logging
-  console.log('🎭 PersonaSelector - Input personas:', personas);
-  console.log('🎭 PersonaSelector - Active personas:', activePersonas);
-  console.log('🎭 PersonaSelector - Premium personas:', premiumPersonas);
-  console.log('🎭 PersonaSelector - Premium enabled:', premiumEnabled);
-
   if (isLoading) {
     return (
       <div className="space-y-4">

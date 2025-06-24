@@ -389,7 +389,8 @@ class ApiService {
     const response = await this.client.get('/api/v1/adaptive-ai/personas', {
       params: { user_id: userId }
     });
-    return response.data.personas || [];
+    // API returns personas array directly, not wrapped in an object
+    return Array.isArray(response.data) ? response.data : response.data.personas || [];
   }
 
   async getSubscriptionStatus(): Promise<any> {

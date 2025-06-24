@@ -259,11 +259,6 @@ const Profile = () => {
         recommendation_reason: p.recommendation_reason || `Great for ${p.description.toLowerCase()}`
       }));
       
-      console.log('🤖 Personas loaded from API:', availablePersonas);
-      console.log('🔄 Converted personas:', convertedPersonas);
-      console.log('📊 Personas count:', convertedPersonas.length);
-      console.log('✅ Premium enabled:', premiumEnabled);
-      
       setPersonas(convertedPersonas);
       
       // Set default persona to the first recommended one, or fallback to "pulse"
