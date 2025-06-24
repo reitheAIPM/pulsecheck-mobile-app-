@@ -141,15 +141,35 @@ const Profile = () => {
 
   const checkAuthStatus = async () => {
     try {
+      // Try to get current authenticated user first
       const result = await authService.getCurrentUser();
-      if (result.user && !result.error) {
-        setUserSession(result.user);
+      if (result.user) {
+        // Real Supabase user session
+        const session = await authService.getSession();
+        setUserSession({
+          user: result.user,
+          expires_at: session?.expires_at
+        });
       } else {
-        setUserSession(null);
+        // Fall back to development user if no real session
+        if (authService.isDevelopmentMode()) {
+          const devUser = authService.getDevelopmentUser();
+          setUserSession({
+            user: devUser,
+            expires_at: null // Development sessions don't expire
+          });
+        } else {
+          setUserSession(null);
+        }
       }
     } catch (error) {
-      console.log('No active auth session found');
-      setUserSession(null);
+      console.log('No active auth session found, using development user');
+      // Always show development user info as fallback
+      const devUser = authService.getDevelopmentUser();
+      setUserSession({
+        user: devUser,
+        expires_at: null
+      });
     }
   };
 
