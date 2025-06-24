@@ -135,6 +135,8 @@ const Profile = () => {
     loadUserPatterns();
     loadPersonas();
     loadSubscriptionStatus();
+    loadUserProfile();
+    loadAIPreferences();
     testApiConnection();
     checkAuthStatus();
   }, []);
@@ -376,9 +378,27 @@ const Profile = () => {
     }
   };
 
-  const handleSave = () => {
-    // In real app, save to backend
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      // Save profile updates to backend
+      await apiService.updateUserProfile({
+        name: profile.name,
+        role: profile.role,
+        company: profile.company,
+        work_style: profile.workStyle,
+        triggers: profile.triggers,
+        goals: profile.goals
+      });
+      
+      // Update original profile to reflect saved changes
+      setOriginalProfile(profile);
+      setIsEditing(false);
+      
+      console.log('Profile saved successfully');
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+      // Optionally show error toast/message to user
+    }
   };
 
   const handleCancel = () => {
@@ -421,6 +441,85 @@ const Profile = () => {
       }
     } finally {
       setIsResettingJournal(false);
+    }
+  };
+
+  const handleAISettingsChange = async (settingKey: string, value: any) => {
+    try {
+      // Update local state immediately for responsive UI
+      setAiSettings(prev => ({ ...prev, [settingKey]: value }));
+      
+      // Save to backend
+      await apiService.updateUserPreference(userId, settingKey, value);
+      
+      console.log(`AI setting ${settingKey} saved successfully:`, value);
+    } catch (error) {
+      console.error(`Failed to save AI setting ${settingKey}:`, error);
+      // Revert local state on error
+      setAiSettings(prev => ({ ...prev, [settingKey]: !value }));
+    }
+  };
+
+  const handlePersonaSettingsChange = async (settings: any) => {
+    try {
+      // Save AI interaction level and other persona settings
+      if (settings.aiInteractionLevel) {
+        await apiService.updateUserPreference(userId, 'response_frequency', settings.aiInteractionLevel);
+      }
+      
+      console.log('Persona settings saved successfully:', settings);
+    } catch (error) {
+      console.error('Failed to save persona settings:', error);
+    }
+  };
+
+  const loadUserProfile = async () => {
+    try {
+      const savedProfile = await apiService.getCurrentUser();
+      if (savedProfile) {
+        // Update profile state with saved data
+        setProfile(prev => ({
+          ...prev,
+          name: savedProfile.name || prev.name,
+          role: savedProfile.role || prev.role,
+          company: savedProfile.company || prev.company,
+          workStyle: savedProfile.work_style || prev.workStyle,
+          triggers: savedProfile.triggers || prev.triggers,
+          goals: savedProfile.goals || prev.goals
+        }));
+        
+        // Update original profile for cancel functionality
+        setOriginalProfile(prev => ({
+          ...prev,
+          name: savedProfile.name || prev.name,
+          role: savedProfile.role || prev.role,
+          company: savedProfile.company || prev.company,
+          workStyle: savedProfile.work_style || prev.workStyle,
+          triggers: savedProfile.triggers || prev.triggers,
+          goals: savedProfile.goals || prev.goals
+        }));
+      }
+    } catch (error) {
+      console.log('No saved profile found, using defaults');
+    }
+  };
+
+  const loadAIPreferences = async () => {
+    try {
+      const preferences = await apiService.getUserAIPreferences(userId);
+      if (preferences) {
+        // Update AI settings with saved preferences
+        setAiSettings(prev => ({
+          ...prev,
+          responseDelay: preferences.response_frequency !== 'immediate',
+          personalizedResponses: preferences.premium_enabled,
+          moodTracking: preferences.pattern_analysis_enabled,
+          weeklyInsights: preferences.proactive_checkins,
+          encouragingTone: preferences.celebration_mode
+        }));
+      }
+    } catch (error) {
+      console.log('No saved AI preferences found, using defaults');
     }
   };
 
@@ -665,6 +764,7 @@ const Profile = () => {
               onPremiumToggle={handlePremiumToggle}
               personas={personas}
               isLoading={loadingPersonas || premiumToggleLoading}
+              onSettingsChange={handlePersonaSettingsChange}
             />
           </CardContent>
         </Card>

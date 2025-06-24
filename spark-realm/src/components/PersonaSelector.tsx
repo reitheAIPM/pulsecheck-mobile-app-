@@ -245,7 +245,7 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
           <CardContent className="space-y-4">
             <div className="space-y-3">
               <label className="text-sm font-medium">Response Frequency</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-3">
                 {[
                   { id: 'quiet', label: 'Quiet', desc: 'Occasional responses' },
                   { id: 'balanced', label: 'Balanced', desc: 'Natural interaction' },
@@ -256,10 +256,10 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
                     variant={aiInteractionLevel === level.id ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => handleInteractionLevelChange(level.id)}
-                    className="flex flex-col h-auto p-3"
+                    className="flex flex-col h-auto min-h-[60px] p-3 text-center justify-center"
                   >
-                    <span className="text-xs font-medium">{level.label}</span>
-                    <span className="text-xs opacity-70">{level.desc}</span>
+                    <span className="text-sm font-medium leading-tight">{level.label}</span>
+                    <span className="text-xs opacity-70 leading-tight mt-1 whitespace-normal">{level.desc}</span>
                   </Button>
                 ))}
               </div>
