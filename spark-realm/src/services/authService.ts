@@ -52,6 +52,15 @@ class AuthService {
       const result = await this.signUp(email, password, name, techRole);
       
       if (result.user) {
+        // Store tokens if session exists (user confirmed email or confirmation disabled)
+        if (result.session) {
+          localStorage.setItem('auth_tokens', JSON.stringify({
+            access_token: result.session.access_token,
+            refresh_token: result.session.refresh_token,
+            expires_at: result.session.expires_at
+          }));
+        }
+
         return {
           user: {
             id: result.user.id,
@@ -59,6 +68,8 @@ class AuthService {
             name: result.user.user_metadata?.name || name || 'User',
             tech_role: result.user.user_metadata?.tech_role || techRole || 'user'
           },
+          session: result.session,
+          needsEmailConfirmation: result.needsEmailConfirmation,
           error: null
         };
       }

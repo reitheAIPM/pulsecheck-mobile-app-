@@ -168,7 +168,7 @@ export default function Auth() {
         // Registration flow
         logAuthEvent('registration_attempt', { email: state.email, name: state.name });
         
-        const { user, error } = await authService.register({
+        const { user, session, needsEmailConfirmation, error } = await authService.register({
           email: state.email,
           password: state.password,
           name: state.name
@@ -179,17 +179,32 @@ export default function Auth() {
         }
 
         if (user) {
-          logAuthEvent('registration_success', { userId: user.id });
-          setState(prev => ({ 
-            ...prev, 
-            success: 'Account created successfully! Welcome to PulseCheck.',
-            error: null 
-          }));
+          logAuthEvent('registration_success', { userId: user.id, hasSession: !!session });
           
-          // Use window.location.replace to prevent navigation throttling
-          setTimeout(() => {
-            window.location.replace('/');
-          }, 200);
+          if (needsEmailConfirmation) {
+            setState(prev => ({ 
+              ...prev, 
+              success: 'Account created! Please check your email to confirm your account before signing in.',
+              error: null 
+            }));
+          } else if (session) {
+            setState(prev => ({ 
+              ...prev, 
+              success: 'Account created successfully! Welcome to PulseCheck.',
+              error: null 
+            }));
+            
+            // Use window.location.replace to prevent navigation throttling
+            setTimeout(() => {
+              window.location.replace('/');
+            }, 200);
+          } else {
+            setState(prev => ({ 
+              ...prev, 
+              success: 'Account created! You can now sign in with your credentials.',
+              error: null 
+            }));
+          }
         }
       }
     } catch (error: any) {
