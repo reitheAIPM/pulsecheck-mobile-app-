@@ -72,11 +72,20 @@ export interface UserPatterns {
 }
 
 export interface PersonaInfo {
-  id: string;
-  name: string;
+  id?: string; // For compatibility - maps to persona_id
+  persona_id: string;
+  name?: string; // For compatibility - maps to persona_name
+  persona_name: string;
   description: string;
   recommended: boolean;
-  traits: string[];
+  traits?: string[]; // Optional field
+  requires_premium: boolean;
+  times_used: number;
+  recommendation_score: number;
+  recommendation_reasons: string[];
+  available: boolean;
+  last_used?: string;
+  recommendation_reason?: string;
 }
 
 export interface AIResponse {

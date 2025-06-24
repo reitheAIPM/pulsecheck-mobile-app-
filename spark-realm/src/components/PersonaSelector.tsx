@@ -91,7 +91,7 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
   };
 
   const activePersonas = personas.filter(p => 
-    (p.id === 'pulse' || p.persona_id === 'pulse') || (premiumEnabled && p.id !== 'pulse' && p.persona_id !== 'pulse')
+    !p.requires_premium || premiumEnabled
   );
 
   const premiumPersonas = personas.filter(p => p.requires_premium);
@@ -174,7 +174,7 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
           {/* Active AI Team */}
           <div className="space-y-2">
             {activePersonas.map(persona => {
-              const isActive = (persona.id === 'pulse' || persona.persona_id === 'pulse') || premiumEnabled;
+              const isActive = !persona.requires_premium || premiumEnabled;
               
               return (
                 <div

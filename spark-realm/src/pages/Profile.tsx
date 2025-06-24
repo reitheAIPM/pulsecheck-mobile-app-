@@ -228,11 +228,15 @@ const Profile = () => {
       // Convert PersonaInfo to PersonaRecommendation format
       const convertedPersonas: PersonaRecommendation[] = availablePersonas.map(p => ({
         ...p,
+        // Add compatibility fields
+        id: p.persona_id || p.id,
+        name: p.persona_name || p.name,
+        // Use API values directly - don't override
         recommended: p.recommended,
-        available: true,
-        requires_premium: p.id !== 'pulse',
-        times_used: 0,
-        recommendation_reason: `Great for ${p.description.toLowerCase()}`
+        available: p.available,
+        requires_premium: p.requires_premium,
+        times_used: p.times_used,
+        recommendation_reason: p.recommendation_reason || `Great for ${p.description.toLowerCase()}`
       }));
       
       setPersonas(convertedPersonas);
@@ -248,24 +252,32 @@ const Profile = () => {
       setPersonas([
         {
           id: "pulse",
+          persona_id: "pulse",
           name: "Pulse",
+          persona_name: "Pulse",
           description: "Your emotionally intelligent wellness companion",
           recommended: true,
           traits: ["empathetic", "supportive", "insightful"],
           available: true,
           requires_premium: false,
           times_used: 15,
+          recommendation_score: 0.9,
+          recommendation_reasons: ["Default wellness companion"],
           recommendation_reason: "Perfect for emotional support and wellness insights"
         },
         {
           id: "sage",
+          persona_id: "sage",
           name: "Sage",
+          persona_name: "Sage",
           description: "Wise mentor for strategic life guidance",
           recommended: false,
           traits: ["wise", "strategic", "thoughtful"],
           available: premiumEnabled,
           requires_premium: true,
           times_used: premiumEnabled ? 3 : 0,
+          recommendation_score: 0.7,
+          recommendation_reasons: ["Strategic guidance"],
           recommendation_reason: "Great for long-term planning and wisdom"
         }
       ]);
