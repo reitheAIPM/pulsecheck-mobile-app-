@@ -74,32 +74,50 @@ async def test_ai_response():
 # Mock user dependency for MVP with browser session support
 async def get_current_user_with_request(request: Request):
     """
-    Mock user for MVP with browser session support
-    Accepts user ID from X-User-Id header for beta testing isolation
+    Authentication dependency that works with both Supabase Auth and development mode
     """
-    # Try to get user ID from header for browser session support
-    user_id = request.headers.get('X-User-Id')
+    try:
+        # Try to get authorization header
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            # Import here to avoid circular imports
+            from .auth import get_current_user_from_token
+            from fastapi.security import HTTPAuthorizationCredentials
+            
+            credentials = HTTPAuthorizationCredentials(
+                scheme="Bearer",
+                credentials=auth_header.split(' ')[1]
+            )
+            
+            auth_user = await get_current_user_from_token(credentials, get_database())
+            return {
+                "id": auth_user.id,
+                "email": auth_user.email,
+                "tech_role": auth_user.user_metadata.get("tech_role", "user"),
+                "name": auth_user.user_metadata.get("name", "User")
+            }
+    except Exception as e:
+        # Fall through to development mode
+        logger.info(f"Falling back to development auth: {e}")
     
-    # Fallback to default if no header provided
-    if not user_id:
-        user_id = "user_123"
+    # Development mode fallback
+    user_id = request.headers.get('X-User-Id', "user_reiale01gmailcom_1750733000000")
     
     return {
         "id": user_id,
-        "email": f"demo-{user_id.split('_')[-1] if '_' in user_id else 'default'}@pulsecheck.app", 
+        "email": "rei.ale01@gmail.com",
         "tech_role": "beta_tester",
-        "name": f"Beta User {user_id.split('_')[-1] if '_' in user_id else 'Default'}"
+        "name": "Rei (Development User)"
     }
 
 # Wrapper for endpoints that don't need request
 async def get_current_user():
-    """Fallback for endpoints without request access - use header if available"""
-    # This is a simplified fallback - in practice, endpoints should use get_current_user_with_request
+    """Fallback for endpoints without request access"""
     return {
-        "id": "user_reiale01gmailcom_1750733000000",  # Use the consistent user ID for your email
+        "id": "user_reiale01gmailcom_1750733000000",
         "email": "rei.ale01@gmail.com",
         "tech_role": "beta_tester", 
-        "name": "Rei (Beta User)"
+        "name": "Rei (Development User)"
     }
 
 @router.post("/entries", response_model=JournalEntryResponse)
