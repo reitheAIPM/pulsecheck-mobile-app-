@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { PersonaRecommendation } from '../services/api';
+import { PersonaInfo, apiService } from '../services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import { Sparkles, BookOpen, Zap, Anchor, Crown, Users, Settings } from 'lucide-react';
+
+// Local persona type for component
+type PersonaRecommendation = PersonaInfo & {
+  recommended: boolean;
+  available: boolean;
+  requires_premium: boolean;
+  times_used: number;
+  recommendation_reason: string;
+  persona_id?: string; // For backward compatibility
+  persona_name?: string; // For backward compatibility
+};
 
 interface AITeamManagerProps {
   userId: string;
@@ -25,6 +36,29 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
 }) => {
   const [aiInteractionLevel, setAiInteractionLevel] = useState('balanced'); // quiet, balanced, active
   const [showSettings, setShowSettings] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  const handleInteractionLevelChange = async (level: string) => {
+    try {
+      setSavingSettings(true);
+      setAiInteractionLevel(level);
+      
+      // Save to backend via API call
+      if (onSettingsChange) {
+        await onSettingsChange({ response_frequency: level });
+      }
+      
+      // Save to backend
+      await apiService.updateUserPreference(userId, 'response_frequency', level);
+      
+    } catch (error) {
+      console.error('Failed to save AI interaction level:', error);
+      // Revert on error
+      setAiInteractionLevel(aiInteractionLevel);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const getPersonaIcon = (personaId: string) => {
     switch (personaId) {
@@ -57,7 +91,7 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
   };
 
   const activePersonas = personas.filter(p => 
-    p.persona_id === 'pulse' || (premiumEnabled && p.persona_id !== 'pulse')
+    (p.id === 'pulse' || p.persona_id === 'pulse') || (premiumEnabled && p.id !== 'pulse' && p.persona_id !== 'pulse')
   );
 
   const premiumPersonas = personas.filter(p => p.requires_premium);
@@ -140,23 +174,23 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
           {/* Active AI Team */}
           <div className="space-y-2">
             {activePersonas.map(persona => {
-              const isActive = persona.persona_id === 'pulse' || premiumEnabled;
+              const isActive = (persona.id === 'pulse' || persona.persona_id === 'pulse') || premiumEnabled;
               
               return (
                 <div
-                  key={persona.persona_id}
+                  key={persona.id || persona.persona_id}
                   className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
                     isActive 
-                      ? `${getPersonaColor(persona.persona_id)} border-current` 
+                      ? `${getPersonaColor(persona.id || persona.persona_id)} border-current` 
                       : 'bg-gray-50 border-gray-200 opacity-60'
                   }`}
                 >
                   <div className={`p-2 rounded-lg ${isActive ? 'bg-white/50' : 'bg-gray-100'}`}>
-                    {getPersonaIcon(persona.persona_id)}
+                    {getPersonaIcon(persona.id || persona.persona_id)}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-medium text-sm">{persona.persona_name}</h4>
+                      <h4 className="font-medium text-sm">{persona.name || persona.persona_name}</h4>
                       {isActive && (
                         <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
                           Active
@@ -186,11 +220,11 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
               <p className="text-xs text-gray-500 mb-2">Unlock with Premium:</p>
               <div className="grid grid-cols-3 gap-2">
                 {premiumPersonas.map(persona => (
-                  <div key={persona.persona_id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                  <div key={persona.id || persona.persona_id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
                     <div className="p-1 bg-gray-100 rounded">
-                      {getPersonaIcon(persona.persona_id)}
+                      {getPersonaIcon(persona.id || persona.persona_id)}
                     </div>
-                    <span className="text-xs text-gray-600">{persona.persona_name}</span>
+                    <span className="text-xs text-gray-600">{persona.name || persona.persona_name}</span>
                   </div>
                 ))}
               </div>
@@ -221,7 +255,7 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
                     key={level.id}
                     variant={aiInteractionLevel === level.id ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setAiInteractionLevel(level.id)}
+                    onClick={() => handleInteractionLevelChange(level.id)}
                     className="flex flex-col h-auto p-3"
                   >
                     <span className="text-xs font-medium">{level.label}</span>

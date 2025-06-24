@@ -127,6 +127,22 @@ export interface AIInsightResponse {
   generated_at: string;
 }
 
+export interface UserAIPreferences {
+  user_id: string;
+  response_frequency: string;
+  premium_enabled: boolean;
+  multi_persona_enabled: boolean;
+  preferred_personas: string[];
+  blocked_personas: string[];
+  max_response_length: string;
+  tone_preference: string;
+  proactive_checkins: boolean;
+  pattern_analysis_enabled: boolean;
+  celebration_mode: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PatternAnalysisRequest {
   user_id: string;
   include_history: boolean;
@@ -285,14 +301,10 @@ class ApiService {
 
   // Journal entries
   async getJournalEntries(page: number = 1, perPage: number = 30): Promise<JournalEntry[]> {
-    console.log(`Fetching journal entries, page: ${page} per_page: ${perPage}`);
-    console.log('Full URL will be:', `${this.baseURL}/api/v1/journal/entries`);
-    
     const response = await this.client.get('/api/v1/journal/entries', {
       params: { page, per_page: perPage }
     });
     
-    console.log(`Journal entries fetched: ${response.data.entries?.length || 0} entries out of ${response.data.total || 0} total`);
     return response.data.entries || [];
   }
 
@@ -302,11 +314,7 @@ class ApiService {
   }
 
   async createJournalEntry(entry: CreateJournalEntry): Promise<JournalEntry> {
-    console.log('Creating journal entry:', entry);
-    console.log('Full URL will be:', `${this.baseURL}/api/v1/journal/entries`);
-    
     const response = await this.client.post('/api/v1/journal/entries', entry);
-    console.log('Journal entry created successfully:', response.data);
     return response.data;
   }
 
@@ -320,8 +328,8 @@ class ApiService {
   }
 
   async resetJournal(): Promise<any> {
-    const user = await authService.getCurrentUser();
-    const userId = user?.id || authService.getDevelopmentUser().id;
+    const result = await authService.getCurrentUser();
+    const userId = result.user?.id || authService.getDevelopmentUser().id;
     
     const response = await this.client.delete(`/api/v1/journal/reset/${userId}`, {
       params: { confirm: true }
@@ -341,8 +349,8 @@ class ApiService {
     console.log('Generating adaptive response:', request);
     
     // Get the user ID from the request or fallback to current user
-    const user = await authService.getCurrentUser();
-    const userId = request.user_id || user?.id || authService.getDevelopmentUser().id;
+    const result = await authService.getCurrentUser();
+    const userId = request.user_id || result.user?.id || authService.getDevelopmentUser().id;
     
     const response = await this.client.post('/api/v1/adaptive-ai/generate-response', {
       user_id: userId,
@@ -358,38 +366,28 @@ class ApiService {
   }
 
   async getUserPatterns(): Promise<UserPatterns> {
-    const user = await authService.getCurrentUser();
-    const userId = user?.id || authService.getDevelopmentUser().id;
-    
-    console.log('Fetching user patterns for:', userId);
+    const result = await authService.getCurrentUser();
+    const userId = result.user?.id || authService.getDevelopmentUser().id;
     
     const response = await this.client.get(`/api/v1/adaptive-ai/patterns/${userId}`);
-    console.log('User patterns fetched:', response.data);
     return response.data;
   }
 
   async getAvailablePersonas(): Promise<PersonaInfo[]> {
-    const user = await authService.getCurrentUser();
-    const userId = user?.id || authService.getDevelopmentUser().id;
-    
-    console.log('Fetching available personas for user:', userId);
+    const result = await authService.getCurrentUser();
+    const userId = result.user?.id || authService.getDevelopmentUser().id;
     
     const response = await this.client.get('/api/v1/adaptive-ai/personas', {
       params: { user_id: userId }
     });
-    
-    console.log(`Available personas fetched: ${response.data.personas?.length || 0} personas`);
     return response.data.personas || [];
   }
 
   async getSubscriptionStatus(): Promise<any> {
-    const user = await authService.getCurrentUser();
-    const userId = user?.id || authService.getDevelopmentUser().id;
-    
-    console.log('Getting subscription status for user:', userId);
+    const result = await authService.getCurrentUser();
+    const userId = result.user?.id || authService.getDevelopmentUser().id;
     
     const response = await this.client.get(`/api/v1/auth/subscription-status/${userId}`);
-    console.log('Subscription status retrieved:', response.data);
     return response.data;
   }
 
@@ -529,6 +527,37 @@ class ApiService {
     console.log('Making user beta tester:', userId);
     const response: AxiosResponse<BetaToggleResponse> = await this.client.post('/api/v1/auth/beta/make-tester', { user_id: userId });
     console.log('User made beta tester:', response.data);
+    return response.data;
+  }
+
+  // User AI Preferences
+  async getUserAIPreferences(userId?: string): Promise<UserAIPreferences> {
+    const result = await authService.getCurrentUser();
+    const targetUserId = userId || result.user?.id || authService.getDevelopmentUser().id;
+    
+    const response = await this.client.get(`/api/v1/adaptive-ai/preferences/${targetUserId}`);
+    
+    return response.data;
+  }
+
+  async saveUserAIPreferences(preferences: UserAIPreferences): Promise<boolean> {
+    const response = await this.client.post('/api/v1/adaptive-ai/preferences', preferences);
+    
+    return response.data.success || false;
+  }
+
+  async updateUserPreference(userId: string, preferenceKey: string, value: any): Promise<boolean> {
+    const response = await this.client.patch(
+      `/api/v1/adaptive-ai/preferences/${userId}/${preferenceKey}`,
+      { value }
+    );
+    
+    return response.data.success || false;
+  }
+
+  async getFrequencySettings(): Promise<Record<string, any>> {
+    const response = await this.client.get('/api/v1/adaptive-ai/frequency-settings');
+    
     return response.data;
   }
 }

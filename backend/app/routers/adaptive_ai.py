@@ -12,7 +12,8 @@ from datetime import datetime
 from app.models.ai_insights import (
     PatternAnalysisRequest, PatternAnalysisResponse,
     AdaptiveResponseRequest, AdaptiveResponseResponse,
-    UserPatternSummary, PersonaRecommendation
+    UserPatternSummary, PersonaRecommendation,
+    AIInsightResponse, UserAIPreferences
 )
 from app.models.journal import JournalEntryResponse
 from app.services.adaptive_ai_service import AdaptiveAIService
@@ -22,6 +23,7 @@ from app.services.journal_service import JournalService
 from app.services.persona_service import persona_service
 from app.core.monitoring import log_error, ErrorSeverity, ErrorCategory
 from app.core.database import get_database
+from app.services.user_preferences_service import UserPreferencesService
 
 # Import authentication directly to avoid circular imports
 from fastapi import Request
@@ -60,6 +62,11 @@ def get_adaptive_ai_service(
     pattern_analyzer = Depends(get_pattern_analyzer)
 ):
     return AdaptiveAIService(pulse_ai, pattern_analyzer)
+
+# Add dependency for user preferences service
+async def get_user_preferences_service():
+    """Dependency to get user preferences service"""
+    return UserPreferencesService()
 
 @router.post("/analyze-patterns", response_model=PatternAnalysisResponse)
 async def analyze_user_patterns(
@@ -410,4 +417,100 @@ async def refresh_user_patterns(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to refresh patterns"
+        )
+
+@router.get("/preferences/{user_id}", response_model=UserAIPreferences)
+async def get_user_ai_preferences(
+    user_id: str,
+    preferences_service = Depends(get_user_preferences_service)
+):
+    """
+    Get user AI preferences
+    """
+    try:
+        preferences = await preferences_service.get_user_preferences(user_id)
+        return preferences
+        
+    except Exception as e:
+        log_error(e, ErrorSeverity.MEDIUM, ErrorCategory.API_ENDPOINT,
+                 {"user_id": user_id, "operation": "get_ai_preferences"})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get user AI preferences"
+        )
+
+@router.post("/preferences", response_model=dict)
+async def save_user_ai_preferences(
+    preferences: UserAIPreferences,
+    preferences_service = Depends(get_user_preferences_service)
+):
+    """
+    Save user AI preferences
+    """
+    try:
+        success = await preferences_service.save_user_preferences(preferences)
+        
+        if success:
+            return {"success": True, "message": "Preferences saved successfully"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save preferences"
+            )
+        
+    except Exception as e:
+        log_error(e, ErrorSeverity.HIGH, ErrorCategory.API_ENDPOINT,
+                 {"user_id": preferences.user_id, "operation": "save_ai_preferences"})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save user AI preferences"
+        )
+
+@router.patch("/preferences/{user_id}/{preference_key}")
+async def update_user_preference(
+    user_id: str,
+    preference_key: str,
+    value: dict,  # {"value": "new_value"}
+    preferences_service = Depends(get_user_preferences_service)
+):
+    """
+    Update a single user preference
+    """
+    try:
+        success = await preferences_service.update_preference(
+            user_id, preference_key, value.get("value")
+        )
+        
+        if success:
+            return {"success": True, "message": f"Updated {preference_key} successfully"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to update {preference_key}"
+            )
+        
+    except Exception as e:
+        log_error(e, ErrorSeverity.MEDIUM, ErrorCategory.API_ENDPOINT,
+                 {"user_id": user_id, "preference_key": preference_key})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update user preference"
+        )
+
+@router.get("/frequency-settings")
+async def get_frequency_settings(
+    preferences_service = Depends(get_user_preferences_service)
+):
+    """
+    Get information about AI response frequency settings
+    """
+    try:
+        return preferences_service.get_frequency_info()
+        
+    except Exception as e:
+        log_error(e, ErrorSeverity.LOW, ErrorCategory.API_ENDPOINT,
+                 {"operation": "get_frequency_settings"})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get frequency settings"
         ) 

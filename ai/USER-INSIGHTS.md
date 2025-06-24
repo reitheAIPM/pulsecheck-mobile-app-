@@ -315,4 +315,129 @@ Every Pulse response follows this three-part structure:
 
 ---
 
+## 🎯 **ENHANCED JOURNALING EXPERIENCE REQUIREMENTS**
+
+### **🚨 CRITICAL PRIORITY: Maximize Journaling Experience**
+The current journaling interface makes it seem like users can only do short quick entries. We need to **revolutionize the journaling experience** to be front and center, encouraging deep, meaningful reflection.
+
+### **📝 CORE JOURNALING PHILOSOPHY**
+- **Front and Center**: Journaling should be the primary, most prominent feature
+- **Long-Form Friendly**: Interface should encourage detailed, thoughtful entries
+- **Distraction-Free**: Clean, uncluttered experience focused on writing
+- **Always Accessible**: Quick entry capability without barriers
+
+---
+
+## 🛠️ **ENHANCED JOURNALING FEATURES ROADMAP**
+
+### **🔴 HIGH PRIORITY: Core Experience**
+
+#### **1. Ease of Use and Accessibility**
+- ✅ **Simple Interface**: Clean and uncluttered interface for distraction-free writing
+- ✅ **Convenience**: Access on any device (smartphone, tablet, computer)
+- 🔄 **Quick Entry**: Streamlined entry process for maintaining consistent habits
+- ⚠️ **Offline Access**: Continue journaling without internet connection (needs implementation)
+
+#### **2. Enhanced Text Experience**
+- **Rich Text Editor**: Bold, italic, formatting options for expressive writing
+- **Auto-Save**: Never lose progress while writing
+- **Word Count**: Visual progress indicator for longer entries
+- **Writing Goals**: Optional daily word count targets
+- **Distraction-Free Mode**: Full-screen writing experience
+
+### **🟡 MEDIUM PRIORITY: Multimedia and Organization**
+
+#### **3. Multimedia Integration**
+- **Photo Integration**: Add photos to make entries more vibrant and reflective
+- **Audio Recordings**: Voice notes and audio journal entries
+- **Video Integration**: Short video clips to capture moments
+- **Link Attachments**: Save relevant articles, songs, or content
+
+#### **4. Organization and Searchability**
+- **Smart Tags**: Auto-suggest tags based on content
+- **Categories**: Organize entries by themes (work, personal, health, etc.)
+- **Advanced Search**: Find entries by mood, topic, date range, or keywords
+- **Folders**: Custom organization system for different life areas
+
+### **🟢 LOW PRIORITY: Advanced Features**
+
+#### **5. Writing Enhancement**
+- **Daily Prompts**: Thought-provoking questions to spark creativity
+- **Guided Reflection**: Structured templates for different types of entries
+- **Writing Challenges**: Weekly or monthly journaling goals
+- **Mood-Based Prompts**: Questions tailored to current emotional state
+
+#### **6. Smart Features**
+- **Voice Transcription**: Speak thoughts and have them converted to text
+- **Smart Reminders**: Personalized notifications based on journaling patterns
+- **Progress Tracking**: Visual representation of journaling consistency
+- **Export Options**: Download entries as PDF, backup to cloud services
+
+---
+
+## 🎨 **UI/UX REDESIGN PRIORITIES**
+
+### **🔴 IMMEDIATE FIXES NEEDED**
+1. **Journal Entry UI Redesign**
+   - **Issue**: Current design emphasizes mood buttons over writing
+   - **Fix**: Make text input area the largest, most prominent element
+   - **Goal**: Encourage longer, more thoughtful entries
+
+2. **Writing-First Layout**
+   - **Primary Focus**: Large, inviting text area
+   - **Secondary Elements**: Mood tracking, tags, and other features
+   - **Mobile Optimization**: Comfortable typing experience on phones
+
+### **📱 MOBILE JOURNALING EXPERIENCE**
+- **Touch-Optimized**: Large touch targets, easy scrolling
+- **Swipe Gestures**: Quick actions like save, tag, or format
+- **Voice Input**: Easy switch between typing and voice-to-text
+- **Portrait/Landscape**: Optimized layouts for both orientations
+
+### **💻 DESKTOP JOURNALING EXPERIENCE**
+- **Full-Screen Mode**: Immersive writing environment
+- **Keyboard Shortcuts**: Power user functionality
+- **Multi-Panel Layout**: Writing area + sidebar with tags/mood
+- **Distraction-Free**: Option to hide all UI except writing area
+
+---
+
+## 🔄 **IMPLEMENTATION STRATEGY**
+
+### **Phase 1: Core Writing Experience (Week 1-2)**
+1. **Redesign Journal Entry UI**: Text-first layout
+2. **Auto-Save Implementation**: Never lose progress
+3. **Rich Text Basics**: Bold, italic, basic formatting
+4. **Improved Mobile Layout**: Better typing experience
+
+### **Phase 2: Enhanced Features (Week 3-4)**
+1. **Photo Upload**: Add images to entries
+2. **Voice Transcription**: Speak-to-text functionality
+3. **Smart Tags**: Auto-suggest based on content
+4. **Offline Mode**: Continue writing without internet
+
+### **Phase 3: Advanced Organization (Month 2)**
+1. **Search and Filter**: Find entries by multiple criteria
+2. **Categories and Folders**: Advanced organization
+3. **Export Options**: Backup and sharing capabilities
+4. **Advanced Prompts**: AI-powered writing suggestions
+
+---
+
+## 📊 **SUCCESS METRICS FOR ENHANCED JOURNALING**
+
+### **Engagement Metrics**
+- **Average Entry Length**: Target 150+ words (vs current ~50 words)
+- **Session Duration**: Target 5+ minutes (vs current ~2 minutes)
+- **Return Rate**: Users coming back to continue entries
+- **Completion Rate**: Percentage of entries that feel "complete"
+
+### **Quality Indicators**
+- **User Satisfaction**: Feedback on writing experience
+- **Feature Usage**: Which enhancements get most use
+- **Retention Impact**: How better journaling affects user retention
+- **AI Response Quality**: Better entries = better AI insights
+
+---
+
 **This file consolidates: user-preferences.md, pulse-persona-guide.md** 

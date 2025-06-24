@@ -142,6 +142,11 @@ class AuthService {
     }
   }
 
+  // Wrapper method for Profile component compatibility
+  async logout() {
+    return this.signOut();
+  }
+
   async getCurrentUser(): Promise<{ user: User | null }> {
     try {
       const { data: { user }, error } = await supabase.auth.getUser();

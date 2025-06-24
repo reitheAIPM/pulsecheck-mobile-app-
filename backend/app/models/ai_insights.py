@@ -212,4 +212,30 @@ class AdaptiveResponseResponse(BaseModel):
     # Response metadata
     adaptation_applied: bool = Field(..., description="Whether adaptation was applied")
     adaptation_confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence in adaptation")
-    response_generated_at: datetime = Field(default_factory=datetime.utcnow, description="When response was generated") 
+    response_generated_at: datetime = Field(default_factory=datetime.utcnow, description="When response was generated")
+
+class UserAIPreferences(BaseModel):
+    """User AI interaction preferences"""
+    user_id: str = Field(..., description="User identifier")
+    
+    # AI Interaction Settings
+    response_frequency: str = Field("balanced", description="AI response frequency: quiet, balanced, active")
+    premium_enabled: bool = Field(False, description="Whether premium features are enabled")
+    multi_persona_enabled: bool = Field(False, description="Allow multiple personas to respond")
+    
+    # Persona Preferences
+    preferred_personas: List[str] = Field(default_factory=list, description="User's preferred personas")
+    blocked_personas: List[str] = Field(default_factory=list, description="Personas user wants to avoid")
+    
+    # Response Preferences
+    max_response_length: str = Field("medium", description="Preferred response length: short, medium, long")
+    tone_preference: str = Field("balanced", description="Preferred tone: supportive, analytical, motivational")
+    
+    # Advanced Settings
+    proactive_checkins: bool = Field(True, description="Allow AI to initiate conversations")
+    pattern_analysis_enabled: bool = Field(True, description="Enable pattern learning")
+    celebration_mode: bool = Field(True, description="Enable AI to celebrate user progress")
+    
+    # Metadata
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="When preferences were created")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="When preferences were last updated") 

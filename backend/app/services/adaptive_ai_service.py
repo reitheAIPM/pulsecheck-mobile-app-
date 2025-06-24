@@ -18,7 +18,8 @@ from dataclasses import dataclass
 from app.services.pulse_ai import PulseAI
 from app.services.user_pattern_analyzer import UserPatternAnalyzer, AdaptiveContext, UserPatterns
 from app.models.journal import JournalEntryResponse
-from app.models.ai_insights import AIInsightResponse
+from app.models.ai_insights import AIInsightResponse, UserAIPreferences
+from app.services.user_preferences_service import UserPreferencesService
 from app.core.monitoring import log_error, ErrorSeverity, ErrorCategory
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ class AdaptiveAIService:
     def __init__(self, pulse_ai_service: PulseAI, pattern_analyzer: UserPatternAnalyzer):
         self.pulse_ai_service = pulse_ai_service
         self.pattern_analyzer = pattern_analyzer
+        self.preferences_service = UserPreferencesService()
         
         # AI debugging and monitoring
         self.debug_contexts: List[AIDebugContext] = []
@@ -236,6 +238,25 @@ class AdaptiveAIService:
         }
         
         logger.info("AdaptiveAIService initialized with enhanced multi-persona system, topic classification, and AI-optimized debugging")
+    
+    async def should_generate_response(self, user_id: str, journal_entry: JournalEntryResponse) -> bool:
+        """
+        Determine if AI should generate a response based on user preferences
+        """
+        try:
+            # Check user preferences for response frequency
+            should_respond = self.preferences_service.should_respond_to_entry(
+                user_id, 
+                {"mood_level": journal_entry.mood_level, "content_length": len(journal_entry.content)}
+            )
+            
+            logger.info(f"Response decision for user {user_id}: {should_respond}")
+            return should_respond
+            
+        except Exception as e:
+            log_error(e, ErrorSeverity.LOW, ErrorCategory.AI_SERVICE,
+                     {"user_id": user_id, "operation": "should_generate_response"})
+            return True  # Default to responding on error
     
     async def generate_adaptive_response(
         self, 

@@ -145,16 +145,8 @@ const Index = () => {
     
     setIsLoadingEntries(true);
     try {
-      console.log('Loading entries for user:', userId); // Debug log
-      
-      // First try with current user ID
+      // Load journal entries
       let realEntries = await apiService.getJournalEntries();
-      console.log('Raw API response for current user ID:', realEntries);
-      
-      // If no entries found and we have an email-based user ID, try searching the backend
-      if (realEntries.length === 0 && userId.includes('reiale01gmailcom')) {
-        console.log('No entries found with consistent user ID, this may be expected for first-time setup');
-      }
       
       // Transform the entries to match the expected format
       const transformedEntries = realEntries.map(entry => ({
@@ -164,23 +156,13 @@ const Index = () => {
         timestamp: entry.created_at,
         // AI response will be added later when we implement that feature
       }));
-      
-      console.log('Transformed entries:', transformedEntries); // Debug log
       setEntries(transformedEntries);
       
       if (realEntries.length === 0) {
-        console.log('No entries found - showing empty state');
         toast({
           title: "No entries yet",
           description: "Start your wellness journey by creating your first entry!",
           duration: 3000,
-        });
-      } else {
-        console.log(`Successfully loaded ${realEntries.length} entries`);
-        toast({
-          title: "Entries loaded",
-          description: `Found ${realEntries.length} reflection${realEntries.length === 1 ? '' : 's'}.`,
-          duration: 2000,
         });
       }
     } catch (error) {
