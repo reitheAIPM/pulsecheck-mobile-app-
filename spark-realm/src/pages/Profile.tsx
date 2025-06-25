@@ -204,27 +204,8 @@ const Profile = () => {
       setUserPatterns(patterns);
     } catch (error) {
       console.error('Failed to load user patterns:', error);
-      // Use mock data for demonstration
-      setUserPatterns({
-        writing_style: "analytical",
-        common_topics: ["work", "stress", "productivity", "goals"],
-        mood_trends: {
-          mood: 6.2,
-          energy: 5.8,
-          stress: 6.5
-        },
-        interaction_preferences: {
-          prefers_questions: true,
-          prefers_validation: true,
-          prefers_advice: false
-        },
-        response_preferences: {
-          length: "medium",
-          style: "supportive"
-        },
-        pattern_confidence: 0.75,
-        entries_analyzed: 24
-      });
+      // Don't use mock data - leave patterns empty to show user they need to create entries first
+      setUserPatterns(null);
     } finally {
       setLoadingPatterns(false);
     }
@@ -257,39 +238,8 @@ const Profile = () => {
       }
     } catch (error) {
       console.error('Failed to load personas:', error);
-      // Use fallback personas
-      setPersonas([
-        {
-          id: "pulse",
-          persona_id: "pulse",
-          name: "Pulse",
-          persona_name: "Pulse",
-          description: "Your emotionally intelligent wellness companion",
-          recommended: true,
-          traits: ["empathetic", "supportive", "insightful"],
-          available: true,
-          requires_premium: false,
-          times_used: 15,
-          recommendation_score: 0.9,
-          recommendation_reasons: ["Default wellness companion"],
-          recommendation_reason: "Perfect for emotional support and wellness insights"
-        },
-        {
-          id: "sage",
-          persona_id: "sage",
-          name: "Sage",
-          persona_name: "Sage",
-          description: "Wise mentor for strategic life guidance",
-          recommended: false,
-          traits: ["wise", "strategic", "thoughtful"],
-          available: premiumEnabled,
-          requires_premium: true,
-          times_used: premiumEnabled ? 3 : 0,
-          recommendation_score: 0.7,
-          recommendation_reasons: ["Strategic guidance"],
-          recommendation_reason: "Great for long-term planning and wisdom"
-        }
-      ]);
+      // Don't use fallback personas - real data only
+      setPersonas([]);
     } finally {
       setLoadingPersonas(false);
     }
@@ -303,23 +253,8 @@ const Profile = () => {
       setPremiumEnabled(status.beta_premium_enabled);
     } catch (error) {
       console.error('Failed to load subscription status:', error);
-      // Use fallback status
-      setSubscriptionStatus({
-        tier: 'free',
-        is_premium_active: false,
-        is_beta_tester: true,
-        beta_premium_enabled: false,
-        available_personas: ['pulse'],
-        ai_requests_today: 0,
-        daily_limit: 10,
-        beta_mode: true,
-        premium_features: {
-          advanced_personas: false,
-          pattern_insights: false,
-          unlimited_history: false,
-          priority_support: false
-        }
-      });
+      // Don't use fallback status - real data only
+      setSubscriptionStatus(null);
     } finally {
       setLoadingSubscription(false);
     }
@@ -364,9 +299,7 @@ const Profile = () => {
       }
     } catch (error) {
       console.error('Failed to toggle premium:', error);
-      // Fallback to mock behavior for development
-      setPremiumEnabled(enabled);
-      console.log(`Premium features ${enabled ? 'enabled' : 'disabled'} (Free during beta)`);
+      // Don't allow fallback behavior - require real authentication
     } finally {
       setPremiumToggleLoading(false);
     }
@@ -1125,13 +1058,12 @@ const Profile = () => {
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-amber-600">
                   <AlertCircle className="w-4 h-4" />
-                  <span className="font-medium">Using Browser Session</span>
+                  <span className="font-medium">Not Authenticated</span>
                 </div>
                 
                 <div className="bg-amber-50 p-3 rounded-lg">
                   <p className="text-sm text-amber-800">
-                    You're currently using a temporary browser session. 
-                    Create an account to save your data permanently.
+                    You need to sign in to access your profile and save your data.
                   </p>
                 </div>
 

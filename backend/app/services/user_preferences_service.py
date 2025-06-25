@@ -231,7 +231,7 @@ class UserPreferencesService:
         try:
             if not self.db:
                 logger.warning("No database connection available for saving preferences")
-                return True  # Return True for development mode
+                return False  # Don't allow development mode - require real database
             
             client = self.db.get_client()
             

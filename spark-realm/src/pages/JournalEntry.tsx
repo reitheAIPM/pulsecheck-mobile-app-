@@ -178,22 +178,8 @@ const JournalEntry = () => {
       setSelectedFocusAreas(entry.tags || []);
     } catch (error) {
       console.error('Failed to load journal entry:', error);
-      // Fallback to mock data for demo
-      const mockEntry = {
-        id: entryId,
-        content: "This is a sample journal entry for viewing. In a real app, this would be loaded from the backend.",
-        mood_level: 7,
-        energy_level: 6,
-        stress_level: 4,
-        tags: ['work', 'reflection'],
-        created_at: new Date().toISOString()
-      };
-      setExistingEntry(mockEntry);
-      setContent(mockEntry.content);
-      setMood(mockEntry.mood_level);
-      setEnergy(mockEntry.energy_level);
-      setStress(mockEntry.stress_level);
-      setSelectedFocusAreas(mockEntry.tags);
+      // Don't use mock data - show error or empty state
+      setExistingEntry(null);
     } finally {
       setIsLoading(false);
     }
@@ -265,21 +251,8 @@ const JournalEntry = () => {
       }
     } catch (error) {
       console.error('Failed to load personas:', error);
-      // Use fallback personas
-      setPersonas([
-        {
-          persona_id: "pulse",
-          persona_name: "Pulse",
-          description: "Your emotionally intelligent wellness companion",
-          recommended: true,
-          available: true,
-          requires_premium: false,
-          times_used: 0,
-          recommendation_score: 1.0,
-          recommendation_reasons: ["Perfect for emotional support", "Ideal for wellness insights"],
-          recommendation_reason: "Perfect for emotional support and wellness insights"
-        }
-      ]);
+      // Don't use fallback personas - real data only
+      setPersonas([]);
     } finally {
       setLoadingPersonas(false);
     }
@@ -304,13 +277,13 @@ const JournalEntry = () => {
       setShowVoiceInput(true);
       setIsRecording(true);
       
-      // Mock voice input for now - in production, implement actual speech recognition
+      // Voice input placeholder - requires actual speech recognition implementation
       setTimeout(() => {
         setIsRecording(false);
         setShowVoiceInput(false);
-        // For demo purposes, add some sample text
-        setContent(prev => prev + " I'm feeling a bit overwhelmed with work today and could use some support.");
-      }, 3000);
+        // Voice input not implemented yet
+        alert('Voice input feature coming soon! Please type your reflection for now.');
+      }, 1000);
     } else {
       alert('Voice input is not supported in your browser. Please type your reflection.');
     }

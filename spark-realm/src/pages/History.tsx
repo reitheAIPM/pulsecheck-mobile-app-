@@ -60,19 +60,7 @@ const History = () => {
   const [entryToDelete, setEntryToDelete] = useState<JournalEntry | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Mock AI responses for entries (in real app, these would come from backend)
-  const mockAIResponses = {
-    'entry-1': {
-      reactions: ['❤️', '💪', '🌟'],
-      comment: "I can see you're really growing in self-awareness. Your reflection on work-life balance shows incredible insight.",
-      timestamp: '2 hours ago'
-    },
-    'entry-2': {
-      reactions: ['🤗', '✨', '👏'],
-      comment: "Your gratitude practice is beautiful. These small moments of appreciation are building your resilience.",
-      timestamp: '1 day ago'
-    }
-  };
+  // AI responses will be loaded from backend with journal entries
 
   useEffect(() => {
     loadJournalEntries();
@@ -85,37 +73,8 @@ const History = () => {
       setJournalEntries(entries);
     } catch (error) {
       console.error('Failed to load journal entries:', error);
-      // Use mock data for development
-      setJournalEntries([
-        {
-          id: 'entry-1',
-          content: "Today was challenging but I managed to find some balance. The new project at work is demanding, but I'm learning to set boundaries. Grateful for my morning coffee ritual - it's become my moment of peace before the day begins.",
-          mood_level: 7,
-          energy_level: 6,
-          stress_level: 4,
-          sleep_hours: 7,
-          work_hours: 9,
-          tags: ['work', 'balance', 'gratitude'],
-          work_challenges: ['tight deadlines', 'team coordination'],
-          gratitude_items: ['morning coffee', 'supportive team', 'good weather'],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'entry-2',
-          content: "Feeling more centered today. The meditation app recommendation from Pulse really helped. I'm starting to notice patterns in my stress levels - they peak around 3pm. Maybe I should schedule breaks differently.",
-          mood_level: 8,
-          energy_level: 7,
-          stress_level: 3,
-          sleep_hours: 8,
-          work_hours: 8,
-          tags: ['meditation', 'patterns', 'self-care'],
-          work_challenges: ['afternoon energy dip'],
-          gratitude_items: ['meditation practice', 'pattern recognition', 'flexible schedule'],
-          created_at: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-          updated_at: new Date(Date.now() - 86400000).toISOString()
-        }
-      ]);
+      // Don't use mock data - show empty state
+      setJournalEntries([]);
     } finally {
       setLoading(false);
     }
@@ -403,31 +362,7 @@ const History = () => {
 
                       <Separator />
 
-                      {/* AI Response */}
-                      {mockAIResponses[selectedEntry.id as keyof typeof mockAIResponses] && (
-                        <div className="space-y-3 md:space-y-4">
-                          <div className="flex items-center gap-2 md:gap-3">
-                            <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-primary/10 flex items-center justify-center">
-                              <MessageCircle className="w-3 h-3 md:w-3.5 md:h-3.5 text-primary" />
-                            </div>
-                            <span className="text-sm md:text-base font-medium">Pulse's Response</span>
-                            <span className="text-xs md:text-sm text-muted-foreground ml-auto">
-                              {mockAIResponses[selectedEntry.id as keyof typeof mockAIResponses].timestamp}
-                            </span>
-                          </div>
-                          
-                          <p className="text-sm md:text-base text-muted-foreground leading-relaxed pl-8 md:pl-10">
-                            {mockAIResponses[selectedEntry.id as keyof typeof mockAIResponses].comment}
-                          </p>
-                          
-                          {/* Reactions */}
-                          <div className="flex items-center gap-2 md:gap-3 pl-8 md:pl-10">
-                            {mockAIResponses[selectedEntry.id as keyof typeof mockAIResponses].reactions.map((reaction, index) => (
-                              <span key={index} className="text-lg md:text-xl">{reaction}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      {/* AI Response - will be loaded from backend when available */}
 
                       {/* Actions - Touch-Friendly */}
                       <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 pt-2">

@@ -10,46 +10,7 @@ import { apiService } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
 import { authService } from "@/services/authService";
 
-// Mock data for development
-const mockEntries = [
-  {
-    id: "1",
-    content:
-      "Today was one of those days where everything felt overwhelming. The deadline for the project is approaching and I can feel the pressure building. Sometimes I wonder if I'm pushing myself too hard. But there's also this part of me that feels like I need to prove myself...",
-    mood: 4,
-    timestamp: "2024-01-15T10:30:00Z",
-    aiResponse: {
-      emoji: "🤗",
-      comments: [
-        "It sounds like you're carrying a lot right now. That pressure you're feeling is so valid.",
-        "Remember that proving yourself doesn't have to come at the cost of your wellbeing. What's one small thing you could do today to ease that load?",
-      ],
-      timestamp: "2024-01-15T13:45:00Z",
-    },
-  },
-  {
-    id: "2",
-    content:
-      "Had a really good conversation with my teammate today. We actually figured out a solution to the problem that's been bugging us for weeks. Feeling pretty accomplished right now! Sometimes collaboration really does make all the difference.",
-    mood: 8,
-    timestamp: "2024-01-14T16:22:00Z",
-    aiResponse: {
-      emoji: "✨",
-      comments: [
-        "That spark of collaboration hitting just right - there's nothing quite like it!",
-        "It's beautiful how sharing the mental load can suddenly make complex things feel simple again.",
-      ],
-      timestamp: "2024-01-14T19:30:00Z",
-    },
-  },
-  {
-    id: "3",
-    content:
-      "Feeling pretty burned out lately. The constant context switching between meetings and coding is exhausting. I miss having longer stretches of deep work time.",
-    mood: 3,
-    timestamp: "2024-01-13T14:15:00Z",
-  },
-];
+// No mock data - using real journal entries from API
 
 const Index = () => {
   const navigate = useNavigate();

@@ -38,23 +38,14 @@ async def test_journal_router():
 
 @router.get("/test-ai")
 async def test_ai_response():
-    """Test AI response generation with mock data"""
+    """Test AI response generation - requires real authentication"""
     try:
-        from ..models.journal import JournalEntryResponse
-        
-        # Create a mock journal entry for testing
-        mock_entry = JournalEntryResponse(
-            id="test-id",
-            user_id="user_123",
-            content="This is a test journal entry for debugging the AI response issue.",
-            mood_level=7,
-            energy_level=6,
-            stress_level=4,
-            work_challenges=["Debugging AI issues"],
-            work_hours=8,
-            created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
-        )
+        # Don't use mock data - require real journal entries
+        return {
+            "message": "AI test endpoint disabled - use real journal entries",
+            "status": "disabled",
+            "note": "Create a real journal entry and get AI response via /entries/{id}/pulse"
+        }
         
         # Get PulseAI service
         from ..services.pulse_ai import pulse_ai

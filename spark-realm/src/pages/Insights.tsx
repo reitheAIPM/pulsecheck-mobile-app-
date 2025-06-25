@@ -25,7 +25,7 @@ const Insights = () => {
   const [loadingPatterns, setLoadingPatterns] = useState(false);
   const [refreshingPatterns, setRefreshingPatterns] = useState(false);
 
-  // Get dynamic user ID from browser session
+  // Get user ID from authenticated session
   // Get current user ID from authenticated session
   const [userId, setUserId] = useState<string>("");
 
@@ -40,25 +40,7 @@ const Insights = () => {
     initializeUser();
   }, []);
 
-  // Mock data - in real app this would come from API
-  const stats = {
-    totalEntries: 24,
-    currentStreak: 7,
-    avgMood: 6.2,
-    aiResponseRate: 85,
-    weeklyGoal: 5,
-    weeklyProgress: 4,
-  };
-
-  const moodTrend = [
-    { day: "Mon", mood: 7 },
-    { day: "Tue", mood: 5 },
-    { day: "Wed", mood: 6 },
-    { day: "Thu", mood: 8 },
-    { day: "Fri", mood: 4 },
-    { day: "Sat", mood: 7 },
-    { day: "Sun", mood: 6 },
-  ];
+  // Stats will be loaded from API - no mock data
 
   useEffect(() => {
     loadUserPatterns();
@@ -73,27 +55,8 @@ const Insights = () => {
       setUserPatterns(patterns);
     } catch (error) {
       console.error('Failed to load user patterns:', error);
-      // Use mock data for demonstration
-      setUserPatterns({
-        writing_style: "analytical",
-        common_topics: ["work", "stress", "productivity"],
-        mood_trends: {
-          mood: 6.2,
-          energy: 5.8,
-          stress: 6.5
-        },
-        interaction_preferences: {
-          prefers_questions: true,
-          prefers_validation: true,
-          prefers_advice: false
-        },
-        response_preferences: {
-          length: "medium",
-          style: "supportive"
-        },
-        pattern_confidence: 0.75,
-        entries_analyzed: 24
-      });
+      // Don't use mock data - show user they need to create entries first
+      setUserPatterns(null);
     } finally {
       setLoadingPatterns(false);
     }
@@ -246,7 +209,7 @@ const Insights = () => {
           <Card className="border-0 bg-gradient-to-br from-primary/5 to-primary/10">
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-primary">
-                {userPatterns?.entries_analyzed || stats.totalEntries}
+                {userPatterns?.entries_analyzed || 0}
               </div>
               <div className="text-sm text-muted-foreground">
                 Entries analyzed
@@ -257,7 +220,7 @@ const Insights = () => {
           <Card className="border-0 bg-gradient-to-br from-orange-500/5 to-orange-500/10">
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-orange-600">
-                {stats.currentStreak}
+                {0}
               </div>
               <div className="text-sm text-muted-foreground">Day streak</div>
             </CardContent>
@@ -287,16 +250,16 @@ const Insights = () => {
             <div className="flex justify-between text-sm">
               <span>Progress this week</span>
               <span className="font-medium">
-                {stats.weeklyProgress}/{stats.weeklyGoal} entries
+                {0}/{5} entries
               </span>
             </div>
             <Progress
-              value={(stats.weeklyProgress / stats.weeklyGoal) * 100}
+              value={(0 / 5) * 100}
               className="h-2"
             />
             <p className="text-xs text-muted-foreground">
-              {stats.weeklyGoal - stats.weeklyProgress > 0
-                ? `${stats.weeklyGoal - stats.weeklyProgress} more to reach your goal`
+              {5 - 0 > 0
+                ? `${5 - 0} more to reach your goal`
                 : "Goal achieved! 🎉"}
             </p>
           </CardContent>
@@ -312,20 +275,13 @@ const Insights = () => {
           </CardHeader>
           <CardContent>
             <div className="flex items-end justify-between h-20 mb-2">
-              {moodTrend.map((day, index) => (
-                <div key={day.day} className="flex flex-col items-center gap-2">
-                  <div
-                    className="w-6 bg-primary/20 rounded-sm"
-                    style={{ height: `${(day.mood / 10) * 60}px` }}
-                  />
-                  <span className="text-xs text-muted-foreground">
-                    {day.day}
-                  </span>
-                </div>
-              ))}
+              {/* Mood chart will be loaded from real data */}
+              <div className="text-center text-sm text-muted-foreground">
+                Create journal entries to see your mood trends
+              </div>
             </div>
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Average: {userPatterns?.mood_trends.mood.toFixed(1) || stats.avgMood}/10</span>
+              <span>Average: {userPatterns?.mood_trends.mood.toFixed(1) || "0.0"}/10</span>
               <span>This week</span>
             </div>
           </CardContent>
