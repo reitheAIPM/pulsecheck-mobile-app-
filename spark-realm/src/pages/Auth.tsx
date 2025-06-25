@@ -50,7 +50,7 @@ export default function Auth() {
     const checkAuth = async () => {
       try {
         console.log('🔍 Checking authentication status...');
-        const { user: currentUser } = await authService.getCurrentUser();
+        const { user: currentUser, error } = await authService.getCurrentUser();
         if (currentUser) {
           console.log('✅ User already authenticated:', currentUser.id);
           // Use replace to prevent history issues
@@ -59,29 +59,34 @@ export default function Auth() {
         }
         console.log('ℹ️ No authenticated user found');
       } catch (error) {
-        console.log('❌ Auth check failed:', error);
-        // Don't throw - this is expected for unauthenticated users
+        console.log('ℹ️ Auth check completed - no authenticated user (expected)');
+        // Don't show this as an error - this is expected for unauthenticated users
       }
     };
 
     checkAuth();
   }, []);
 
-  // Add network connectivity check
+  // Simplified connectivity check using our own backend
   useEffect(() => {
     const checkConnectivity = async () => {
       try {
         console.log('🌐 Testing network connectivity...');
-        await fetch('https://httpbin.org/get', { 
-          method: 'GET',
-          mode: 'cors'
+        // Use our own backend health endpoint instead of httpbin.org to avoid CORS issues
+        const response = await fetch('https://pulsecheck-mobile-app-production.up.railway.app/health', { 
+          method: 'HEAD',
+          cache: 'no-cache'
         });
-        console.log('✅ Network connectivity OK');
+        if (response.ok) {
+          console.log('✅ Network connectivity OK');
+        } else {
+          throw new Error('Backend health check failed');
+        }
       } catch (error) {
         console.error('❌ Network connectivity issue:', error);
         setState(prev => ({ 
           ...prev, 
-          error: 'Network connectivity issue. Please check your internet connection.' 
+          error: 'Unable to connect to PulseCheck servers. Please check your internet connection.' 
         }));
       }
     };

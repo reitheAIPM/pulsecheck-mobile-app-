@@ -176,12 +176,18 @@ class AuthService {
       const { data: { user: supabaseUser }, error } = await supabase.auth.getUser();
       
       if (error) {
-        console.error('❌ Auth error:', error.message);
-        return { user: null, error: error.message };
+        // Don't log 403/session errors as scary errors - they're expected for unauthenticated users
+        if (error.message.includes('session') || error.message.includes('Auth session missing')) {
+          console.log('ℹ️ No active authentication session (expected for unauthenticated users)');
+          return { user: null, error: null }; // Return null error for expected states
+        } else {
+          console.error('❌ Auth error:', error.message);
+          return { user: null, error: error.message };
+        }
       }
 
       if (!supabaseUser) {
-        return { user: null, error: 'No authenticated user' };
+        return { user: null, error: null }; // No error - just no user
       }
 
       const user: User = {
