@@ -13,4 +13,4 @@ variables = { PORT = "8000" }
 
 # Force rebuild by changing deployment config
 [env]
-REBUILD_TRIGGER = "2024-01-30-debug-fix" 
+REBUILD_TRIGGER = "2024-01-30-direct-imports-v3" 
