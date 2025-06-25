@@ -10,7 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import PersonaSelector from "@/components/PersonaSelector";
 import EmojiReactionSystem from "@/components/EmojiReactionSystem";
 import { apiService, PersonaInfo } from "@/services/api";
-import { getCurrentUserId } from "@/utils/userSession";
+import { authService } from "@/services/authService";
 
 // Local type for personas with additional UI properties
 type PersonaRecommendation = PersonaInfo & {
@@ -76,8 +76,19 @@ const JournalEntry = () => {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [draftKey, setDraftKey] = useState<string>("");
 
-  // Get dynamic user ID from browser session
-  const userId = getCurrentUserId();
+  // Get current user ID from authenticated session
+  const [userId, setUserId] = useState<string>("");
+
+  // Initialize user ID on component mount
+  useEffect(() => {
+    const initializeUser = async () => {
+      const { user } = await authService.getCurrentUser();
+      if (user?.id) {
+        setUserId(user.id);
+      }
+    };
+    initializeUser();
+  }, []);
 
   // Initialize draft key on component mount
   useEffect(() => {

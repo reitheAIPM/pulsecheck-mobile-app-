@@ -47,7 +47,6 @@ import { apiService, UserPatterns, PersonaInfo } from "@/services/api";
 import { authService } from "@/services/authService";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { StatusIndicator } from "@/components/ui/loading-states";
-import { getCurrentUserId, getCurrentUserDisplayName, getSessionInfo } from "@/utils/userSession";
 
 // Type aliases for compatibility
 type UserPatternSummary = UserPatterns;
@@ -117,18 +116,14 @@ const Profile = () => {
       "What do you hope to achieve through reflection and journaling?",
   });
 
-  // Get dynamic user ID and session info from browser session
-  const userId = getCurrentUserId();
-  const sessionInfo = getSessionInfo();
-
-  // Dynamic user data based on session
+  // Get user data from authenticated session
   const userData = {
-    name: "First Name Last Name",
-    email: `user@example.com`,
-    memberSince: new Date(sessionInfo.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    name: userSession?.user?.name || "First Name Last Name",
+    email: userSession?.user?.email || "user@example.com", 
+    memberSince: "January 2025", // Default for now - could calculate from user creation date
     totalEntries: 0, // Will be updated when we load real data
-    currentStreak: sessionInfo.daysSinceCreated,
-    isPremium: false
+    currentStreak: 1, // Default for now - could calculate from user activity
+    isPremium: premiumEnabled
   };
 
   useEffect(() => {
@@ -451,7 +446,7 @@ const Profile = () => {
       // Save to backend - require proper authentication
       const userResult = await authService.getCurrentUser();
       if (!userResult?.user?.id) {
-        throw new Error('Authentication required to save AI settings');
+        throw new Error('Authentication required to save AI settings. Please sign in.');
       }
       const resolvedUserId = userResult.user.id;
       await apiService.updateUserPreference(resolvedUserId, settingKey, value);
@@ -461,25 +456,35 @@ const Profile = () => {
       console.error(`Failed to save AI setting ${settingKey}:`, error);
       // Revert local state on error
       setAiSettings(prev => ({ ...prev, [settingKey]: !value }));
+      
+      // Show user-friendly error message
+      if (error instanceof Error && error.message.includes('Authentication required')) {
+        alert('Please sign in to save your AI preferences.');
+      }
     }
   };
 
   const handlePersonaSettingsChange = async (settings: any) => {
     try {
       // Save AI interaction level and other persona settings
-      if (settings.aiInteractionLevel) {
+      if (settings.response_frequency) {
         // Require proper authentication for persona settings
         const userResult = await authService.getCurrentUser();
         if (!userResult?.user?.id) {
-          throw new Error('Authentication required to save persona settings');
+          throw new Error('Authentication required to save persona settings. Please sign in.');
         }
         const resolvedUserId = userResult.user.id;
-        await apiService.updateUserPreference(resolvedUserId, 'response_frequency', settings.aiInteractionLevel);
+        await apiService.updateUserPreference(resolvedUserId, 'response_frequency', settings.response_frequency);
       }
       
       console.log('Persona settings saved successfully:', settings);
     } catch (error) {
       console.error('Failed to save persona settings:', error);
+      
+      // Show user-friendly error message
+      if (error instanceof Error && error.message.includes('Authentication required')) {
+        alert('Please sign in to save your persona preferences.');
+      }
     }
   };
 
@@ -770,7 +775,7 @@ const Profile = () => {
           </CardHeader>
           <CardContent>
             <AITeamManager
-              userId={userId}
+              userId={userSession?.user?.id || ""}
               premiumEnabled={premiumEnabled}
               onPremiumToggle={handlePremiumToggle}
               personas={personas}

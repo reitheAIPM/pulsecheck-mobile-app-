@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import PatternInsights from "@/components/PatternInsights";
 import { apiService, UserPatterns, AdaptiveResponseResponse, AIInsightResponse } from "@/services/api";
-import { getCurrentUserId } from "@/utils/userSession";
+import { authService } from "@/services/authService";
 
 const Insights = () => {
   const [userPatterns, setUserPatterns] = useState<UserPatterns | null>(null);
@@ -26,7 +26,19 @@ const Insights = () => {
   const [refreshingPatterns, setRefreshingPatterns] = useState(false);
 
   // Get dynamic user ID from browser session
-  const userId = getCurrentUserId();
+  // Get current user ID from authenticated session
+  const [userId, setUserId] = useState<string>("");
+
+  // Initialize user ID
+  useEffect(() => {
+    const initializeUser = async () => {
+      const { user } = await authService.getCurrentUser();
+      if (user?.id) {
+        setUserId(user.id);
+      }
+    };
+    initializeUser();
+  }, []);
 
   // Mock data - in real app this would come from API
   const stats = {

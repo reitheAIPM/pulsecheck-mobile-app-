@@ -71,16 +71,27 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
         await onSettingsChange({ response_frequency: level });
       }
       
-      // Save to backend - let API service resolve user ID internally for consistency
-      // Get the correct user ID that matches the API service's internal resolution
+      // Save to backend - require proper authentication without development fallback
       const result = await apiService.getCurrentUser();
-      const resolvedUserId = result?.user?.id || authService.getDevelopmentUser().id;
+      if (!result?.user?.id) {
+        throw new Error('Authentication required to save AI interaction level. Please sign in.');
+      }
+      
+      const resolvedUserId = result.user.id;
       await apiService.updateUserPreference(resolvedUserId, 'response_frequency', level);
+      
+      console.log(`AI interaction level saved successfully: ${level}`);
       
     } catch (error) {
       console.error('Failed to save AI interaction level:', error);
       // Revert on error
       setAiInteractionLevel(aiInteractionLevel);
+      
+      // Show user-friendly error message
+      if (error instanceof Error && error.message.includes('Authentication required')) {
+        // Optionally show a toast or alert to the user
+        alert('Please sign in to save your AI interaction preferences.');
+      }
     } finally {
       setSavingSettings(false);
     }
