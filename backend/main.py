@@ -29,6 +29,11 @@ import traceback
 # Load environment variables
 load_dotenv()
 
+# FORCE IMMEDIATE STARTUP LOGGING
+print("🚀 PulseCheck v2.0.0 with Enhanced Debug Logging - STARTING UP!")
+print("🚀 This should appear in Railway logs immediately!")
+sys.stdout.flush()
+
 # Configure logging early
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -188,8 +193,14 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
 app.add_middleware(CustomCORSMiddleware)
 
 # Add debug middleware for comprehensive monitoring
-from .app.middleware.debug_middleware import DebugMiddleware
-app.add_middleware(DebugMiddleware)
+try:
+    from app.middleware.debug_middleware import DebugMiddleware
+    app.add_middleware(DebugMiddleware)
+    print("✅ Debug middleware loaded successfully")
+except ImportError as e:
+    print(f"⚠️  Debug middleware not available: {e}")
+    # Continue without debug middleware
+    pass
 
 # Security middleware
 app.add_middleware(
@@ -699,7 +710,7 @@ register_routers()
 
 @app.get("/")
 async def root():
-    return {"message": "PulseCheck API is running", "version": "1.0.0"}
+    return {"message": "PulseCheck API with Enhanced Debug Logging", "version": "2.0.0-debug-enhanced"}
 
 if __name__ == "__main__":
     import uvicorn
