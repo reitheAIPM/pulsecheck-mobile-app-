@@ -357,9 +357,13 @@ class ApiService {
   }): Promise<AIResponse> {
     console.log('Generating adaptive response:', request);
     
-    // Get the user ID from the request or fallback to current user
+    // Get the user ID from the request or require authentication
     const result = await authService.getCurrentUser();
-    const userId = request.user_id || result.user?.id || authService.getDevelopmentUser().id;
+    const userId = request.user_id || result.user?.id;
+    
+    if (!userId) {
+      throw new Error('Authentication required for AI response generation');
+    }
     
     const response = await this.client.post('/api/v1/adaptive-ai/generate-response', {
       user_id: userId,
@@ -489,7 +493,7 @@ class ApiService {
   async getAdaptivePulseResponse(entryId: string, persona?: string): Promise<AIInsightResponse> {
     console.log('Getting adaptive Pulse response for entry:', entryId, 'with persona:', persona);
     const params = persona ? { persona } : {};
-    const response: AxiosResponse<AIInsightResponse> = await this.client.get(`/api/v1/journal/entries/${entryId}/adaptive-pulse`, {
+    const response: AxiosResponse<AIInsightResponse> = await this.client.post(`/api/v1/journal/entries/${entryId}/adaptive-response`, {}, {
       params
     });
     console.log('Adaptive Pulse response received:', response.data);

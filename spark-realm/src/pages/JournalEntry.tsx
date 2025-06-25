@@ -199,6 +199,8 @@ const JournalEntry = () => {
           available: true,
           requires_premium: false,
           times_used: 0,
+          recommendation_score: 1.0,
+          recommendation_reasons: ["Perfect for emotional support", "Ideal for wellness insights"],
           recommendation_reason: "Perfect for emotional support and wellness insights"
         }
       ]);
@@ -297,19 +299,8 @@ const JournalEntry = () => {
 
       // Generate adaptive AI response with focus areas context
       try {
-        // Don't pass user_id - let API service resolve it internally for consistency
-        const adaptiveResponse = await apiService.generateAdaptiveResponse({
-          journal_content: content.trim(),
-          persona: selectedPersona,
-          force_persona: false,
-          include_pattern_analysis: true,
-          response_preferences: {
-            mood_level: mood,
-            energy_level: energy,
-            stress_level: stress,
-            focus_areas: selectedFocusAreas // Pass focus areas in response_preferences
-          }
-        });
+        // Use the correct endpoint - get adaptive response for the created journal entry
+        const adaptiveResponse = await apiService.getAdaptivePulseResponse(journalEntry.id, selectedPersona);
 
         console.log('Adaptive AI response generated:', adaptiveResponse);
         
