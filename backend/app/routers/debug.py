@@ -13,7 +13,61 @@ import traceback
 import os
 
 from ..core.security import limiter
-from ..middleware.debug_middleware import debug_store, get_debug_summary, get_request_debug_info
+
+# Try to import middleware, fallback if not available
+try:
+    from ..middleware.debug_middleware import debug_store, get_debug_summary, get_request_debug_info
+    MIDDLEWARE_AVAILABLE = True
+    print("✅ Debug middleware imported successfully!")
+except ImportError as e:
+    print(f"⚠️ Debug middleware not available: {e}")
+    MIDDLEWARE_AVAILABLE = False
+    
+    # Create minimal fallbacks
+    class MockDebugStore:
+        def get_recent_requests(self, limit=50):
+            return [{"request_id": "mock", "method": "GET", "url": "/test", "status_code": 200, 
+                    "response_time_ms": 100, "db_operations": 1, "has_errors": False, 
+                    "timestamp": datetime.now().isoformat(), "user_id": None}]
+        
+        def get_error_requests(self, limit=20):
+            return []
+        
+        def get_slow_requests(self, min_time_ms=1000, limit=20):
+            return []
+        
+        def get_database_stats(self, minutes_back=60):
+            return {"message": "Debug middleware not available - using mock data"}
+    
+    debug_store = MockDebugStore()
+    
+    def get_debug_summary():
+        return {
+            "recent_requests": debug_store.get_recent_requests(20),
+            "error_requests": debug_store.get_error_requests(10),
+            "slow_requests": debug_store.get_slow_requests(1000, 10),
+            "database_stats": debug_store.get_database_stats(60),
+            "store_stats": {
+                "total_requests_tracked": 0,
+                "total_responses_tracked": 0,
+                "total_db_operations": 0
+            },
+            "middleware_status": "not_available"
+        }
+    
+    def get_request_debug_info(request_id):
+        return {
+            "request": None,
+            "response": None,
+            "database_operations": [],
+            "summary": {
+                "total_db_operations": 0,
+                "total_db_time_ms": 0,
+                "has_errors": False,
+                "performance_score": "unknown"
+            },
+            "middleware_status": "not_available"
+        }
 
 # Add console logging for visibility
 import sys
