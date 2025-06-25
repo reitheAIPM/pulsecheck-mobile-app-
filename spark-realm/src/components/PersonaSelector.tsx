@@ -73,11 +73,11 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
       
       // Save to backend - require proper authentication without development fallback
       const result = await apiService.getCurrentUser();
-      if (!result?.user?.id) {
+      if (!result?.id) {
         throw new Error('Authentication required to save AI interaction level. Please sign in.');
       }
       
-      const resolvedUserId = result.user.id;
+      const resolvedUserId = result.id;
       await apiService.updateUserPreference(resolvedUserId, 'response_frequency', level);
       
       console.log(`AI interaction level saved successfully: ${level}`);

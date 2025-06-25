@@ -376,11 +376,11 @@ const Profile = () => {
       setAiSettings(prev => ({ ...prev, [settingKey]: value }));
       
       // Save to backend - require proper authentication
-      const userResult = await authService.getCurrentUser();
-      if (!userResult?.user?.id) {
+      const userResult = await apiService.getCurrentUser();
+      if (!userResult?.id) {
         throw new Error('Authentication required to save AI settings. Please sign in.');
       }
-      const resolvedUserId = userResult.user.id;
+      const resolvedUserId = userResult.id;
       await apiService.updateUserPreference(resolvedUserId, settingKey, value);
       
       console.log(`AI setting ${settingKey} saved successfully:`, value);
@@ -401,11 +401,11 @@ const Profile = () => {
       // Save AI interaction level and other persona settings
       if (settings.response_frequency) {
         // Require proper authentication for persona settings
-        const userResult = await authService.getCurrentUser();
-        if (!userResult?.user?.id) {
+        const userResult = await apiService.getCurrentUser();
+        if (!userResult?.id) {
           throw new Error('Authentication required to save persona settings. Please sign in.');
         }
-        const resolvedUserId = userResult.user.id;
+        const resolvedUserId = userResult.id;
         await apiService.updateUserPreference(resolvedUserId, 'response_frequency', settings.response_frequency);
       }
       
