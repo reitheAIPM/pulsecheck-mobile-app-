@@ -619,20 +619,21 @@ try:
     
     app.include_router(adaptive_ai_router, prefix="/api/v1")
     
-    # AI Debugging router
+    # Debug middleware router - using absolute import
     try:
-        from app.routers.ai_debug import router as ai_debug_router
-        app.include_router(ai_debug_router, prefix="/api/v1")
-    except ImportError as e:
-        logger.error(f"Failed to import ai_debug router: {e}")
-    
-    # Debug middleware router
-    try:
-        from app.routers.debug import router as debug_router
-        app.include_router(debug_router, prefix="/api/v1")
+        import app.routers.debug as debug_module
+        app.include_router(debug_module.router, prefix="/api/v1")
         logger.info("Debug middleware router loaded successfully")
-    except ImportError as e:
+    except Exception as e:
         logger.error(f"Failed to import debug router: {e}")
+    
+    # AI Debugging router - using absolute import
+    try:
+        import app.routers.ai_debug as ai_debug_module
+        app.include_router(ai_debug_module.router, prefix="/api/v1")
+        logger.info("AI debug router loaded successfully")
+    except Exception as e:
+        logger.error(f"Failed to import ai_debug router: {e}")
     
     if hasattr(debugging, 'router'):
         app.include_router(debugging.router, prefix="/api/v1")
