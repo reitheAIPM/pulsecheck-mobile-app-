@@ -7,9 +7,9 @@ Version: 2.1.2-cors-fix-v3
 Last Updated: 2025-01-25 - Enhanced CORS handling for Vercel domains
 """
 
-# DEPLOYMENT TRIGGER: Force Railway rebuild - Enhanced Debug System v2.3 FALLBACK  
-# This comment forces Railway to rebuild container with fallback debug router
-# Deployment timestamp: 2025-06-25 20:55 UTC
+# DEPLOYMENT TRIGGER: Force Railway rebuild - Enhanced Debug System v2.4 FORCE REDEPLOY
+# This comment forces Railway to rebuild container with debug router fallback FORCED  
+# Deployment timestamp: 2025-06-25 21:00 UTC - FORCING COMPLETE REDEPLOY
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
