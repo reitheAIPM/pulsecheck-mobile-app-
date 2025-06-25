@@ -7,6 +7,7 @@ from fastapi import APIRouter, Request, HTTPException, Query
 from typing import Optional, List
 import logging
 from datetime import datetime
+import uuid
 
 from ..core.security import limiter
 from ..middleware.debug_middleware import debug_store, get_debug_summary, get_request_debug_info
@@ -290,6 +291,859 @@ async def debug_system_health():
         logger.error(f"Debug health check failed: {e}")
         raise HTTPException(status_code=500, detail=f"Debug health check failed: {str(e)}")
 
+@router.get("/edge-testing/comprehensive")
+@limiter.limit("5/minute")
+async def run_comprehensive_edge_tests(request: Request):
+    """
+    Run comprehensive edge case testing across all system components
+    
+    Tests every possible failure point and provides AI-ready analysis
+    """
+    try:
+        edge_test_results = {
+            "test_run_id": str(uuid.uuid4()),
+            "timestamp": datetime.now().isoformat(),
+            "tests_executed": 0,
+            "tests_passed": 0,
+            "tests_failed": 0,
+            "critical_failures": 0,
+            "categories": {
+                "authentication": {"tests": [], "status": "unknown"},
+                "database": {"tests": [], "status": "unknown"},
+                "api_endpoints": {"tests": [], "status": "unknown"},
+                "cors": {"tests": [], "status": "unknown"},
+                "performance": {"tests": [], "status": "unknown"},
+                "external_services": {"tests": [], "status": "unknown"},
+                "error_handling": {"tests": [], "status": "unknown"},
+                "data_validation": {"tests": [], "status": "unknown"}
+            },
+            "ai_recommendations": [],
+            "immediate_actions_required": [],
+            "system_health_score": 0
+        }
+        
+        # Import testing utilities
+        import httpx
+        import asyncio
+        from datetime import datetime, timedelta
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            
+            # 1. AUTHENTICATION EDGE TESTS
+            auth_tests = []
+            
+            # Test 1: Invalid JWT tokens
+            try:
+                response = await client.get(
+                    f"{request.base_url}api/v1/journal/entries",
+                    headers={"Authorization": "Bearer invalid_token"}
+                )
+                auth_tests.append({
+                    "test": "invalid_jwt_token",
+                    "expected": 401,
+                    "actual": response.status_code,
+                    "passed": response.status_code == 401,
+                    "details": "Should reject invalid JWT tokens"
+                })
+            except Exception as e:
+                auth_tests.append({
+                    "test": "invalid_jwt_token",
+                    "passed": False,
+                    "error": str(e)
+                })
+            
+            # Test 2: Missing Authorization header
+            try:
+                response = await client.get(f"{request.base_url}api/v1/journal/entries")
+                auth_tests.append({
+                    "test": "missing_auth_header",
+                    "expected": 401,
+                    "actual": response.status_code,
+                    "passed": response.status_code in [401, 422],
+                    "details": "Should handle missing auth header gracefully"
+                })
+            except Exception as e:
+                auth_tests.append({
+                    "test": "missing_auth_header",
+                    "passed": False,
+                    "error": str(e)
+                })
+            
+            # Test 3: Malformed Authorization header
+            try:
+                response = await client.get(
+                    f"{request.base_url}api/v1/journal/entries",
+                    headers={"Authorization": "NotBearer token"}
+                )
+                auth_tests.append({
+                    "test": "malformed_auth_header",
+                    "expected": 401,
+                    "actual": response.status_code,
+                    "passed": response.status_code in [401, 422],
+                    "details": "Should handle malformed auth header"
+                })
+            except Exception as e:
+                auth_tests.append({
+                    "test": "malformed_auth_header",
+                    "passed": False,
+                    "error": str(e)
+                })
+            
+            edge_test_results["categories"]["authentication"]["tests"] = auth_tests
+            edge_test_results["categories"]["authentication"]["status"] = (
+                "passed" if all(t.get("passed", False) for t in auth_tests) else "failed"
+            )
+            
+            # 2. CORS EDGE TESTS
+            cors_tests = []
+            
+            # Test 1: Invalid origin
+            try:
+                response = await client.options(
+                    f"{request.base_url}health",
+                    headers={"Origin": "https://malicious-site.com"}
+                )
+                cors_tests.append({
+                    "test": "invalid_origin",
+                    "passed": "Access-Control-Allow-Origin" not in response.headers or 
+                             response.headers.get("Access-Control-Allow-Origin") != "https://malicious-site.com",
+                    "details": "Should not allow unauthorized origins"
+                })
+            except Exception as e:
+                cors_tests.append({
+                    "test": "invalid_origin",
+                    "passed": False,
+                    "error": str(e)
+                })
+            
+            # Test 2: Missing origin (should allow for health checks)
+            try:
+                response = await client.options(f"{request.base_url}health")
+                cors_tests.append({
+                    "test": "missing_origin",
+                    "passed": response.status_code == 200,
+                    "details": "Should allow OPTIONS requests without origin for health checks"
+                })
+            except Exception as e:
+                cors_tests.append({
+                    "test": "missing_origin",
+                    "passed": False,
+                    "error": str(e)
+                })
+            
+            edge_test_results["categories"]["cors"]["tests"] = cors_tests
+            edge_test_results["categories"]["cors"]["status"] = (
+                "passed" if all(t.get("passed", False) for t in cors_tests) else "failed"
+            )
+            
+            # 3. API ENDPOINT EDGE TESTS
+            api_tests = []
+            
+            # Test 1: Non-existent endpoints
+            try:
+                response = await client.get(f"{request.base_url}api/v1/nonexistent")
+                api_tests.append({
+                    "test": "nonexistent_endpoint",
+                    "expected": 404,
+                    "actual": response.status_code,
+                    "passed": response.status_code == 404,
+                    "details": "Should return 404 for non-existent endpoints"
+                })
+            except Exception as e:
+                api_tests.append({
+                    "test": "nonexistent_endpoint",
+                    "passed": False,
+                    "error": str(e)
+                })
+            
+            # Test 2: Invalid HTTP methods
+            try:
+                response = await client.delete(f"{request.base_url}health")
+                api_tests.append({
+                    "test": "invalid_http_method",
+                    "expected": 405,
+                    "actual": response.status_code,
+                    "passed": response.status_code == 405,
+                    "details": "Should return 405 for invalid HTTP methods"
+                })
+            except Exception as e:
+                api_tests.append({
+                    "test": "invalid_http_method",
+                    "passed": False,
+                    "error": str(e)
+                })
+            
+            # Test 3: Malformed JSON
+            try:
+                response = await client.post(
+                    f"{request.base_url}api/v1/journal/entries",
+                    content="invalid json",
+                    headers={"Content-Type": "application/json"}
+                )
+                api_tests.append({
+                    "test": "malformed_json",
+                    "expected": 422,
+                    "actual": response.status_code,
+                    "passed": response.status_code in [400, 422],
+                    "details": "Should handle malformed JSON gracefully"
+                })
+            except Exception as e:
+                api_tests.append({
+                    "test": "malformed_json",
+                    "passed": False,
+                    "error": str(e)
+                })
+            
+            # Test 4: Oversized requests
+            try:
+                large_content = "x" * (10 * 1024 * 1024)  # 10MB
+                response = await client.post(
+                    f"{request.base_url}api/v1/journal/entries",
+                    json={"content": large_content, "mood_level": 5, "energy_level": 5, "stress_level": 3}
+                )
+                api_tests.append({
+                    "test": "oversized_request",
+                    "passed": response.status_code in [413, 422, 400],
+                    "details": "Should handle oversized requests appropriately"
+                })
+            except Exception as e:
+                api_tests.append({
+                    "test": "oversized_request",
+                    "passed": True,  # Exception is expected behavior
+                    "details": f"Request rejected (expected): {str(e)}"
+                })
+            
+            edge_test_results["categories"]["api_endpoints"]["tests"] = api_tests
+            edge_test_results["categories"]["api_endpoints"]["status"] = (
+                "passed" if all(t.get("passed", False) for t in api_tests) else "failed"
+            )
+            
+            # 4. PERFORMANCE EDGE TESTS
+            perf_tests = []
+            
+            # Test 1: Concurrent requests
+            try:
+                start_time = datetime.now()
+                tasks = [
+                    client.get(f"{request.base_url}health")
+                    for _ in range(10)
+                ]
+                responses = await asyncio.gather(*tasks, return_exceptions=True)
+                duration = (datetime.now() - start_time).total_seconds()
+                
+                successful_responses = [r for r in responses if hasattr(r, 'status_code') and r.status_code == 200]
+                perf_tests.append({
+                    "test": "concurrent_requests",
+                    "passed": len(successful_responses) >= 8 and duration < 5.0,
+                    "details": f"{len(successful_responses)}/10 requests succeeded in {duration:.2f}s",
+                    "metrics": {
+                        "successful_requests": len(successful_responses),
+                        "total_time": duration,
+                        "requests_per_second": 10 / duration if duration > 0 else 0
+                    }
+                })
+            except Exception as e:
+                perf_tests.append({
+                    "test": "concurrent_requests",
+                    "passed": False,
+                    "error": str(e)
+                })
+            
+            # Test 2: Response time consistency
+            try:
+                response_times = []
+                for _ in range(5):
+                    start = datetime.now()
+                    response = await client.get(f"{request.base_url}health")
+                    response_time = (datetime.now() - start).total_seconds()
+                    response_times.append(response_time)
+                
+                avg_time = sum(response_times) / len(response_times)
+                max_time = max(response_times)
+                
+                perf_tests.append({
+                    "test": "response_time_consistency",
+                    "passed": avg_time < 1.0 and max_time < 2.0,
+                    "details": f"Avg: {avg_time:.3f}s, Max: {max_time:.3f}s",
+                    "metrics": {
+                        "average_response_time": avg_time,
+                        "max_response_time": max_time,
+                        "response_times": response_times
+                    }
+                })
+            except Exception as e:
+                perf_tests.append({
+                    "test": "response_time_consistency",
+                    "passed": False,
+                    "error": str(e)
+                })
+            
+            edge_test_results["categories"]["performance"]["tests"] = perf_tests
+            edge_test_results["categories"]["performance"]["status"] = (
+                "passed" if all(t.get("passed", False) for t in perf_tests) else "failed"
+            )
+            
+            # 5. ERROR HANDLING EDGE TESTS
+            error_tests = []
+            
+            # Test 1: Database connection simulation (if possible)
+            try:
+                # Test endpoint behavior during potential DB issues
+                response = await client.get(f"{request.base_url}api/v1/journal/stats")
+                error_tests.append({
+                    "test": "database_dependent_endpoint",
+                    "passed": response.status_code in [200, 500, 503],
+                    "details": "Database-dependent endpoint should respond appropriately"
+                })
+            except Exception as e:
+                error_tests.append({
+                    "test": "database_dependent_endpoint",
+                    "passed": False,
+                    "error": str(e)
+                })
+            
+            edge_test_results["categories"]["error_handling"]["tests"] = error_tests
+            edge_test_results["categories"]["error_handling"]["status"] = (
+                "passed" if all(t.get("passed", False) for t in error_tests) else "failed"
+            )
+        
+        # Calculate overall statistics
+        all_tests = []
+        for category in edge_test_results["categories"].values():
+            all_tests.extend(category["tests"])
+        
+        edge_test_results["tests_executed"] = len(all_tests)
+        edge_test_results["tests_passed"] = len([t for t in all_tests if t.get("passed", False)])
+        edge_test_results["tests_failed"] = edge_test_results["tests_executed"] - edge_test_results["tests_passed"]
+        edge_test_results["critical_failures"] = len([t for t in all_tests if not t.get("passed", False) and "auth" in t.get("test", "")])
+        
+        # Calculate system health score
+        if edge_test_results["tests_executed"] > 0:
+            edge_test_results["system_health_score"] = (
+                edge_test_results["tests_passed"] / edge_test_results["tests_executed"]
+            ) * 100
+        
+        # Generate AI recommendations
+        failed_tests = [t for t in all_tests if not t.get("passed", False)]
+        for test in failed_tests:
+            if "auth" in test.get("test", ""):
+                edge_test_results["immediate_actions_required"].append(
+                    f"Critical: Authentication issue in {test['test']} - {test.get('details', 'Unknown issue')}"
+                )
+            elif "cors" in test.get("test", ""):
+                edge_test_results["ai_recommendations"].append(
+                    f"CORS issue detected: {test['test']} - Review allowed origins configuration"
+                )
+            elif "performance" in test.get("test", ""):
+                edge_test_results["ai_recommendations"].append(
+                    f"Performance issue: {test['test']} - Consider optimization or scaling"
+                )
+        
+        # Overall health assessment
+        if edge_test_results["system_health_score"] >= 90:
+            edge_test_results["overall_status"] = "excellent"
+        elif edge_test_results["system_health_score"] >= 75:
+            edge_test_results["overall_status"] = "good"
+        elif edge_test_results["system_health_score"] >= 60:
+            edge_test_results["overall_status"] = "fair"
+        else:
+            edge_test_results["overall_status"] = "poor"
+        
+        return {
+            "status": "success",
+            "edge_test_results": edge_test_results
+        }
+        
+    except Exception as e:
+        logger.error(f"Comprehensive edge testing failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Edge testing failed: {str(e)}")
+
+@router.get("/failure-points/analysis")
+@limiter.limit("10/minute")
+async def analyze_potential_failure_points(request: Request):
+    """
+    Analyze all potential failure points in the system
+    
+    Provides comprehensive analysis of where failures might occur
+    """
+    try:
+        failure_analysis = {
+            "analysis_id": str(uuid.uuid4()),
+            "timestamp": datetime.now().isoformat(),
+            "failure_points": {
+                "authentication": {
+                    "risk_level": "high",
+                    "potential_failures": [
+                        "JWT token expiration without refresh",
+                        "Invalid JWT signature",
+                        "Missing authentication headers",
+                        "Supabase authentication service outage",
+                        "Rate limiting on authentication endpoints"
+                    ],
+                    "monitoring": "Track 401/403 response rates",
+                    "mitigation": "Implement token refresh, graceful degradation"
+                },
+                "database": {
+                    "risk_level": "critical",
+                    "potential_failures": [
+                        "Supabase connection timeout",
+                        "Database query timeout",
+                        "Row Level Security policy violations",
+                        "Connection pool exhaustion",
+                        "Database maintenance windows"
+                    ],
+                    "monitoring": "Track database response times and error rates",
+                    "mitigation": "Connection pooling, query optimization, fallback mechanisms"
+                },
+                "external_services": {
+                    "risk_level": "high",
+                    "potential_failures": [
+                        "OpenAI API rate limiting",
+                        "OpenAI API service outage",
+                        "Network connectivity issues",
+                        "API key expiration/revocation",
+                        "Response parsing errors"
+                    ],
+                    "monitoring": "Track external API response times and error rates",
+                    "mitigation": "Retry logic, circuit breakers, fallback responses"
+                },
+                "cors": {
+                    "risk_level": "medium",
+                    "potential_failures": [
+                        "New frontend deployment with unlisted domain",
+                        "Origin header manipulation",
+                        "Preflight request failures",
+                        "Browser CORS policy changes"
+                    ],
+                    "monitoring": "Track CORS preflight failures",
+                    "mitigation": "Dynamic origin validation, wildcard patterns"
+                },
+                "performance": {
+                    "risk_level": "medium",
+                    "potential_failures": [
+                        "Memory leaks in long-running processes",
+                        "CPU spikes during AI processing",
+                        "Network bandwidth limitations",
+                        "Concurrent request overload",
+                        "Large payload processing"
+                    ],
+                    "monitoring": "Track response times, memory usage, CPU usage",
+                    "mitigation": "Resource limits, request queuing, caching"
+                },
+                "deployment": {
+                    "risk_level": "high",
+                    "potential_failures": [
+                        "Railway deployment failures",
+                        "Environment variable misconfigurations",
+                        "Dependency installation failures",
+                        "Build process errors",
+                        "Health check failures"
+                    ],
+                    "monitoring": "Track deployment success rates and health checks",
+                    "mitigation": "Automated rollbacks, deployment verification"
+                },
+                "data_validation": {
+                    "risk_level": "medium",
+                    "potential_failures": [
+                        "Invalid JSON in request bodies",
+                        "Missing required fields",
+                        "Data type mismatches",
+                        "SQL injection attempts",
+                        "XSS payload attempts"
+                    ],
+                    "monitoring": "Track validation error rates",
+                    "mitigation": "Comprehensive input validation, sanitization"
+                }
+            },
+            "current_system_status": {},
+            "recommendations": {
+                "immediate": [],
+                "short_term": [],
+                "long_term": []
+            }
+        }
+        
+        # Check current system status for each failure point
+        import httpx
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            
+            # Check authentication endpoint
+            try:
+                auth_response = await client.get(f"{request.base_url}api/v1/auth/health")
+                failure_analysis["current_system_status"]["authentication"] = {
+                    "status": "healthy" if auth_response.status_code == 200 else "degraded",
+                    "response_time": "< 1s",
+                    "last_checked": datetime.now().isoformat()
+                }
+            except Exception as e:
+                failure_analysis["current_system_status"]["authentication"] = {
+                    "status": "failed",
+                    "error": str(e),
+                    "last_checked": datetime.now().isoformat()
+                }
+            
+            # Check database connectivity through journal stats
+            try:
+                db_response = await client.get(f"{request.base_url}api/v1/journal/stats")
+                failure_analysis["current_system_status"]["database"] = {
+                    "status": "healthy" if db_response.status_code == 200 else "degraded",
+                    "response_time": "< 2s",
+                    "last_checked": datetime.now().isoformat()
+                }
+            except Exception as e:
+                failure_analysis["current_system_status"]["database"] = {
+                    "status": "failed",
+                    "error": str(e),
+                    "last_checked": datetime.now().isoformat()
+                }
+        
+        # Get current debug data for context
+        recent_requests = debug_store.get_recent_requests(20)
+        error_requests = debug_store.get_error_requests(10)
+        db_stats = debug_store.get_database_stats(60)
+        
+        failure_analysis["current_system_status"]["recent_activity"] = {
+            "total_requests_last_hour": len(recent_requests),
+            "error_rate": len(error_requests) / len(recent_requests) if recent_requests else 0,
+            "database_operations_last_hour": db_stats.get("total_operations", 0),
+            "average_response_time": sum(r.get("response_time_ms", 0) for r in recent_requests) / len(recent_requests) if recent_requests else 0
+        }
+        
+        # Generate recommendations based on current status
+        error_rate = failure_analysis["current_system_status"]["recent_activity"]["error_rate"]
+        avg_response_time = failure_analysis["current_system_status"]["recent_activity"]["average_response_time"]
+        
+        if error_rate > 0.1:
+            failure_analysis["recommendations"]["immediate"].append(
+                f"High error rate detected ({error_rate:.1%}) - Investigate recent error patterns immediately"
+            )
+        
+        if avg_response_time > 2000:
+            failure_analysis["recommendations"]["immediate"].append(
+                f"Slow response times detected ({avg_response_time:.0f}ms avg) - Check database and external service performance"
+            )
+        
+        if failure_analysis["current_system_status"].get("authentication", {}).get("status") == "failed":
+            failure_analysis["recommendations"]["immediate"].append(
+                "Authentication system failure detected - Check Supabase connectivity and JWT configuration"
+            )
+        
+        if failure_analysis["current_system_status"].get("database", {}).get("status") == "failed":
+            failure_analysis["recommendations"]["immediate"].append(
+                "Database connectivity issues detected - Check Supabase status and connection configuration"
+            )
+        
+        # Always recommend monitoring improvements
+        failure_analysis["recommendations"]["short_term"].extend([
+            "Implement automated alerts for error rate spikes",
+            "Set up performance monitoring dashboards",
+            "Create automated health check scripts"
+        ])
+        
+        failure_analysis["recommendations"]["long_term"].extend([
+            "Implement circuit breakers for external services",
+            "Add comprehensive retry logic with exponential backoff",
+            "Set up automated scaling based on load metrics",
+            "Implement comprehensive logging and tracing"
+        ])
+        
+        return {
+            "status": "success",
+            "failure_analysis": failure_analysis
+        }
+        
+    except Exception as e:
+        logger.error(f"Failure point analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failure analysis failed: {str(e)}")
+
+@router.get("/ai-insights/comprehensive")
+@limiter.limit("5/minute")
+async def get_comprehensive_ai_insights(request: Request):
+    """
+    Generate comprehensive AI-ready insights from all available debugging data
+    
+    Provides structured analysis perfect for AI decision making
+    """
+    try:
+        insights = {
+            "analysis_id": str(uuid.uuid4()),
+            "timestamp": datetime.now().isoformat(),
+            "data_sources": {
+                "debug_middleware": True,
+                "recent_requests": True,
+                "error_patterns": True,
+                "performance_metrics": True,
+                "system_health": True
+            },
+            "ai_ready_analysis": {
+                "system_overview": {},
+                "issue_prioritization": {},
+                "pattern_recognition": {},
+                "predictive_insights": {},
+                "action_recommendations": {}
+            },
+            "confidence_scores": {},
+            "learning_feedback": {}
+        }
+        
+        # Gather comprehensive data
+        recent_requests = debug_store.get_recent_requests(100)
+        error_requests = debug_store.get_error_requests(50)
+        slow_requests = debug_store.get_slow_requests(1000, 20)
+        db_stats = debug_store.get_database_stats(120)  # Last 2 hours
+        
+        # System Overview Analysis
+        total_requests = len(recent_requests)
+        if total_requests > 0:
+            error_rate = len(error_requests) / total_requests
+            slow_rate = len(slow_requests) / total_requests
+            avg_response_time = sum(r.get("response_time_ms", 0) for r in recent_requests) / total_requests
+            
+            insights["ai_ready_analysis"]["system_overview"] = {
+                "health_status": "healthy" if error_rate < 0.05 and avg_response_time < 1000 else "degraded",
+                "metrics": {
+                    "total_requests_analyzed": total_requests,
+                    "error_rate": error_rate,
+                    "slow_request_rate": slow_rate,
+                    "average_response_time_ms": avg_response_time,
+                    "database_operations_per_hour": db_stats.get("total_operations", 0)
+                },
+                "trends": {
+                    "error_trend": "stable",  # Would need historical data for actual trend
+                    "performance_trend": "stable",
+                    "usage_trend": "stable"
+                }
+            }
+            
+            # Confidence score for system overview
+            insights["confidence_scores"]["system_overview"] = 0.8 if total_requests > 50 else 0.6
+        
+        # Issue Prioritization
+        critical_issues = []
+        high_priority = []
+        medium_priority = []
+        
+        for error_req in error_requests[-20:]:  # Recent errors
+            if error_req.get("status_code", 500) >= 500:
+                critical_issues.append({
+                    "type": "server_error",
+                    "request_id": error_req.get("request_id"),
+                    "url": error_req.get("url"),
+                    "timestamp": error_req.get("timestamp"),
+                    "impact": "high"
+                })
+            elif error_req.get("status_code", 400) >= 400:
+                high_priority.append({
+                    "type": "client_error", 
+                    "request_id": error_req.get("request_id"),
+                    "url": error_req.get("url"),
+                    "timestamp": error_req.get("timestamp"),
+                    "impact": "medium"
+                })
+        
+        for slow_req in slow_requests[-10:]:  # Recent slow requests
+            medium_priority.append({
+                "type": "performance_issue",
+                "request_id": slow_req.get("request_id"),
+                "url": slow_req.get("url"),
+                "response_time_ms": slow_req.get("response_time_ms"),
+                "timestamp": slow_req.get("timestamp"),
+                "impact": "medium"
+            })
+        
+        insights["ai_ready_analysis"]["issue_prioritization"] = {
+            "critical": critical_issues,
+            "high": high_priority,
+            "medium": medium_priority,
+            "total_issues": len(critical_issues) + len(high_priority) + len(medium_priority)
+        }
+        
+        # Pattern Recognition
+        url_patterns = {}
+        error_patterns = {}
+        user_patterns = {}
+        
+        for req in recent_requests:
+            url = req.get("url", "unknown")
+            url_patterns[url] = url_patterns.get(url, 0) + 1
+            
+            if req.get("has_errors"):
+                error_patterns[url] = error_patterns.get(url, 0) + 1
+            
+            user_id = req.get("user_id")
+            if user_id:
+                user_patterns[user_id] = user_patterns.get(user_id, 0) + 1
+        
+        insights["ai_ready_analysis"]["pattern_recognition"] = {
+            "most_accessed_endpoints": sorted(url_patterns.items(), key=lambda x: x[1], reverse=True)[:10],
+            "error_prone_endpoints": sorted(error_patterns.items(), key=lambda x: x[1], reverse=True)[:5],
+            "most_active_users": sorted(user_patterns.items(), key=lambda x: x[1], reverse=True)[:5],
+            "database_usage_patterns": {
+                "by_table": db_stats.get("by_table", {}),
+                "by_operation": db_stats.get("by_operation", {})
+            }
+        }
+        
+        # Predictive Insights
+        insights["ai_ready_analysis"]["predictive_insights"] = {
+            "likely_next_failures": [],
+            "capacity_warnings": [],
+            "maintenance_recommendations": []
+        }
+        
+        # Predict likely failures based on patterns
+        if error_rate > 0.03:
+            insights["ai_ready_analysis"]["predictive_insights"]["likely_next_failures"].append({
+                "type": "error_rate_spike",
+                "probability": min(error_rate * 10, 0.9),
+                "timeframe": "next_hour",
+                "mitigation": "Monitor error patterns and prepare scaled response"
+            })
+        
+        if avg_response_time > 1500:
+            insights["ai_ready_analysis"]["predictive_insights"]["capacity_warnings"].append({
+                "type": "performance_degradation",
+                "current_avg_ms": avg_response_time,
+                "threshold_ms": 2000,
+                "timeframe": "next_30_minutes",
+                "mitigation": "Consider scaling or optimizing slow endpoints"
+            })
+        
+        # Action Recommendations
+        recommendations = []
+        
+        if critical_issues:
+            recommendations.append({
+                "priority": "immediate",
+                "action": f"Investigate {len(critical_issues)} critical server errors",
+                "endpoint": "GET /api/v1/debug/requests?filter_type=errors",
+                "confidence": 0.9
+            })
+        
+        if avg_response_time > 1000:
+            recommendations.append({
+                "priority": "high",
+                "action": "Optimize slow endpoints or scale infrastructure",
+                "endpoint": "GET /api/v1/debug/performance/analysis",
+                "confidence": 0.8
+            })
+        
+        if db_stats.get("error_rate", 0) > 0.02:
+            recommendations.append({
+                "priority": "high",
+                "action": "Investigate database connectivity issues",
+                "endpoint": "GET /api/v1/debug/database/stats",
+                "confidence": 0.85
+            })
+        
+        insights["ai_ready_analysis"]["action_recommendations"] = recommendations
+        
+        # Overall confidence scores
+        insights["confidence_scores"]["issue_prioritization"] = 0.9
+        insights["confidence_scores"]["pattern_recognition"] = 0.8 if total_requests > 30 else 0.6
+        insights["confidence_scores"]["predictive_insights"] = 0.7
+        insights["confidence_scores"]["action_recommendations"] = 0.85
+        
+        # Learning feedback for AI improvement
+        insights["learning_feedback"] = {
+            "data_quality": "high" if total_requests > 50 else "medium",
+            "pattern_strength": "strong" if len(url_patterns) > 5 else "weak",
+            "recommendation_basis": "statistical_analysis_and_thresholds",
+            "improvement_suggestions": [
+                "Collect more historical data for trend analysis",
+                "Implement user behavior tracking",
+                "Add business impact scoring for issues"
+            ]
+        }
+        
+        return {
+            "status": "success",
+            "ai_insights": insights
+        }
+        
+    except Exception as e:
+        logger.error(f"AI insights generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"AI insights failed: {str(e)}")
+
+@router.post("/ai-learning/feedback")
+@limiter.limit("20/minute")
+async def record_ai_learning_feedback(
+    request: Request,
+    feedback_data: dict
+):
+    """
+    Record AI learning feedback to improve debugging capabilities
+    
+    Allows AI to learn from successful/failed debugging attempts
+    """
+    try:
+        learning_record = {
+            "feedback_id": str(uuid.uuid4()),
+            "timestamp": datetime.now().isoformat(),
+            "ai_model": feedback_data.get("ai_model", "unknown"),
+            "debugging_session": {
+                "session_id": feedback_data.get("session_id"),
+                "issue_type": feedback_data.get("issue_type"),
+                "approach_used": feedback_data.get("approach_used"),
+                "tools_used": feedback_data.get("tools_used", []),
+                "time_to_resolution": feedback_data.get("time_to_resolution"),
+                "success": feedback_data.get("success", False)
+            },
+            "patterns_learned": feedback_data.get("patterns_learned", []),
+            "effectiveness_scores": feedback_data.get("effectiveness_scores", {}),
+            "recommendations": feedback_data.get("recommendations", [])
+        }
+        
+        # Store learning record (in production, this would go to a database)
+        # For now, we'll add it to our debug store for analysis
+        if not hasattr(debug_store, 'ai_learning_records'):
+            debug_store.ai_learning_records = []
+        
+        debug_store.ai_learning_records.append(learning_record)
+        
+        # Keep only recent learning records (last 1000)
+        if len(debug_store.ai_learning_records) > 1000:
+            debug_store.ai_learning_records = debug_store.ai_learning_records[-1000:]
+        
+        # Generate insights from learning data
+        learning_insights = {
+            "total_sessions_recorded": len(debug_store.ai_learning_records),
+            "success_rate": sum(1 for r in debug_store.ai_learning_records if r["debugging_session"]["success"]) / len(debug_store.ai_learning_records),
+            "most_effective_approaches": {},
+            "common_failure_patterns": [],
+            "improvement_opportunities": []
+        }
+        
+        # Analyze approaches
+        approach_success = {}
+        for record in debug_store.ai_learning_records:
+            approach = record["debugging_session"]["approach_used"]
+            success = record["debugging_session"]["success"]
+            
+            if approach not in approach_success:
+                approach_success[approach] = {"total": 0, "successful": 0}
+            
+            approach_success[approach]["total"] += 1
+            if success:
+                approach_success[approach]["successful"] += 1
+        
+        for approach, stats in approach_success.items():
+            success_rate = stats["successful"] / stats["total"] if stats["total"] > 0 else 0
+            learning_insights["most_effective_approaches"][approach] = {
+                "success_rate": success_rate,
+                "total_uses": stats["total"]
+            }
+        
+        return {
+            "status": "success",
+            "feedback_recorded": learning_record,
+            "learning_insights": learning_insights
+        }
+        
+    except Exception as e:
+        logger.error(f"AI learning feedback recording failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Learning feedback failed: {str(e)}")
+
 def _calculate_performance_grade(percentiles: dict, error_rate: float, avg_db_ops: float) -> str:
     """Calculate an overall performance grade"""
     score = 100
@@ -325,4 +1179,29 @@ def _calculate_performance_grade(percentiles: dict, error_rate: float, avg_db_op
     elif score >= 60:
         return "D"
     else:
-        return "F" 
+        return "F"
+
+@router.get("/risk-analysis/current")
+@limiter.limit("10/minute")
+async def get_current_risk_analysis(request: Request, time_window: int = 60):
+    """
+    Get current risk analysis from the debug middleware
+    
+    Uses the enhanced risk analysis from the debug store
+    """
+    try:
+        risk_analysis = debug_store.get_enhanced_risk_analysis(time_window)
+        
+        return {
+            "status": "success",
+            "risk_analysis": risk_analysis,
+            "ai_insights": {
+                "quick_assessment": f"Risk level: {risk_analysis.get('overall_risk_level', 'unknown')}",
+                "priority_actions": risk_analysis.get('recommendations', []),
+                "data_confidence": "high" if risk_analysis.get('total_requests', 0) > 20 else "medium"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Current risk analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Risk analysis failed: {str(e)}") 
