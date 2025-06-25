@@ -49,19 +49,44 @@ export default function Auth() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        console.log('🔍 Checking authentication status...');
         const { user: currentUser } = await authService.getCurrentUser();
         if (currentUser) {
-          console.log('User already authenticated, redirecting to home');
+          console.log('✅ User already authenticated:', currentUser.id);
           // Use replace to prevent history issues
           window.location.replace('/');
           return;
         }
+        console.log('ℹ️ No authenticated user found');
       } catch (error) {
-        console.log('No active session found');
+        console.log('❌ Auth check failed:', error);
+        // Don't throw - this is expected for unauthenticated users
       }
     };
 
     checkAuth();
+  }, []);
+
+  // Add network connectivity check
+  useEffect(() => {
+    const checkConnectivity = async () => {
+      try {
+        console.log('🌐 Testing network connectivity...');
+        await fetch('https://httpbin.org/get', { 
+          method: 'GET',
+          mode: 'cors'
+        });
+        console.log('✅ Network connectivity OK');
+      } catch (error) {
+        console.error('❌ Network connectivity issue:', error);
+        setState(prev => ({ 
+          ...prev, 
+          error: 'Network connectivity issue. Please check your internet connection.' 
+        }));
+      }
+    };
+
+    checkConnectivity();
   }, []);
 
   // AI Debug: Log authentication attempts and errors

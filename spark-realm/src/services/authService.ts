@@ -1,10 +1,33 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase configuration
+// Supabase configuration with debugging
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Debug environment variables in development
+if (import.meta.env.DEV) {
+  console.log('🔧 Auth Service Debug Info:');
+  console.log('- Supabase URL:', supabaseUrl);
+  console.log('- Has Anon Key:', !!supabaseAnonKey && supabaseAnonKey !== 'your-anon-key');
+  console.log('- Key length:', supabaseAnonKey?.length || 0);
+}
+
+// Validate configuration
+if (!supabaseUrl || supabaseUrl === 'https://your-project.supabase.co') {
+  console.error('❌ VITE_SUPABASE_URL not configured');
+}
+
+if (!supabaseAnonKey || supabaseAnonKey === 'your-anon-key') {
+  console.error('❌ VITE_SUPABASE_ANON_KEY not configured');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
 
 export interface User {
   id: string;
