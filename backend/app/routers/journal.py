@@ -133,8 +133,25 @@ async def create_journal_entry(
         # Input validation and sanitization
         content = sanitize_user_input(validate_input_length(entry.content, 10000, "content"))
         
-        # Get the database client
-        client = db.get_client()
+        # Get JWT token from request headers for RLS authentication
+        auth_header = request.headers.get('Authorization')
+        jwt_token = None
+        if auth_header and auth_header.startswith('Bearer '):
+            jwt_token = auth_header.split(' ')[1]
+        
+        # Get authenticated database client
+        if jwt_token:
+            # Create authenticated client for RLS
+            from supabase import create_client
+            import os
+            client = create_client(
+                os.getenv("SUPABASE_URL"),
+                os.getenv("SUPABASE_ANON_KEY")
+            )
+            client.postgrest.auth(jwt_token)
+        else:
+            # Fallback to service role client (should not happen with proper auth)
+            client = db.get_client()
         
         # Create journal entry data (using correct database column names: score not level)
         entry_data = {
@@ -168,7 +185,15 @@ async def create_journal_entry(
         
     except Exception as e:
         # Log the exception for debugging
-        print(f"Error creating journal entry: {e}")
+        logger.error(f"Error creating journal entry for user {current_user.get('id', 'unknown')}: {e}")
+        
+        # Handle specific RLS errors
+        if hasattr(e, 'message') and 'row-level security policy' in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Authentication required to create journal entry"
+            )
+        
         raise HTTPException(status_code=500, detail=f"Error creating journal entry: {str(e)}")
 
 @router.get("/entries/{entry_id}/pulse", response_model=PulseResponse)

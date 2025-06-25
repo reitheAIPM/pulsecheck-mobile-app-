@@ -433,10 +433,10 @@ const JournalEntry = () => {
               {/* Writing Prompt & Tools */}
               <div className="flex items-center justify-between border-b pb-4">
                 <div className="flex-1">
-                  <h2 className="text-2xl font-medium text-primary mb-2">
+                  <h2 className="text-xl font-medium text-primary mb-1">
                     What's on your mind today?
                   </h2>
-                  <p className="text-muted-foreground text-lg">
+                  <p className="text-muted-foreground text-sm">
                     Nothing is off-limits. Write freely about your thoughts, feelings, experiences, dreams, or anything that matters to you right now.
                   </p>
                 </div>
@@ -569,10 +569,10 @@ const JournalEntry = () => {
                         variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
                         size="sm"
                         onClick={() => handleFocusAreaToggle(area.id)}
-                        className="justify-start gap-2 h-auto py-2"
+                        className="justify-start gap-2 h-auto py-2 px-3 min-h-[36px] text-left"
                       >
-                        <span>{area.emoji}</span>
-                        <span className="text-xs">{area.label}</span>
+                        <span className="text-sm">{area.emoji}</span>
+                        <span className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">{area.label}</span>
                       </Button>
                     ))}
                   </div>
