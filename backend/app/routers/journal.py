@@ -91,7 +91,7 @@ async def get_current_user_from_request(request: Request):
             )
         
         # Import here to avoid circular imports
-        from .auth import get_current_user_from_token
+        from ..core.security import get_current_user_secure
         from fastapi.security import HTTPAuthorizationCredentials
         
         credentials = HTTPAuthorizationCredentials(
@@ -99,7 +99,7 @@ async def get_current_user_from_request(request: Request):
             credentials=auth_header.split(' ')[1]
         )
         
-        auth_user = await get_current_user_from_token(credentials, get_database())
+        auth_user = await get_current_user_secure(credentials, get_database())
         return {
             "id": auth_user.id,
             "email": auth_user.email,
