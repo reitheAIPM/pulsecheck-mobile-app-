@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle, Loader2, Github, Chrome } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle, Loader2, Github, Chrome, ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -28,9 +28,11 @@ interface ValidationErrors {
   name?: string;
 }
 
+type AuthMode = 'login' | 'register' | 'forgot-password' | 'reset-password';
+
 export default function Auth() {
   const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<AuthMode>('login');
   const [state, setState] = useState<AuthState>({
     email: '',
     password: '',
@@ -44,6 +46,17 @@ export default function Auth() {
   });
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [debugInfo, setDebugInfo] = useState<any>(null);
+
+  // Check if this is a password reset redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const resetToken = urlParams.get('access_token');
+    const refreshToken = urlParams.get('refresh_token');
+    
+    if (resetToken && refreshToken) {
+      setMode('reset-password');
+    }
+  }, []);
 
   // Check if user is already authenticated
   useEffect(() => {
@@ -98,7 +111,7 @@ export default function Auth() {
     const debugContext = {
       event,
       timestamp: new Date().toISOString(),
-      isLogin,
+      isLogin: mode === 'login',
       userAgent: navigator.userAgent,
       url: window.location.href,
       formData: {
@@ -142,7 +155,7 @@ export default function Auth() {
     }
 
     // Registration-specific validation
-    if (!isLogin) {
+    if (mode === 'register') {
       if (!state.name) {
         errors.name = 'Name is required';
       }
@@ -152,6 +165,11 @@ export default function Auth() {
       } else if (state.password !== state.confirmPassword) {
         errors.confirmPassword = 'Passwords do not match';
       }
+    }
+
+    // Password validation not needed for forgot password
+    if (mode === 'forgot-password') {
+      delete errors.password;
     }
 
     setValidationErrors(errors);
@@ -170,7 +188,7 @@ export default function Auth() {
     setState(prev => ({ ...prev, isLoading: true, error: null, success: null }));
 
     try {
-      if (isLogin) {
+      if (mode === 'login') {
         // Login flow
         logAuthEvent('login_attempt', { email: state.email });
         
@@ -191,7 +209,7 @@ export default function Auth() {
           // Auth state change will handle navigation automatically
           // No manual navigation needed
         }
-      } else {
+               } else if (mode === 'register') {
         // Registration flow
         logAuthEvent('registration_attempt', { email: state.email, name: state.name });
         
@@ -231,6 +249,42 @@ export default function Auth() {
             }));
           }
         }
+      } else if (mode === 'forgot-password') {
+        // Forgot password flow
+        logAuthEvent('forgot_password_attempt', { email: state.email });
+        
+                 const { success, error } = await authService.resetPassword(state.email);
+
+         if (error) {
+           throw new Error(error);
+         }
+
+         if (success) {
+           logAuthEvent('forgot_password_success', { email: state.email });
+           setState(prev => ({ 
+             ...prev, 
+             success: 'Password reset email sent! Please check your email for instructions.',
+             error: null 
+           }));
+         }
+       } else if (mode === 'reset-password') {
+         // Reset password flow
+         logAuthEvent('reset_password_attempt', { password: '***' });
+         
+         const { success, error } = await authService.updatePassword(state.password);
+
+        if (error) {
+          throw new Error(error);
+        }
+
+        if (success) {
+          logAuthEvent('reset_password_success', { email: state.email });
+          setState(prev => ({ 
+            ...prev, 
+            success: 'Password reset successful! You can now sign in with your new password.',
+            error: null 
+          }));
+        }
       }
     } catch (error: any) {
       const errorMessage = error.message || 'An unexpected error occurred';
@@ -247,17 +301,20 @@ export default function Auth() {
 
   // Toggle between login and registration
   const toggleMode = () => {
-    setIsLogin(!isLogin);
-    setState(prev => ({
-      ...prev,
-      error: null,
-      success: null,
-      password: '',
-      confirmPassword: '',
-      name: ''
-    }));
-    setValidationErrors({});
-    logAuthEvent('mode_toggle', { newMode: !isLogin ? 'login' : 'register' });
+    setMode(prevMode => {
+      const newMode = prevMode === 'login' ? 'register' : 'login';
+      setState(prev => ({
+        ...prev,
+        error: null,
+        success: null,
+        password: '',
+        confirmPassword: '',
+        name: ''
+      }));
+      setValidationErrors({});
+      logAuthEvent('mode_toggle', { newMode });
+      return newMode;
+    });
   };
 
   // Handle OAuth (placeholder for future implementation)
@@ -274,13 +331,10 @@ export default function Auth() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-gray-900">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
+            {mode === 'login' ? 'Welcome Back' : mode === 'register' ? 'Create Account' : mode === 'forgot-password' ? 'Forgot Password' : 'Reset Password'}
           </CardTitle>
           <CardDescription>
-            {isLogin 
-              ? 'Sign in to your PulseCheck account' 
-              : 'Join PulseCheck to start your wellness journey'
-            }
+            {mode === 'login' ? 'Sign in to your PulseCheck account' : mode === 'register' ? 'Join PulseCheck to start your wellness journey' : mode === 'forgot-password' ? 'Forgot Password' : 'Reset Password'}
           </CardDescription>
         </CardHeader>
 
@@ -303,7 +357,7 @@ export default function Auth() {
           {/* Authentication Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Name field (registration only) */}
-            {!isLogin && (
+            {mode === 'register' && (
               <div className="space-y-2">
                 <label htmlFor="name" className="text-sm font-medium text-gray-700">
                   Full Name
@@ -348,38 +402,40 @@ export default function Auth() {
               )}
             </div>
 
-            {/* Password field */}
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="password"
-                  type={state.showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  value={state.password}
-                  onChange={(e) => setState(prev => ({ ...prev, password: e.target.value }))}
-                  className={`pl-10 pr-10 ${validationErrors.password ? 'border-red-500' : ''}`}
-                  disabled={state.isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setState(prev => ({ ...prev, showPassword: !prev.showPassword }))}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                  disabled={state.isLoading}
-                >
-                  {state.showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+            {/* Password field (not shown for forgot password) */}
+            {mode !== 'forgot-password' && (
+              <div className="space-y-2">
+                <label htmlFor="password" className="text-sm font-medium text-gray-700">
+                  {mode === 'reset-password' ? 'New Password' : 'Password'}
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="password"
+                    type={state.showPassword ? 'text' : 'password'}
+                    placeholder={mode === 'reset-password' ? 'Enter your new password' : 'Enter your password'}
+                    value={state.password}
+                    onChange={(e) => setState(prev => ({ ...prev, password: e.target.value }))}
+                    className={`pl-10 pr-10 ${validationErrors.password ? 'border-red-500' : ''}`}
+                    disabled={state.isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setState(prev => ({ ...prev, showPassword: !prev.showPassword }))}
+                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    disabled={state.isLoading}
+                  >
+                    {state.showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {validationErrors.password && (
+                  <p className="text-sm text-red-600">{validationErrors.password}</p>
+                )}
               </div>
-              {validationErrors.password && (
-                <p className="text-sm text-red-600">{validationErrors.password}</p>
-              )}
-            </div>
+            )}
 
             {/* Confirm Password field (registration only) */}
-            {!isLogin && (
+            {mode === 'register' && (
               <div className="space-y-2">
                 <label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
                   Confirm Password
@@ -419,10 +475,10 @@ export default function Auth() {
               {state.isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isLogin ? 'Signing In...' : 'Creating Account...'}
+                  {mode === 'login' ? 'Signing In...' : mode === 'register' ? 'Creating Account...' : mode === 'forgot-password' ? 'Sending Reset Email...' : 'Resetting Password...'}
                 </>
               ) : (
-                isLogin ? 'Sign In' : 'Create Account'
+                mode === 'login' ? 'Sign In' : mode === 'register' ? 'Create Account' : mode === 'forgot-password' ? 'Send Reset Email' : 'Reset Password'
               )}
             </Button>
           </form>
@@ -466,20 +522,46 @@ export default function Auth() {
             </div>
           </div>
 
-          {/* Toggle between login and registration */}
+          {/* Forgot password link (only on login) */}
+          {mode === 'login' && (
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setMode('forgot-password')}
+                className="text-sm text-blue-600 hover:text-blue-500 focus:outline-none focus:underline"
+                disabled={state.isLoading}
+              >
+                Forgot your password?
+              </button>
+            </div>
+          )}
+
+          {/* Toggle between modes */}
           <div className="text-center">
-            <button
-              type="button"
-              onClick={toggleMode}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-              disabled={state.isLoading}
-            >
-              {isLogin ? (
-                "Don't have an account? Sign up"
-              ) : (
-                'Already have an account? Sign in'
-              )}
-            </button>
+            {mode === 'forgot-password' || mode === 'reset-password' ? (
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className="inline-flex items-center text-sm text-blue-600 hover:text-blue-500 focus:outline-none focus:underline"
+                disabled={state.isLoading}
+              >
+                <ArrowLeft className="mr-1 h-4 w-4" />
+                Back to Sign In
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={toggleMode}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                disabled={state.isLoading}
+              >
+                {mode === 'login' ? (
+                  "Don't have an account? Sign up"
+                ) : (
+                  'Already have an account? Sign in'
+                )}
+              </button>
+            )}
           </div>
 
           {/* Debug Information (Development Mode) */}

@@ -39,6 +39,12 @@ class SignInRequest(BaseModel):
     email: str
     password: str
 
+class PasswordResetRequest(BaseModel):
+    email: str
+
+class PasswordUpdateRequest(BaseModel):
+    password: str
+
 # Import authentication functions from security module
 from ..core.security import get_current_user_secure, AuthUser
 
@@ -173,6 +179,88 @@ async def sign_out(
         raise HTTPException(
             status_code=500,
             detail="Sign out failed"
+        )
+
+@router.post("/reset-password")
+@limiter.limit("3/minute")  # Rate limit password reset requests
+async def request_password_reset(
+    request_fastapi: Request,
+    request: PasswordResetRequest,
+    db: Database = Depends(get_database)
+):
+    """
+    Request password reset email
+    """
+    try:
+        # Input validation
+        email = validate_input_length(request.email, 254, "email")
+        email = sanitize_user_input(email)
+        
+        client = db.get_client()
+        
+        # Use Supabase Auth to send password reset email
+        response = client.auth.reset_password_email(email)
+        
+        if response.get('error'):
+            # Don't reveal if email exists for security
+            logger.warning(f"Password reset attempt for unknown email: {email}")
+        
+        # Always return success to prevent email enumeration
+        return {
+            "message": "If an account with that email exists, a password reset link has been sent."
+        }
+        
+    except Exception as e:
+        logger.error(f"Password reset error: {e}")
+        # Don't reveal specific error details
+        return {
+            "message": "If an account with that email exists, a password reset link has been sent."
+        }
+
+@router.post("/update-password")
+@limiter.limit("5/minute")  # Rate limit password update requests
+async def update_password(
+    request_fastapi: Request,
+    request: PasswordUpdateRequest,
+    current_user: AuthUser = Depends(get_current_user_secure),
+    db: Database = Depends(get_database)
+):
+    """
+    Update user password (requires authentication)
+    """
+    try:
+        # Input validation
+        password = validate_input_length(request.password, 128, "password")
+        
+        # Password strength validation
+        if len(password) < 8:
+            raise HTTPException(
+                status_code=400,
+                detail="Password must be at least 8 characters long"
+            )
+        
+        client = db.get_client()
+        
+        # Update password using Supabase Auth
+        response = client.auth.update_user({
+            "password": password
+        })
+        
+        if response.get('error'):
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to update password"
+            )
+        
+        return {"message": "Password updated successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Password update error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Password update failed"
         )
 
 @router.get("/user")

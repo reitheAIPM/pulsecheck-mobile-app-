@@ -25,7 +25,22 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    flowType: 'pkce', // Use PKCE flow for better security
+    debug: import.meta.env.DEV
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'supabase-js-web'
+    }
+  },
+  db: {
+    schema: 'public'
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
   }
 });
 
@@ -168,6 +183,52 @@ class AuthService {
   // Wrapper method for Profile component compatibility
   async logout() {
     return this.signOut();
+  }
+
+  async resetPassword(email: string) {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      return { success: true, error: null };
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      return { success: false, error: error.message || 'Password reset failed' };
+    }
+  }
+
+  async updatePassword(newPassword: string) {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+
+      return { success: true, error: null };
+    } catch (error: any) {
+      console.error('Password update error:', error);
+      return { success: false, error: error.message || 'Password update failed' };
+    }
+  }
+
+  async resendConfirmation(email: string) {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email
+      });
+
+      if (error) throw error;
+
+      return { success: true, error: null };
+    } catch (error: any) {
+      console.error('Resend confirmation error:', error);
+      return { success: false, error: error.message || 'Resend confirmation failed' };
+    }
   }
 
   async getCurrentUser(): Promise<{ user: User | null; error: string | null }> {

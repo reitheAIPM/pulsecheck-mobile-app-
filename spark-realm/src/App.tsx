@@ -15,6 +15,7 @@ import Insights from './pages/Insights'
 import Profile from './pages/Profile'
 import Privacy from './pages/Privacy'
 import Auth from './pages/Auth'
+import ResetPassword from './pages/ResetPassword'
 import NotFound from './pages/NotFound'
 
 // Import UI components
@@ -100,6 +101,7 @@ function App() {
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/new-entry" element={<JournalEntry />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 {/* Test route - this will show the test content */}
                 <Route path="/test" element={
                   <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -128,6 +130,7 @@ function App() {
             <Route path="/auth" element={<Auth />} />
             <Route path="/login" element={<Auth />} />
             <Route path="/register" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             {/* For all other routes when not authenticated, show Auth page directly to avoid redirect loops */}
             <Route path="*" element={<Auth />} />
           </Routes>
