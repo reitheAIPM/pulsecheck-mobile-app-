@@ -41,10 +41,12 @@ export interface CreateJournalEntry {
 }
 
 export interface PulseResponse {
-  insight: string;
-  action: string;
-  question: string;
-  mood_analysis: string;
+  message: string;
+  insight?: AIInsightResponse;
+  suggested_actions: string[];
+  follow_up_question?: string;
+  response_time_ms?: number;
+  confidence_score: number;
 }
 
 export interface JournalStats {
@@ -473,6 +475,14 @@ class ApiService {
   // Pulse AI endpoints
   async getPulseResponse(entryId: string): Promise<PulseResponse> {
     const response: AxiosResponse<PulseResponse> = await this.client.get(`/api/v1/journal/entries/${entryId}/pulse`);
+    return response.data;
+  }
+
+  async submitPulseFeedback(entryId: string, feedbackType: string, feedbackText?: string): Promise<any> {
+    const response = await this.client.post(`/api/v1/journal/entries/${entryId}/feedback`, {
+      feedback_type: feedbackType,
+      feedback_text: feedbackText
+    });
     return response.data;
   }
 

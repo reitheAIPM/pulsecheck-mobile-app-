@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
-import { ArrowLeft, Send, Lightbulb, Heart, Settings, Mic, MicOff, Image, X } from "lucide-react";
+import { ArrowLeft, Send, Lightbulb, Heart, Settings, Mic, MicOff, Image, X, Camera, Save, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -71,8 +71,73 @@ const JournalEntry = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [existingEntry, setExistingEntry] = useState<any>(null);
 
+  // Auto-save states
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [draftKey, setDraftKey] = useState<string>("");
+
   // Get dynamic user ID from browser session
   const userId = getCurrentUserId();
+
+  // Initialize draft key on component mount
+  useEffect(() => {
+    const currentDraftKey = `journal_draft_${userId}_${Date.now()}`;
+    setDraftKey(currentDraftKey);
+    
+    // Load existing draft if available
+    const savedDraft = localStorage.getItem(`journal_draft_${userId}`);
+    if (savedDraft && !id) { // Only load draft if not viewing existing entry
+      try {
+        const draft = JSON.parse(savedDraft);
+        setContent(draft.content || "");
+        setMood(draft.mood || 5);
+        setEnergy(draft.energy || 5);
+        setStress(draft.stress || 5);
+        setSelectedFocusAreas(draft.focusAreas || []);
+        setLastSaved(new Date(draft.lastSaved));
+      } catch (error) {
+        console.log("Could not load draft:", error);
+      }
+    }
+  }, [userId, id]);
+
+  // Auto-save functionality
+  useEffect(() => {
+    if (!content.trim() || content.length < 10) return; // Don't save empty or very short content
+    
+    const autoSaveTimer = setTimeout(() => {
+      setAutoSaving(true);
+      
+      const draft = {
+        content,
+        mood,
+        energy,
+        stress,
+        focusAreas: selectedFocusAreas,
+        lastSaved: new Date().toISOString()
+      };
+      
+      try {
+        localStorage.setItem(`journal_draft_${userId}`, JSON.stringify(draft));
+        setLastSaved(new Date());
+        
+        setTimeout(() => {
+          setAutoSaving(false);
+        }, 500);
+      } catch (error) {
+        console.error("Auto-save failed:", error);
+        setAutoSaving(false);
+      }
+    }, 2000); // Auto-save after 2 seconds of no typing
+    
+    return () => clearTimeout(autoSaveTimer);
+  }, [content, mood, energy, stress, selectedFocusAreas, userId]);
+
+  // Clear draft when entry is successfully saved
+  const clearDraft = () => {
+    localStorage.removeItem(`journal_draft_${userId}`);
+    setLastSaved(null);
+  };
 
   useEffect(() => {
     loadPersonas();
@@ -209,13 +274,19 @@ const JournalEntry = () => {
     }
   };
 
-  const handleFocusAreaToggle = (areaId: string) => {
-    setSelectedFocusAreas(prev => 
-      prev.includes(areaId) 
-        ? prev.filter(id => id !== areaId)
-        : [...prev, areaId]
-    );
+  // Helper function to toggle focus areas
+  const toggleFocusArea = (areaId: string) => {
+    setSelectedFocusAreas(prev => {
+      if (prev.includes(areaId)) {
+        return prev.filter(id => id !== areaId);
+      } else {
+        return [...prev, areaId];
+      }
+    });
   };
+
+  // Handle focus area toggle (alias for backwards compatibility)
+  const handleFocusAreaToggle = toggleFocusArea;
 
   const handleVoiceInput = () => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -297,38 +368,14 @@ const JournalEntry = () => {
 
       console.log('Journal entry created successfully:', journalEntry);
 
-      // Generate adaptive AI response with focus areas context
-      try {
-        // Use the correct endpoint - get adaptive response for the created journal entry
-        const adaptiveResponse = await apiService.getAdaptivePulseResponse(journalEntry.id, selectedPersona);
+      // Clear the draft after successful save
+      clearDraft();
 
-        console.log('Adaptive AI response generated:', adaptiveResponse);
-        
-        // Store the response for display on the insights page
-        localStorage.setItem('lastAIResponse', JSON.stringify(adaptiveResponse));
-        
-        // Navigate to insights page to show the AI response
-        navigate("/insights");
-      } catch (aiError) {
-        console.error('Failed to generate AI response:', aiError);
-        
-        // Create a fallback response so user gets feedback
-        const fallbackResponse = {
-          message: "Thanks for sharing your thoughts! Your reflection has been saved successfully.",
-          insight: "I notice you're reflecting on important aspects of your life. Taking time to journal shows great self-awareness.",
-          suggested_action: "Consider setting aside a few minutes each day for this kind of reflection. It's a powerful tool for personal growth.",
-          follow_up_question: "What's one small thing you could do today to support your wellbeing?",
-          confidence_score: 0.8,
-          persona_used: selectedPersona || "pulse",
-          generated_at: new Date().toISOString()
-        };
-        
-        // Store fallback response
-        localStorage.setItem('lastAIResponse', JSON.stringify(fallbackResponse));
-        localStorage.setItem('aiResponseFallback', 'true'); // Mark as fallback
-        
-        // Still navigate to insights to show fallback response
-        navigate("/insights");
+      // Navigate to insights page or another appropriate page
+      if (searchParams.get('returnTo') === 'insights') {
+        navigate('/insights');
+      } else {
+        navigate(`/pulse-response?entryId=${journalEntry.id}&showCelebration=true`);
       }
     } catch (error) {
       console.error('Failed to create journal entry:', error);
@@ -352,7 +399,7 @@ const JournalEntry = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b">
-        <div className="max-w-lg mx-auto px-4 py-4">
+        <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -364,8 +411,8 @@ const JournalEntry = () => {
               Back
             </Button>
             <div className="flex-1">
-              <h1 className="text-lg font-semibold">
-                {isViewMode ? "Journal Entry" : "New Reflection"}
+              <h1 className="text-xl font-semibold">
+                {isViewMode ? "Your Reflection" : "New Journal Entry"}
               </h1>
               <p className="text-sm text-muted-foreground">
                 {isViewMode 
@@ -377,292 +424,290 @@ const JournalEntry = () => {
                         day: 'numeric'
                       })
                     : "Loading entry..."
-                  : "Take your time, this is your space"
+                  : "Your space for deep reflection and meaningful thoughts"
                 }
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowPersonaSelector(!showPersonaSelector)}
-              className="gap-2"
-            >
-              <Settings className="w-4 h-4" />
-              AI
-            </Button>
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">
+                {wordCount} words
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {content.trim().length >= 10 ? '✓ Ready to save' : 'Keep writing...'}
+              </p>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-lg mx-auto px-4 py-6">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        ) : (
-        <div className="space-y-6">
-          {/* Persona Selector */}
-          {showPersonaSelector && (
-            <Card>
-              <CardContent className="p-4">
-                <PersonaSelector
-                  userId={userId}
-                  premiumEnabled={premiumEnabled}
-                  onPremiumToggle={setPremiumEnabled}
-                  personas={personas}
-                  isLoading={loadingPersonas}
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        
+        {/* MAIN WRITING AREA - Now the primary focus */}
+        <Card className="border-2 shadow-lg">
+          <CardContent className="p-8">
+            <div className="space-y-6">
+              {/* Writing Prompt & Tools */}
+              <div className="flex items-center justify-between border-b pb-4">
+                <div className="flex-1">
+                  <h2 className="text-2xl font-medium text-primary mb-2">
+                    What's on your mind today?
+                  </h2>
+                  <p className="text-muted-foreground text-lg">
+                    Nothing is off-limits. Write freely about your thoughts, feelings, experiences, dreams, or anything that matters to you right now.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 ml-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleVoiceInput}
+                    disabled={isRecording}
+                    className="gap-2"
+                  >
+                    {isRecording ? (
+                      <>
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                        Recording...
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="w-4 h-4" />
+                        Voice Input
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Camera className="w-4 h-4" />
+                    Add Image
+                  </Button>
+                </div>
+              </div>
+
+              {/* Large, Prominent Text Area */}
+              <div className="relative">
+                <Textarea
+                  id="journal-content"
+                  placeholder="Start writing here... Let your thoughts flow freely. This is your private space to explore your inner world, process your experiences, and capture what matters to you. Take your time - there's no rush."
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  className="min-h-[400px] border-0 bg-transparent text-foreground placeholder:text-muted-foreground resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0"
+                  style={{ fontSize: "19px", lineHeight: "1.6" }}
                 />
-              </CardContent>
-            </Card>
-          )}
+                
+                {/* Writing Encouragement */}
+                {content.length > 0 && content.length < 50 && (
+                  <div className="absolute bottom-4 left-0 text-sm text-muted-foreground animate-fade-in">
+                    💭 Keep going... share more of what you're thinking
+                  </div>
+                )}
+                
+                {content.length >= 50 && content.length < 200 && (
+                  <div className="absolute bottom-4 left-0 text-sm text-green-600 animate-fade-in">
+                    ✨ Great start! You're building a meaningful reflection
+                  </div>
+                )}
+                
+                {content.length >= 200 && (
+                  <div className="absolute bottom-4 left-0 text-sm text-blue-600 animate-fade-in">
+                    🎯 Excellent depth! This kind of reflection is powerful
+                  </div>
+                )}
+              </div>
 
-          {/* Universal Journal Prompt - Compact */}
-          <Card className="bg-muted/30">
-            <CardContent className="px-4 py-3">
-              <p className="text-sm text-muted-foreground text-center">
-                What's on your mind today? Nothing is off-limits.
-              </p>
-            </CardContent>
-          </Card>
+              {/* Voice Input Status */}
+              {showVoiceInput && (
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 animate-fade-in">
+                  <div className="flex items-center gap-3 text-blue-700">
+                    <Mic className="w-5 h-5 animate-pulse" />
+                    <div>
+                      <p className="font-medium">
+                        {isRecording ? "Listening... Speak clearly" : "Voice input completed"}
+                      </p>
+                      <p className="text-sm text-blue-600">
+                        Your voice will be transcribed and added to your journal
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-          {/* Focus Areas Selection - Compact */}
-          <Card className="bg-muted/20">
-            <CardContent className="px-4 py-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">Focus areas (optional)</span>
+              {/* Writing Stats */}
+              <div className="flex items-center justify-between text-sm text-muted-foreground pt-4 border-t">
+                <div className="flex items-center gap-6">
+                  <span className="flex items-center gap-2">
+                    📝 <strong>{wordCount}</strong> words
+                  </span>
+                  <span className="flex items-center gap-2">
+                    📊 <strong>{content.trim().length}</strong> characters
+                  </span>
+                  <span className="flex items-center gap-2">
+                    ⏱️ {Math.ceil(wordCount / 200)} min read
+                  </span>
+                </div>
+                <div className="text-right">
+                  {content.trim().length >= 10 ? (
+                    <span className="text-green-600 font-medium">Ready to save ✓</span>
+                  ) : (
+                    <span>Minimum 10 characters ({content.trim().length}/10)</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Focus Areas - Simplified and Secondary */}
+        {!isViewMode && (
+          <Card className="border border-muted">
+            <CardContent className="px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm">Focus Areas</p>
+                  <p className="text-xs text-muted-foreground">Help personalize your AI companion</p>
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowFocusAreas(!showFocusAreas)}
-                  className="text-xs h-6 px-2"
+                  className="gap-2"
                 >
-                  {showFocusAreas ? "Hide" : "Show"}
+                  {showFocusAreas ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  {selectedFocusAreas.length > 0 ? `${selectedFocusAreas.length} selected` : 'Select areas'}
                 </Button>
               </div>
-              {showFocusAreas ? (
-                <div className="grid grid-cols-3 gap-1 text-xs">
-                  {FOCUS_AREAS.map((area) => (
-                    <div key={area.id} className="flex items-center space-x-1">
-                      <Checkbox
-                        id={area.id}
-                        checked={selectedFocusAreas.includes(area.id)}
-                        onCheckedChange={() => handleFocusAreaToggle(area.id)}
-                        className="h-3 w-3"
-                      />
-                      <label
-                        htmlFor={area.id}
-                        className="text-xs leading-none cursor-pointer"
+              
+              {showFocusAreas && (
+                <div className="mt-4 space-y-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {FOCUS_AREAS.map((area) => (
+                      <Button
+                        key={area.id}
+                        variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleFocusAreaToggle(area.id)}
+                        className="justify-start gap-2 h-auto py-2"
                       >
-                        <span className="mr-1">{area.emoji}</span>
-                        {area.label}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-1">
-                  {selectedFocusAreas.length > 0 ? (
-                    selectedFocusAreas.map(areaId => {
-                      const area = FOCUS_AREAS.find(a => a.id === areaId);
-                      return (
-                        <Badge key={areaId} variant="secondary" className="text-xs h-5">
-                          {area?.emoji} {area?.label}
-                        </Badge>
-                      );
-                    })
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Select areas for personalized support
-                    </p>
-                  )}
+                        <span>{area.emoji}</span>
+                        <span className="text-xs">{area.label}</span>
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
+        )}
 
-          {/* Compact Mood Tracker */}
-          <Card className="bg-muted/20">
-            <CardContent className="px-4 py-3">
-              <div className="text-sm text-muted-foreground mb-3 text-center">Quick mood check</div>
-              <div className="space-y-2">
+        {/* Mood Check - Compact and Secondary */}
+        {!isViewMode && (
+          <Card className="border border-muted">
+            <CardContent className="px-6 py-4">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs text-muted-foreground min-w-[60px]">
-                    Mood
-                  </label>
-                  <div className="flex-1 mx-3">
+                  <div>
+                    <p className="font-medium text-sm">Quick Mood Check</p>
+                    <p className="text-xs text-muted-foreground">Optional - helps contextualize your entry</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-muted-foreground">Mood</label>
+                      <span className="text-xs text-muted-foreground">{mood}/10</span>
+                    </div>
                     <Slider
                       value={[mood]}
                       onValueChange={(value) => setMood(value[0])}
                       max={10}
                       min={1}
                       step={1}
-                      className="w-full [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
+                      className="w-full"
                     />
                   </div>
-                  <span className="text-xs text-muted-foreground min-w-[30px] text-right">
-                    {mood}/10
-                  </span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <label className="text-xs text-muted-foreground min-w-[60px]">
-                    Energy
-                  </label>
-                  <div className="flex-1 mx-3">
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-muted-foreground">Energy</label>
+                      <span className="text-xs text-muted-foreground">{energy}/10</span>
+                    </div>
                     <Slider
                       value={[energy]}
                       onValueChange={(value) => setEnergy(value[0])}
                       max={10}
                       min={1}
                       step={1}
-                      className="w-full [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
+                      className="w-full"
                     />
                   </div>
-                  <span className="text-xs text-muted-foreground min-w-[30px] text-right">
-                    {energy}/10
-                  </span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <label className="text-xs text-muted-foreground min-w-[60px]">
-                    Stress
-                  </label>
-                  <div className="flex-1 mx-3">
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-muted-foreground">Stress</label>
+                      <span className="text-xs text-muted-foreground">{stress}/10</span>
+                    </div>
                     <Slider
                       value={[stress]}
                       onValueChange={(value) => setStress(value[0])}
                       max={10}
                       min={1}
                       step={1}
-                      className="w-full [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
+                      className="w-full"
                     />
                   </div>
-                  <span className="text-xs text-muted-foreground min-w-[30px] text-right">
-                    {stress}/10
-                  </span>
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          {/* Journal Entry - Prominent */}
-          <Card className="border-2 border-primary/20 shadow-lg">
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <label
-                    htmlFor="journal-content"
-                    className="text-lg font-medium text-primary"
-                  >
-                    Your reflection
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleVoiceInput}
-                      disabled={isRecording}
-                      className="gap-1 text-xs"
-                    >
-                      {isRecording ? (
-                        <>
-                          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-                          Recording...
-                        </>
-                      ) : (
-                        <>
-                          <Mic className="w-3 h-3" />
-                          Voice
-                        </>
-                      )}
-                    </Button>
-                    <span className={`text-xs ${
-                      content.trim().length < 10 
-                        ? 'text-orange-500' 
-                        : 'text-muted-foreground'
-                    }`}>
-                      {content.trim().length}/10 min • {wordCount} words
-                    </span>
-                  </div>
-                </div>
-
-                <Textarea
-                  id="journal-content"
-                  placeholder="What's on your mind? Write freely about your thoughts, feelings, or experiences... Nothing is off-limits."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[250px] border-0 bg-transparent text-foreground placeholder:text-muted-foreground resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed"
-                  style={{ fontSize: "18px" }} // Prevent zoom on iOS and make more prominent
-                />
-
-                {/* Voice Input Status */}
-                {showVoiceInput && (
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center gap-2 text-blue-700">
-                      <Mic className="w-4 h-4" />
-                      <span className="text-sm">
-                        {isRecording ? "Listening... Speak now" : "Voice input added"}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Emoji Reaction System */}
-          {showEmojiReactions && content.length > 50 && (
-            <EmojiReactionSystem
-              journalContent={content}
-              detectedTopics={detectedTopics}
-              onReactionSelect={(reaction) => {
-                setSelectedEmoji(reaction);
-                console.log('Selected emoji reaction:', reaction);
-              }}
-              className="animate-fade-in"
-            />
-          )}
-
-          {/* Actions */}
-          <div className="flex items-center justify-between pt-4">
-            <div className="text-sm text-calm-500">
-              {personas.find(p => p.persona_id === selectedPersona)?.persona_name || 'Pulse'} will provide insights
-            </div>
-
-            <Button
-              onClick={handleSubmit}
-              disabled={!content.trim() || content.trim().length < 10 || isSubmitting}
-              className="gap-2 min-w-[120px]"
-            >
-              {isSubmitting ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-              {isSubmitting ? "Saving..." : "Save reflection"}
-            </Button>
-          </div>
-
-          {/* Subtle Tips */}
-          <div className="mt-6 p-3 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/30">
-            <details className="group">
-              <summary className="text-xs text-muted-foreground cursor-pointer list-none flex items-center gap-2">
-                <span className="group-open:rotate-90 transition-transform">▶</span>
-                Tips for reflection
-              </summary>
-              <ul className="text-xs text-muted-foreground space-y-1 mt-2 ml-4">
-                <li>• Write without judgment - this is your safe space</li>
-                <li>• Focus on how you're feeling, not just what happened</li>
-                <li>• Be honest with yourself - it's okay to struggle</li>
-                <li>• Use voice input if typing feels overwhelming</li>
-                <li>• {personas.find(p => p.persona_id === selectedPersona)?.persona_name || 'Pulse'} will provide personalized insights</li>
-              </ul>
-            </details>
-          </div>
-        </div>
         )}
-      </main>
+
+        {/* Emoji Reactions - Only show after substantial writing */}
+        {showEmojiReactions && content.length > 100 && (
+          <EmojiReactionSystem
+            journalContent={content}
+            detectedTopics={detectedTopics}
+            onReactionSelect={(reaction) => {
+              setSelectedEmoji(reaction);
+              console.log('Selected emoji reaction:', reaction);
+            }}
+            className="animate-fade-in"
+          />
+        )}
+
+        {/* Actions - Prominent Save Button */}
+        <div className="flex items-center justify-between py-4">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={handleBack}>
+              Cancel
+            </Button>
+            {content.length > 50 && (
+              <Button variant="ghost" size="sm" className="gap-2" disabled>
+                <Save className={`w-4 h-4 ${autoSaving ? 'animate-spin' : ''}`} />
+                {autoSaving ? 'Auto-saving...' : lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : 'Draft ready'}
+              </Button>
+            )}
+          </div>
+          
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting || content.trim().length < 10}
+            size="lg"
+            className="gap-2 min-w-[140px]"
+          >
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Save Reflection
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
