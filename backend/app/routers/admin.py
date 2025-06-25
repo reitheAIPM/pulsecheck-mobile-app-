@@ -4,7 +4,7 @@ Admin Analytics Router - Final Fixed Version
 Provides comprehensive analytics and monitoring endpoints for PulseCheck
 """
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from typing import Optional
 from datetime import date, datetime, timedelta, timezone
 from app.core.database import get_database, Database
@@ -22,7 +22,7 @@ cost_optimizer = CostOptimizationService()
 async def get_daily_beta_metrics(
     date_filter: Optional[str] = Query(None, description="Date in YYYY-MM-DD format"),
     db: Database = Depends(get_database),
-    admin: dict = Depends(verify_admin_access)
+    admin: dict = Depends(verify_admin)
 ):
     """
     Get daily beta metrics for monitoring
@@ -56,7 +56,7 @@ async def get_daily_beta_metrics(
 async def get_weekly_beta_metrics(
     weeks_back: int = Query(4, description="Number of weeks to include"),
     db: Database = Depends(get_database),
-    admin: dict = Depends(verify_admin_access)
+    admin: dict = Depends(verify_admin)
 ):
     """
     Get weekly aggregated beta metrics
@@ -132,7 +132,7 @@ async def get_user_engagement_metrics(
 async def get_feedback_analytics(
     days_back: int = Query(7, description="Number of days to analyze"),
     db: Database = Depends(get_database),
-    admin: dict = Depends(verify_admin_access)
+    admin: dict = Depends(verify_admin)
 ):
     """
     Get AI feedback analytics for quality assessment
@@ -166,7 +166,7 @@ async def get_feedback_analytics(
 async def get_cost_analytics(
     days_back: int = Query(30, description="Number of days to analyze"),
     db: Database = Depends(get_database),
-    admin: dict = Depends(verify_admin_access)
+    admin: dict = Depends(verify_admin)
 ):
     """
     Get detailed cost analytics for budget planning
@@ -267,7 +267,7 @@ async def get_system_health(
 @router.post("/beta-metrics/reset-usage")
 async def reset_daily_usage_counters(
     db: Database = Depends(get_database),
-    admin: dict = Depends(verify_admin_access)
+    admin: dict = Depends(verify_admin)
 ):
     """
     Manually reset daily usage counters (for testing)
@@ -288,7 +288,7 @@ async def export_beta_data(
     format: str = Query("json", description="Export format: json or csv"),
     days_back: int = Query(7, description="Number of days to export"),
     db: Database = Depends(get_database),
-    admin: dict = Depends(verify_admin_access)
+    admin: dict = Depends(verify_admin)
 ):
     """
     Export beta data for external analysis
@@ -321,7 +321,7 @@ async def export_beta_data(
 
 @router.get("/cost-optimization/metrics")
 async def get_cost_optimization_metrics(
-    admin: dict = Depends(verify_admin_access)
+    admin: dict = Depends(verify_admin)
 ):
     """
     Get comprehensive cost optimization metrics and performance stats
@@ -341,7 +341,7 @@ async def get_cost_optimization_metrics(
 
 @router.post("/cost-optimization/reset-daily")
 async def reset_daily_cost_metrics(
-    admin: dict = Depends(verify_admin_access)
+    admin: dict = Depends(verify_admin)
 ):
     """
     Reset daily cost metrics (for testing or new day)
@@ -360,7 +360,7 @@ async def reset_daily_cost_metrics(
 
 @router.get("/cost-optimization/cache-status")
 async def get_cache_status(
-    admin: dict = Depends(verify_admin_access)
+    admin: dict = Depends(verify_admin)
 ):
     """
     Get detailed cache status and performance metrics
@@ -415,7 +415,7 @@ async def get_cache_status(
 
 @router.post("/cost-optimization/clear-cache")
 async def clear_response_cache(
-    admin: dict = Depends(verify_admin_access)
+    admin: dict = Depends(verify_admin)
 ):
     """
     Clear the response cache (for testing or maintenance)
@@ -437,7 +437,7 @@ async def clear_response_cache(
 async def update_cost_limits(
     daily_limit: Optional[float] = Query(None, description="New daily cost limit in USD"),
     monthly_limit: Optional[float] = Query(None, description="New monthly cost limit in USD"),
-    admin: dict = Depends(verify_admin_access)
+    admin: dict = Depends(verify_admin)
 ):
     """
     Update cost limits for optimization system

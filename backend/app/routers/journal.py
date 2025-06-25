@@ -797,7 +797,7 @@ async def get_ai_debug_summary(
 @router.post("/ai/topic-classification")
 @limiter.limit("20/minute")  # Rate limit AI requests
 async def classify_topics(
-    request_fastapi: Request,
+    request: Request,  # Fixed: rate limiter needs 'request' as first parameter
     request_body: dict,  # Accept JSON body instead of query parameter
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user),
