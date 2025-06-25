@@ -7,6 +7,10 @@ Version: 2.1.2-cors-fix-v3
 Last Updated: 2025-01-25 - Enhanced CORS handling for Vercel domains
 """
 
+# DEPLOYMENT TRIGGER: Force Railway rebuild - Enhanced Debug System v2.0 
+# This comment forces Railway to rebuild container with enhanced logging
+# Deployment timestamp: 2025-06-25 19:30 UTC
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -622,7 +626,7 @@ try:
     # Debug middleware router - enhanced import with detailed logging
     try:
         logger.info("🔄 Attempting to import debug router...")
-        import app.routers.debug as debug_module
+        from app.routers import debug as debug_module
         logger.info("✅ Debug module imported successfully")
         
         app.include_router(debug_module.router, prefix="/api/v1")
@@ -641,7 +645,7 @@ try:
     # AI Debugging router - enhanced import with detailed logging  
     try:
         logger.info("🔄 Attempting to import AI debug router...")
-        import app.routers.ai_debug as ai_debug_module
+        from app.routers import ai_debug as ai_debug_module
         logger.info("✅ AI debug module imported successfully")
         
         app.include_router(ai_debug_module.router, prefix="/api/v1")
