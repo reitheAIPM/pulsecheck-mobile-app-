@@ -1,6 +1,10 @@
 # API Routers Package
 # Contains all FastAPI route handlers organized by domain
 
-from . import auth, checkins, journal, admin, debugging, debug, ai_debug, adaptive_ai, monitoring
+# Import routers individually to avoid dependency issues
+# Each router will be imported directly in main.py when needed
 
-__all__ = ["auth", "checkins", "journal", "admin", "debugging", "debug", "ai_debug", "adaptive_ai", "monitoring"] 
+__all__ = []
+
+# Note: Individual routers are imported directly in main.py
+# to avoid circular dependencies and module loading issues 
