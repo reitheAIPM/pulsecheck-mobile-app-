@@ -619,49 +619,58 @@ def register_routers():
         print("🔄 Starting router registration...")
         sys.stdout.flush()
         
-        # Core routers
+        # Use direct file imports instead of package imports to avoid resolution issues
+        import sys
+        import os
+        
+        # Add the app directory to the Python path
+        app_dir = os.path.join(os.path.dirname(__file__), 'app')
+        if app_dir not in sys.path:
+            sys.path.insert(0, app_dir)
+        
+        # Core routers - import directly from files
         print("🔄 Importing auth router...")
         sys.stdout.flush()
-        import app.routers.auth as auth_module
+        from routers.auth import router as auth_router
         print("✅ Auth router imported successfully")
         sys.stdout.flush()
-        app.include_router(auth_module.router, prefix="/auth", tags=["authentication"])
+        app.include_router(auth_router, prefix="/auth", tags=["authentication"])
         print("✅ Auth router registered")
         sys.stdout.flush()
 
         print("🔄 Importing journal router...")
         sys.stdout.flush()
-        import app.routers.journal as journal_module
+        from routers.journal import router as journal_router
         print("✅ Journal router imported successfully")
         sys.stdout.flush()
-        app.include_router(journal_module.router, prefix="/api/v1/journal", tags=["journal"])
+        app.include_router(journal_router, prefix="/api/v1/journal", tags=["journal"])
         print("✅ Journal router registered")
         sys.stdout.flush()
 
         print("🔄 Importing adaptive AI router...")
         sys.stdout.flush()
-        import app.routers.adaptive_ai as adaptive_ai_module
+        from routers.adaptive_ai import router as adaptive_ai_router
         print("✅ Adaptive AI router imported successfully")
         sys.stdout.flush()
-        app.include_router(adaptive_ai_module.router, prefix="/api/v1/adaptive-ai", tags=["adaptive-ai"])
+        app.include_router(adaptive_ai_router, prefix="/api/v1/adaptive-ai", tags=["adaptive-ai"])
         print("✅ Adaptive AI router registered")
         sys.stdout.flush()
 
         print("🔄 Importing checkins router...")
         sys.stdout.flush()
-        import app.routers.checkins as checkins_module
+        from routers.checkins import router as checkins_router
         print("✅ Checkins router imported successfully")
         sys.stdout.flush()
-        app.include_router(checkins_module.router, prefix="/api/v1/checkins", tags=["checkins"])
+        app.include_router(checkins_router, prefix="/api/v1/checkins", tags=["checkins"])
         print("✅ Checkins router registered")
         sys.stdout.flush()
 
         print("🔄 Importing monitoring router...")
         sys.stdout.flush()
-        import app.routers.monitoring as monitoring_module
+        from routers.monitoring import router as monitoring_router
         print("✅ Monitoring router imported successfully")
         sys.stdout.flush()
-        app.include_router(monitoring_module.router, prefix="/api/v1/monitoring", tags=["monitoring"])
+        app.include_router(monitoring_router, prefix="/api/v1/monitoring", tags=["monitoring"])
         print("✅ Monitoring router registered")
         sys.stdout.flush()
 
@@ -669,13 +678,13 @@ def register_routers():
         print("🔄 Attempting to import debug router...")
         sys.stdout.flush()
         try:
-            import app.routers.debug as debug_module
+            from routers.debug import router as debug_router
             print("✅ Debug module imported successfully")
             sys.stdout.flush()
             
             print("🔄 Registering debug router...")
             sys.stdout.flush()
-            app.include_router(debug_module.router, prefix="/api/v1/debug", tags=["debug"])
+            app.include_router(debug_router, prefix="/api/v1/debug", tags=["debug"])
             print("✅ Debug router registered successfully!")
             sys.stdout.flush()
             
@@ -689,10 +698,10 @@ def register_routers():
         # Admin router
         print("🔄 Importing admin router...")
         sys.stdout.flush()
-        import app.routers.admin as admin_module
+        from routers.admin import router as admin_router
         print("✅ Admin router imported successfully")
         sys.stdout.flush()
-        app.include_router(admin_module.router, prefix="/api/v1/admin", tags=["admin"])
+        app.include_router(admin_router, prefix="/api/v1/admin", tags=["admin"])
         print("✅ Admin router registered")
         sys.stdout.flush()
 
