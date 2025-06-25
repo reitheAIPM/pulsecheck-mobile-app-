@@ -623,24 +623,27 @@ def register_routers():
         print("🔄 Starting router registration...")
         sys.stdout.flush()
         
-        # Add the app directory to the Python path
-        app_dir = os.path.join(os.path.dirname(__file__), 'app')
-        if app_dir not in sys.path:
-            sys.path.insert(0, app_dir)
+        # Add the backend directory to Python path so relative imports work
+        backend_dir = os.path.dirname(__file__)
+        if backend_dir not in sys.path:
+            sys.path.insert(0, backend_dir)
         
-        # Core routers - import directly from files
+        print(f"🔄 Added {backend_dir} to Python path")
+        sys.stdout.flush()
+        
+        # Core routers - import using absolute path from app package
         print("🔄 Importing auth router...")
         sys.stdout.flush()
-        from routers.auth import router as auth_router
+        from app.routers.auth import router as auth_router
         print("✅ Auth router imported successfully")
         sys.stdout.flush()
-        app.include_router(auth_router, prefix="/auth", tags=["authentication"])
+        app.include_router(auth_router, prefix="/api/v1/auth", tags=["authentication"])
         print("✅ Auth router registered")
         sys.stdout.flush()
 
         print("🔄 Importing journal router...")
         sys.stdout.flush()
-        from routers.journal import router as journal_router
+        from app.routers.journal import router as journal_router
         print("✅ Journal router imported successfully")
         sys.stdout.flush()
         app.include_router(journal_router, prefix="/api/v1/journal", tags=["journal"])
@@ -649,7 +652,7 @@ def register_routers():
 
         print("🔄 Importing adaptive AI router...")
         sys.stdout.flush()
-        from routers.adaptive_ai import router as adaptive_ai_router
+        from app.routers.adaptive_ai import router as adaptive_ai_router
         print("✅ Adaptive AI router imported successfully")
         sys.stdout.flush()
         app.include_router(adaptive_ai_router, prefix="/api/v1/adaptive-ai", tags=["adaptive-ai"])
@@ -658,7 +661,7 @@ def register_routers():
 
         print("🔄 Importing checkins router...")
         sys.stdout.flush()
-        from routers.checkins import router as checkins_router
+        from app.routers.checkins import router as checkins_router
         print("✅ Checkins router imported successfully")
         sys.stdout.flush()
         app.include_router(checkins_router, prefix="/api/v1/checkins", tags=["checkins"])
@@ -667,7 +670,7 @@ def register_routers():
 
         print("🔄 Importing monitoring router...")
         sys.stdout.flush()
-        from routers.monitoring import router as monitoring_router
+        from app.routers.monitoring import router as monitoring_router
         print("✅ Monitoring router imported successfully")
         sys.stdout.flush()
         app.include_router(monitoring_router, prefix="/api/v1/monitoring", tags=["monitoring"])
@@ -678,7 +681,7 @@ def register_routers():
         print("🔄 Attempting to import debug router...")
         sys.stdout.flush()
         try:
-            from routers.debug import router as debug_router
+            from app.routers.debug import router as debug_router
             print("✅ Debug module imported successfully")
             sys.stdout.flush()
             
@@ -698,7 +701,7 @@ def register_routers():
         # Admin router
         print("🔄 Importing admin router...")
         sys.stdout.flush()
-        from routers.admin import router as admin_router
+        from app.routers.admin import router as admin_router
         print("✅ Admin router imported successfully")
         sys.stdout.flush()
         app.include_router(admin_router, prefix="/api/v1/admin", tags=["admin"])
