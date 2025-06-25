@@ -422,13 +422,20 @@ async def refresh_user_patterns(
 @router.get("/preferences/{user_id}", response_model=UserAIPreferences)
 async def get_user_ai_preferences(
     user_id: str,
+    request: Request,
     preferences_service = Depends(get_user_preferences_service)
 ):
     """
     Get user AI preferences
     """
     try:
-        preferences = await preferences_service.get_user_preferences(user_id)
+        # Get JWT token from request headers
+        auth_header = request.headers.get('Authorization')
+        jwt_token = None
+        if auth_header and auth_header.startswith('Bearer '):
+            jwt_token = auth_header.split(' ')[1]
+        
+        preferences = await preferences_service.get_user_preferences(user_id, jwt_token)
         return preferences
         
     except Exception as e:
@@ -442,13 +449,20 @@ async def get_user_ai_preferences(
 @router.post("/preferences", response_model=dict)
 async def save_user_ai_preferences(
     preferences: UserAIPreferences,
+    request: Request,
     preferences_service = Depends(get_user_preferences_service)
 ):
     """
     Save user AI preferences
     """
     try:
-        success = await preferences_service.save_user_preferences(preferences)
+        # Get JWT token from request headers
+        auth_header = request.headers.get('Authorization')
+        jwt_token = None
+        if auth_header and auth_header.startswith('Bearer '):
+            jwt_token = auth_header.split(' ')[1]
+        
+        success = await preferences_service.save_user_preferences(preferences, jwt_token)
         
         if success:
             return {"success": True, "message": "Preferences saved successfully"}
@@ -471,14 +485,23 @@ async def update_user_preference(
     user_id: str,
     preference_key: str,
     value: dict,  # {"value": "new_value"}
+    request: Request,
     preferences_service = Depends(get_user_preferences_service)
 ):
     """
     Update a single user preference
     """
     try:
+        # Get JWT token from request headers
+        auth_header = request.headers.get('Authorization')
+        jwt_token = None
+        if auth_header and auth_header.startswith('Bearer '):
+            jwt_token = auth_header.split(' ')[1]
+        
+        logger.info(f"Updating preference {preference_key} for user {user_id} with JWT: {'Yes' if jwt_token else 'No'}")
+        
         success = await preferences_service.update_preference(
-            user_id, preference_key, value.get("value")
+            user_id, preference_key, value.get("value"), jwt_token
         )
         
         if success:
@@ -513,4 +536,65 @@ async def get_frequency_settings(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get frequency settings"
+        )
+
+@router.get("/debug/test-rls/{user_id}")
+async def debug_test_rls_policies(
+    user_id: str,
+    request: Request,
+    preferences_service = Depends(get_user_preferences_service)
+):
+    """
+    Debug endpoint to test RLS policies and JWT authentication
+    """
+    try:
+        # Get JWT token from request headers
+        auth_header = request.headers.get('Authorization')
+        jwt_token = None
+        if auth_header and auth_header.startswith('Bearer '):
+            jwt_token = auth_header.split(' ')[1]
+        
+        debug_info = {
+            "user_id": user_id,
+            "has_jwt_token": bool(jwt_token),
+            "jwt_length": len(jwt_token) if jwt_token else 0,
+            "test_results": {}
+        }
+        
+        # Test getting preferences
+        try:
+            preferences = await preferences_service.get_user_preferences(user_id, jwt_token)
+            debug_info["test_results"]["get_preferences"] = {
+                "success": True,
+                "response_frequency": preferences.response_frequency,
+                "premium_enabled": preferences.premium_enabled
+            }
+        except Exception as e:
+            debug_info["test_results"]["get_preferences"] = {
+                "success": False,
+                "error": str(e)
+            }
+        
+        # Test updating a preference
+        try:
+            success = await preferences_service.update_preference(
+                user_id, "response_frequency", "balanced", jwt_token
+            )
+            debug_info["test_results"]["update_preference"] = {
+                "success": success
+            }
+        except Exception as e:
+            debug_info["test_results"]["update_preference"] = {
+                "success": False,
+                "error": str(e)
+            }
+        
+        return debug_info
+        
+    except Exception as e:
+        log_error(e, ErrorSeverity.LOW, ErrorCategory.API_ENDPOINT,
+                 {"operation": "debug_test_rls", "user_id": user_id})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to run RLS debug test"
         ) 

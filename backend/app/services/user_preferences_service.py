@@ -47,7 +47,7 @@ class UserPreferencesService:
         
         logger.info("UserPreferencesService initialized")
     
-    async def get_user_preferences(self, user_id: str) -> UserAIPreferences:
+    async def get_user_preferences(self, user_id: str, jwt_token: str = None) -> UserAIPreferences:
         """Get user AI preferences with caching"""
         try:
             # Check cache first
@@ -56,8 +56,8 @@ class UserPreferencesService:
                 if datetime.now() - cached["timestamp"] < self.cache_duration:
                     return cached["preferences"]
             
-            # Get from database (mock for now, will implement with Supabase)
-            preferences = await self._get_preferences_from_db(user_id)
+            # Get from database with JWT authentication
+            preferences = await self._get_preferences_from_db(user_id, jwt_token)
             
             # Cache the result
             self.preferences_cache[user_id] = {
@@ -72,14 +72,14 @@ class UserPreferencesService:
                      {"user_id": user_id, "operation": "get_preferences"})
             return self._get_default_preferences(user_id)
     
-    async def save_user_preferences(self, preferences: UserAIPreferences) -> bool:
+    async def save_user_preferences(self, preferences: UserAIPreferences, jwt_token: str = None) -> bool:
         """Save user AI preferences"""
         try:
             # Update timestamp as string
             preferences.updated_at = datetime.utcnow().isoformat()
             
-            # Save to database (mock for now, will implement with Supabase)
-            success = await self._save_preferences_to_db(preferences)
+            # Save to database with JWT authentication
+            success = await self._save_preferences_to_db(preferences, jwt_token)
             
             if success:
                 # Update cache
@@ -154,15 +154,15 @@ class UserPreferencesService:
                      {"user_id": user_id, "operation": "get_max_personas"})
             return 1
     
-    async def update_preference(self, user_id: str, preference_key: str, value: Any) -> bool:
+    async def update_preference(self, user_id: str, preference_key: str, value: Any, jwt_token: str = None) -> bool:
         """Update a single preference"""
         try:
-            preferences = await self.get_user_preferences(user_id)
+            preferences = await self.get_user_preferences(user_id, jwt_token)
             
             # Update the specific preference
             if hasattr(preferences, preference_key):
                 setattr(preferences, preference_key, value)
-                return await self.save_user_preferences(preferences)
+                return await self.save_user_preferences(preferences, jwt_token)
             
             logger.warning(f"Unknown preference key: {preference_key}")
             return False
@@ -188,13 +188,17 @@ class UserPreferencesService:
             celebration_mode=True
         )
     
-    async def _get_preferences_from_db(self, user_id: str) -> UserAIPreferences:
+    async def _get_preferences_from_db(self, user_id: str, jwt_token: str = None) -> UserAIPreferences:
         """Get preferences from Supabase database"""
         try:
             if not self.db:
                 return self._get_default_preferences(user_id)
             
             client = self.db.get_client()
+            
+            # Set JWT token for RLS authentication if provided
+            if jwt_token:
+                client.auth.set_session({"access_token": jwt_token})
             
             # Query user preferences from database
             response = client.table('user_ai_preferences').select('*').eq('user_id', user_id).execute()
@@ -219,14 +223,14 @@ class UserPreferencesService:
             else:
                 # No preferences found, create default and save
                 default_prefs = self._get_default_preferences(user_id)
-                await self._save_preferences_to_db(default_prefs)
+                await self._save_preferences_to_db(default_prefs, jwt_token)
                 return default_prefs
                 
         except Exception as e:
             logger.error(f"Failed to get preferences from database for user {user_id}: {e}")
             return self._get_default_preferences(user_id)
     
-    async def _save_preferences_to_db(self, preferences: UserAIPreferences) -> bool:
+    async def _save_preferences_to_db(self, preferences: UserAIPreferences, jwt_token: str = None) -> bool:
         """Save preferences to Supabase database"""
         try:
             if not self.db:
@@ -234,6 +238,10 @@ class UserPreferencesService:
                 return False  # Don't allow development mode - require real database
             
             client = self.db.get_client()
+            
+            # Set JWT token for RLS authentication if provided
+            if jwt_token:
+                client.auth.set_session({"access_token": jwt_token})
             
             # Prepare data for database
             pref_data = {
