@@ -194,11 +194,20 @@ class UserPreferencesService:
             if not self.db:
                 return self._get_default_preferences(user_id)
             
-            client = self.db.get_client()
-            
-            # Set JWT token for RLS authentication if provided
+            # Use appropriate client based on JWT token presence
             if jwt_token:
-                client.auth.set_session({"access_token": jwt_token})
+                # For authenticated requests, create a client with JWT auth header
+                from supabase import create_client
+                import os
+                client = create_client(
+                    os.getenv("SUPABASE_URL"),
+                    os.getenv("SUPABASE_ANON_KEY")  # Use anon key with JWT auth
+                )
+                # Set the authorization header for RLS
+                client.postgrest.auth(jwt_token)
+            else:
+                # Use default client (service role) for internal operations
+                client = self.db.get_client()
             
             # Query user preferences from database
             response = client.table('user_ai_preferences').select('*').eq('user_id', user_id).execute()
@@ -237,11 +246,20 @@ class UserPreferencesService:
                 logger.warning("No database connection available for saving preferences")
                 return False  # Don't allow development mode - require real database
             
-            client = self.db.get_client()
-            
-            # Set JWT token for RLS authentication if provided
+            # Use appropriate client based on JWT token presence
             if jwt_token:
-                client.auth.set_session({"access_token": jwt_token})
+                # For authenticated requests, create a client with JWT auth header
+                from supabase import create_client
+                import os
+                client = create_client(
+                    os.getenv("SUPABASE_URL"),
+                    os.getenv("SUPABASE_ANON_KEY")  # Use anon key with JWT auth
+                )
+                # Set the authorization header for RLS
+                client.postgrest.auth(jwt_token)
+            else:
+                # Use default client (service role) for internal operations
+                client = self.db.get_client()
             
             # Prepare data for database
             pref_data = {
