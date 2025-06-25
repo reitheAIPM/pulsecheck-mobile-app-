@@ -104,10 +104,10 @@ curl https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/reques
 ### **1. Service-Specific Log Monitoring**
 ```bash
 # Monitor backend service logs specifically
-railway logs --service backend
+railway logs --service pulsecheck-mobile-app-
 
-# Monitor with real-time filtering
-railway logs --service backend | grep "ERROR\|DEBUG\|INFO"
+# Monitor with real-time filtering (PowerShell)
+railway logs --service pulsecheck-mobile-app- | Select-String "ERROR|DEBUG|INFO"
 ```
 
 ### **2. Triggering Endpoint Activity for Live Debugging**
@@ -219,7 +219,7 @@ async def get_comprehensive_ai_insights(request: Request):
 
 ### **Step 1: Monitor Live Logs**
 ```bash
-railway logs --service backend
+railway logs --service pulsecheck-mobile-app-
 ```
 
 ### **Step 2: Test Current Debug Router Status**
@@ -287,8 +287,8 @@ timeout 10s railway logs --service pulsecheck-mobile-app-
 # Snapshot last 50 lines
 railway logs --service pulsecheck-mobile-app- | head -n 50
 
-# For Windows PowerShell
-timeout 10 && railway logs --service pulsecheck-mobile-app-
+# For Windows PowerShell - Use Select-Object instead of head
+railway logs --service pulsecheck-mobile-app- | Select-Object -First 50
 ```
 
 #### **1.2 Trigger API Traffic for Log Generation**
