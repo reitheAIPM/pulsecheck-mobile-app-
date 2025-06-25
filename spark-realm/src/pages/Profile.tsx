@@ -353,8 +353,12 @@ const Profile = () => {
   const handlePremiumToggle = async (enabled: boolean) => {
     setPremiumToggleLoading(true);
     try {
+      // Use the same user ID resolution as API service for consistency
+      const userResult = await authService.getCurrentUser();
+      const resolvedUserId = userResult?.user?.id || authService.getDevelopmentUser().id;
+      
       const result = await apiService.toggleBetaPremium({
-        user_id: userId,
+        user_id: resolvedUserId,
         enabled: enabled
       });
       
@@ -449,8 +453,10 @@ const Profile = () => {
       // Update local state immediately for responsive UI
       setAiSettings(prev => ({ ...prev, [settingKey]: value }));
       
-      // Save to backend
-      await apiService.updateUserPreference(userId, settingKey, value);
+      // Save to backend - use consistent user ID resolution
+      const userResult = await authService.getCurrentUser();
+      const resolvedUserId = userResult?.user?.id || authService.getDevelopmentUser().id;
+      await apiService.updateUserPreference(resolvedUserId, settingKey, value);
       
       console.log(`AI setting ${settingKey} saved successfully:`, value);
     } catch (error) {
@@ -464,7 +470,10 @@ const Profile = () => {
     try {
       // Save AI interaction level and other persona settings
       if (settings.aiInteractionLevel) {
-        await apiService.updateUserPreference(userId, 'response_frequency', settings.aiInteractionLevel);
+        // Use consistent user ID resolution
+        const userResult = await authService.getCurrentUser();
+        const resolvedUserId = userResult?.user?.id || authService.getDevelopmentUser().id;
+        await apiService.updateUserPreference(resolvedUserId, 'response_frequency', settings.aiInteractionLevel);
       }
       
       console.log('Persona settings saved successfully:', settings);
@@ -506,7 +515,8 @@ const Profile = () => {
 
   const loadAIPreferences = async () => {
     try {
-      const preferences = await apiService.getUserAIPreferences(userId);
+      // Don't pass userId - let API service resolve it internally for consistency
+      const preferences = await apiService.getUserAIPreferences();
       if (preferences) {
         // Update AI settings with saved preferences
         setAiSettings(prev => ({

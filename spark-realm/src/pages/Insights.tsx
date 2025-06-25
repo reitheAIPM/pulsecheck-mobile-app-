@@ -16,11 +16,11 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import PatternInsights from "@/components/PatternInsights";
-import { apiService, UserPatternSummary, AdaptiveResponseResponse, AIInsightResponse } from "@/services/api";
+import { apiService, UserPatterns, AdaptiveResponseResponse, AIInsightResponse } from "@/services/api";
 import { getCurrentUserId } from "@/utils/userSession";
 
 const Insights = () => {
-  const [userPatterns, setUserPatterns] = useState<UserPatternSummary | null>(null);
+  const [userPatterns, setUserPatterns] = useState<UserPatterns | null>(null);
   const [lastAIResponse, setLastAIResponse] = useState<AdaptiveResponseResponse | null>(null);
   const [loadingPatterns, setLoadingPatterns] = useState(false);
   const [refreshingPatterns, setRefreshingPatterns] = useState(false);
@@ -56,7 +56,8 @@ const Insights = () => {
   const loadUserPatterns = async () => {
     setLoadingPatterns(true);
     try {
-      const patterns = await apiService.getUserPatterns(userId);
+      // Don't pass userId - let API service resolve it internally for consistency
+      const patterns = await apiService.getUserPatterns();
       setUserPatterns(patterns);
     } catch (error) {
       console.error('Failed to load user patterns:', error);
@@ -79,8 +80,7 @@ const Insights = () => {
           style: "supportive"
         },
         pattern_confidence: 0.75,
-        entries_analyzed: 24,
-        last_updated: new Date().toISOString()
+        entries_analyzed: 24
       });
     } finally {
       setLoadingPatterns(false);
@@ -102,7 +102,7 @@ const Insights = () => {
   const refreshPatterns = async () => {
     setRefreshingPatterns(true);
     try {
-      await apiService.refreshUserPatterns(userId);
+      // Just reload patterns since there's no specific refresh method
       await loadUserPatterns();
     } catch (error) {
       console.error('Failed to refresh patterns:', error);

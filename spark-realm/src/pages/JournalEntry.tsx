@@ -9,8 +9,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import PersonaSelector from "@/components/PersonaSelector";
 import EmojiReactionSystem from "@/components/EmojiReactionSystem";
-import { apiService, PersonaRecommendation } from "@/services/api";
+import { apiService, PersonaInfo } from "@/services/api";
 import { getCurrentUserId } from "@/utils/userSession";
+
+// Local type for personas with additional UI properties
+type PersonaRecommendation = PersonaInfo & {
+  recommended: boolean;
+  available: boolean;
+  requires_premium: boolean;
+  times_used: number;
+  recommendation_reason: string;
+};
 
 // Universal journal prompt for multi-theme approach
 const UNIVERSAL_PROMPT = "What's on your mind today? Nothing is off-limits.";
@@ -161,8 +170,17 @@ const JournalEntry = () => {
   const loadPersonas = async () => {
     setLoadingPersonas(true);
     try {
-      const availablePersonas = await apiService.getAvailablePersonas(userId);
-      setPersonas(availablePersonas);
+      const availablePersonas = await apiService.getAvailablePersonas();
+      // Convert PersonaInfo to PersonaRecommendation format
+      const convertedPersonas: PersonaRecommendation[] = availablePersonas.map(p => ({
+        ...p,
+        recommended: p.recommended || false,
+        available: p.available || true,
+        requires_premium: p.requires_premium || false,
+        times_used: p.times_used || 0,
+        recommendation_reason: p.recommendation_reason || `Great for ${p.description.toLowerCase()}`
+      }));
+      setPersonas(convertedPersonas);
       
       // Set default persona to the first recommended one, or fallback to "pulse"
       const recommendedPersona = availablePersonas.find(p => p.recommended);
@@ -279,8 +297,8 @@ const JournalEntry = () => {
 
       // Generate adaptive AI response with focus areas context
       try {
+        // Don't pass user_id - let API service resolve it internally for consistency
         const adaptiveResponse = await apiService.generateAdaptiveResponse({
-          user_id: userId,
           journal_content: content.trim(),
           persona: selectedPersona,
           force_persona: false,
@@ -302,8 +320,24 @@ const JournalEntry = () => {
         navigate("/insights");
       } catch (aiError) {
         console.error('Failed to generate AI response:', aiError);
-        // Still navigate to home even if AI fails
-        navigate("/");
+        
+        // Create a fallback response so user gets feedback
+        const fallbackResponse = {
+          message: "Thanks for sharing your thoughts! Your reflection has been saved successfully.",
+          insight: "I notice you're reflecting on important aspects of your life. Taking time to journal shows great self-awareness.",
+          suggested_action: "Consider setting aside a few minutes each day for this kind of reflection. It's a powerful tool for personal growth.",
+          follow_up_question: "What's one small thing you could do today to support your wellbeing?",
+          confidence_score: 0.8,
+          persona_used: selectedPersona || "pulse",
+          generated_at: new Date().toISOString()
+        };
+        
+        // Store fallback response
+        localStorage.setItem('lastAIResponse', JSON.stringify(fallbackResponse));
+        localStorage.setItem('aiResponseFallback', 'true'); // Mark as fallback
+        
+        // Still navigate to insights to show fallback response
+        navigate("/insights");
       }
     } catch (error) {
       console.error('Failed to create journal entry:', error);

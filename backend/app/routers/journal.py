@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
+import logging
 
 from app.models.journal import (
     JournalEntryCreate, JournalEntryResponse, JournalEntriesResponse,
@@ -13,6 +14,9 @@ from app.services.adaptive_ai_service import AdaptiveAIService, AIDebugContext
 from app.services.user_pattern_analyzer import UserPatternAnalyzer
 from app.services.weekly_summary_service import WeeklySummaryService, SummaryType
 from app.core.database import get_database, Database
+from app.core.security import get_current_user, limiter, validate_input_length, sanitize_user_input
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/journal", tags=["Journal"])
 
@@ -121,9 +125,10 @@ async def get_current_user():
     }
 
 @router.post("/entries", response_model=JournalEntryResponse)
+@limiter.limit("5/minute")  # Prevent spam
 async def create_journal_entry(
-    entry: JournalEntryCreate,
     request: Request,
+    entry: JournalEntryCreate,
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user_with_request)
 ):
@@ -133,6 +138,9 @@ async def create_journal_entry(
     This is the core MVP endpoint - where users submit their daily wellness check-ins
     """
     try:
+        # Input validation and sanitization
+        content = sanitize_user_input(validate_input_length(entry.content, 10000, "content"))
+        
         # Get the database client
         client = db.get_client()
         
@@ -140,7 +148,7 @@ async def create_journal_entry(
         entry_data = {
             "id": str(uuid.uuid4()),
             "user_id": current_user["id"],
-            "content": entry.content,
+            "content": content,
             "mood_level": int(entry.mood_level) if entry.mood_level is not None else None,
             "energy_level": int(entry.energy_level) if entry.energy_level is not None else None,
             "stress_level": int(entry.stress_level) if entry.stress_level is not None else None,
@@ -787,7 +795,9 @@ async def get_ai_debug_summary(
         raise HTTPException(status_code=500, detail=f"Error getting AI debug summary: {str(e)}")
 
 @router.post("/ai/topic-classification")
+@limiter.limit("20/minute")  # Rate limit AI requests
 async def classify_topics(
+    request_fastapi: Request,
     request_body: dict,  # Accept JSON body instead of query parameter
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user),

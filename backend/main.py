@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 # Import configuration and routers
 try:
     from app.core.config import settings
+    from app.core.security import setup_rate_limiting, limiter
     config_loaded = True
 except Exception as e:
     print(f"❌ Configuration loading failed: {e}")
@@ -41,6 +42,7 @@ except Exception as e:
         host = "0.0.0.0"
         port = 8000
     settings = MinimalSettings()
+    limiter = None
 
 # Import routers with error handling to prevent deployment failures
 try:
@@ -106,6 +108,16 @@ app = FastAPI(
     version="2.1.2",
     lifespan=lifespan
 )
+
+# Setup rate limiting if available
+if limiter and config_loaded:
+    try:
+        setup_rate_limiting(app)
+        logger.info("Rate limiting enabled")
+    except Exception as e:
+        logger.warning(f"Failed to setup rate limiting: {e}")
+else:
+    logger.warning("Rate limiting disabled - limiter not available")
 
 # Custom CORS middleware for dynamic Vercel domains
 class CustomCORSMiddleware(BaseHTTPMiddleware):

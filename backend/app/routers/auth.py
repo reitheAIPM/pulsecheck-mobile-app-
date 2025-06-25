@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from ..core.config import settings
 from ..core.database import get_database, Database
+from ..core.security import get_current_user, get_current_user_secure, limiter, validate_input_length, sanitize_user_input
 from ..models.user import UserResponse, UserProfile, UserTable, BetaToggleRequest
 from ..core.monitoring import log_error, ErrorSeverity, ErrorCategory
 from ..services.subscription_service import SubscriptionService
@@ -28,12 +29,6 @@ security = HTTPBearer(auto_error=False)
 # Initialize subscription service
 subscription_service = SubscriptionService()
 
-class AuthUser(BaseModel):
-    id: str
-    email: str
-    user_metadata: dict = {}
-    app_metadata: dict = {}
-    
 class SignUpRequest(BaseModel):
     email: str
     password: str
@@ -44,94 +39,13 @@ class SignInRequest(BaseModel):
     email: str
     password: str
 
-# Core authentication dependency
-async def get_current_user_from_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Database = Depends(get_database)
-) -> AuthUser:
-    """
-    Extract and validate user from Supabase JWT token
-    """
-    if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No authentication token provided"
-        )
-    
-    try:
-        token = credentials.credentials
-        
-        # Decode JWT token - Supabase uses the anon key for verification
-        # Note: In production, you'd verify with Supabase's public key
-        payload = jwt.decode(
-            token, 
-            options={"verify_signature": False}  # For now, trust Supabase tokens
-        )
-        
-        user_id = payload.get("sub")
-        email = payload.get("email")
-        
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token: no user ID"
-            )
-        
-        return AuthUser(
-            id=user_id,
-            email=email or "unknown@example.com",
-            user_metadata=payload.get("user_metadata", {}),
-            app_metadata=payload.get("app_metadata", {})
-        )
-        
-    except jwt.InvalidTokenError as e:
-        logger.warning(f"Invalid JWT token: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication token"
-        )
-    except Exception as e:
-        logger.error(f"Error validating token: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Authentication service error"
-        )
-
-# Mock user for development (fallback when no token provided)
-async def get_current_user_with_fallback(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Database = Depends(get_database)
-) -> dict:
-    """
-    Get current user with fallback to mock user for development
-    """
-    try:
-        # Try to get real authenticated user first
-        if credentials:
-            auth_user = await get_current_user_from_token(credentials, db)
-            return {
-                "id": auth_user.id,
-                "email": auth_user.email,
-                "tech_role": auth_user.user_metadata.get("tech_role", "user"),
-                "name": auth_user.user_metadata.get("name", "User")
-            }
-    except HTTPException:
-        # Fall through to mock user
-        pass
-    
-    # Fallback to mock user for development
-    user_id = request.headers.get('X-User-Id', "user_reiale01gmailcom_1750733000000")
-    
-    return {
-        "id": user_id,
-        "email": "rei.ale01@gmail.com",  # Your email for development
-        "tech_role": "beta_tester",
-        "name": "Rei (Development User)"
-    }
+# Import authentication functions from security module
+from ..core.security import get_current_user_secure, AuthUser
 
 @router.post("/signup")
+@limiter.limit("3/minute")  # Prevent signup spam
 async def sign_up(
+    request_fastapi: Request,
     request: SignUpRequest,
     db: Database = Depends(get_database)
 ):
@@ -139,16 +53,22 @@ async def sign_up(
     Sign up new user using Supabase Auth
     """
     try:
+        # Input validation and sanitization
+        email = validate_input_length(request.email, 254, "email")
+        password = validate_input_length(request.password, 128, "password")
+        name = sanitize_user_input(validate_input_length(request.name or "User", 100, "name"))
+        tech_role = sanitize_user_input(validate_input_length(request.tech_role or "user", 50, "tech_role"))
+        
         client = db.get_client()
         
         # Use Supabase Auth to create user
         response = client.auth.sign_up({
-            "email": request.email,
-            "password": request.password,
+            "email": email,
+            "password": password,
             "options": {
                 "data": {
-                    "name": request.name or "User",
-                    "tech_role": request.tech_role or "user"
+                    "name": name,
+                    "tech_role": tech_role
                 }
             }
         })
@@ -180,7 +100,9 @@ async def sign_up(
         )
 
 @router.post("/signin")
+@limiter.limit("5/minute")  # Prevent brute force attacks
 async def sign_in(
+    request_fastapi: Request,
     request: SignInRequest,
     db: Database = Depends(get_database)
 ):
@@ -188,12 +110,16 @@ async def sign_in(
     Sign in user using Supabase Auth
     """
     try:
+        # Input validation
+        email = validate_input_length(request.email, 254, "email")
+        password = validate_input_length(request.password, 128, "password")
+        
         client = db.get_client()
         
         # Use Supabase Auth to sign in
         response = client.auth.sign_in_with_password({
-            "email": request.email,
-            "password": request.password
+            "email": email,
+            "password": password
         })
         
         if response.user and response.session:
@@ -225,8 +151,10 @@ async def sign_in(
         )
 
 @router.post("/signout")
+@limiter.limit("10/minute")  # Rate limit signout requests
 async def sign_out(
-    current_user: AuthUser = Depends(get_current_user_from_token),
+    request: Request,
+    current_user: AuthUser = Depends(get_current_user_secure),
     db: Database = Depends(get_database)
 ):
     """
@@ -248,8 +176,10 @@ async def sign_out(
         )
 
 @router.get("/user")
+@limiter.limit("30/minute")  # Rate limit user profile requests
 async def get_user_profile(
-    current_user: AuthUser = Depends(get_current_user_from_token)
+    request: Request,
+    current_user: AuthUser = Depends(get_current_user_secure)
 ):
     """
     Get current user profile
@@ -384,5 +314,5 @@ async def make_beta_tester(
             "error": "Failed to grant beta tester status"
         }
 
-# Export the dependencies for use in other routers
-get_current_user = get_current_user_with_fallback 
+# Export the dependencies for use in other routers  
+# Note: Authentication dependencies now imported from core.security module 

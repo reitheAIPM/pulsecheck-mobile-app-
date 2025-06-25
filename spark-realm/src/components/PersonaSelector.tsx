@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PersonaInfo, apiService } from '../services/api';
+import { authService } from '../services/authService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -37,6 +38,28 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
   const [aiInteractionLevel, setAiInteractionLevel] = useState('balanced'); // quiet, balanced, active
   const [showSettings, setShowSettings] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [loadingPreferences, setLoadingPreferences] = useState(true);
+
+  // Load saved AI interaction preferences on component mount
+  useEffect(() => {
+    const loadSavedPreferences = async () => {
+      try {
+        setLoadingPreferences(true);
+        // Don't pass userId - let API service resolve it internally to match saving logic
+        const preferences = await apiService.getUserAIPreferences();
+        if (preferences && preferences.response_frequency) {
+          setAiInteractionLevel(preferences.response_frequency);
+        }
+      } catch (error) {
+        console.log('No saved AI preferences found, using default:', error);
+        // Keep default 'balanced' value
+      } finally {
+        setLoadingPreferences(false);
+      }
+    };
+
+    loadSavedPreferences();
+  }, []);
 
   const handleInteractionLevelChange = async (level: string) => {
     try {
@@ -48,8 +71,11 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
         await onSettingsChange({ response_frequency: level });
       }
       
-      // Save to backend
-      await apiService.updateUserPreference(userId, 'response_frequency', level);
+      // Save to backend - let API service resolve user ID internally for consistency
+      // Get the correct user ID that matches the API service's internal resolution
+      const result = await apiService.getCurrentUser();
+      const resolvedUserId = result?.user?.id || authService.getDevelopmentUser().id;
+      await apiService.updateUserPreference(resolvedUserId, 'response_frequency', level);
       
     } catch (error) {
       console.error('Failed to save AI interaction level:', error);
@@ -96,7 +122,7 @@ const AITeamManager: React.FC<AITeamManagerProps> = ({
 
   const premiumPersonas = personas.filter(p => p.requires_premium);
 
-  if (isLoading) {
+  if (isLoading || loadingPreferences) {
     return (
       <div className="space-y-4">
         <div className="animate-pulse">

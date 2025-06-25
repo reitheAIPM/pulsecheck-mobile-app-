@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
+    # Supabase JWT Secret for token validation
+    supabase_jwt_secret: str = ""
+    
+    # Rate Limiting Configuration
+    rate_limit_enabled: bool = True
+    rate_limit_redis_url: Optional[str] = None
+    
     # CORS Configuration
     allowed_origins: str = "http://localhost:3000,http://localhost:19006,http://localhost:5173,http://localhost:5174,https://pulsecheck-mobile-9883ycydx-reitheaipms-projects.vercel.app,https://pulsecheck-mobile-1pozgd468-reitheaipms-projects.vercel.app,https://pulsecheck-mobile-3senyo0m9-reitheaipms-projects.vercel.app,https://pulsecheck-mobile-743jnmyh8-reitheaipms-projects.vercel.app"
     
@@ -40,6 +47,7 @@ class Settings(BaseSettings):
     def validate_required_settings(self):
         """Validate that required settings are present"""
         missing = []
+        security_missing = []
         
         if not self.supabase_url:
             missing.append("SUPABASE_URL")
@@ -47,6 +55,12 @@ class Settings(BaseSettings):
             missing.append("SUPABASE_ANON_KEY")
         if not self.openai_api_key:
             missing.append("OPENAI_API_KEY")
+        if not self.supabase_jwt_secret:
+            security_missing.append("SUPABASE_JWT_SECRET")
+            
+        if security_missing:
+            print(f"🚨 CRITICAL SECURITY WARNING: Missing JWT secret!")
+            print(f"🔐 Please set SUPABASE_JWT_SECRET in your environment")
             
         if missing and self.environment == "production":
             print(f"⚠️  WARNING: Missing required environment variables in production: {', '.join(missing)}")

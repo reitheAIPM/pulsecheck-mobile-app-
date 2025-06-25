@@ -12,12 +12,8 @@ from app.services.cost_optimization import CostOptimizationService
 
 router = APIRouter(prefix="/admin")
 
-# Simple admin authentication (for beta - replace with proper auth)
-async def verify_admin_access():
-    """Simple admin verification - replace with proper JWT auth"""
-    # For beta, we'll use a simple approach
-    # In production, this would check JWT tokens and admin roles
-    return {"admin": True, "user_id": "admin"}
+# Secure admin authentication
+from app.core.security import verify_admin, limiter
 
 # Cost optimization service instance
 cost_optimizer = CostOptimizationService()
@@ -85,11 +81,13 @@ async def get_weekly_beta_metrics(
         }
 
 @router.get("/beta-metrics/users")
+@limiter.limit("10/minute")  # Rate limit admin endpoints
 async def get_user_engagement_metrics(
+    request: Request,
     limit: int = Query(20, description="Number of users to return"),
     sort_by: str = Query("total_journal_entries", description="Sort field"),
     db: Database = Depends(get_database),
-    admin: dict = Depends(verify_admin_access)
+    admin: dict = Depends(verify_admin)
 ):
     """
     Get user engagement metrics for beta analysis
@@ -208,9 +206,11 @@ async def get_cost_analytics(
         raise HTTPException(status_code=500, detail=f"Error fetching cost analytics: {str(e)}")
 
 @router.get("/beta-metrics/health")
+@limiter.limit("30/minute")  # Rate limit admin endpoints
 async def get_system_health(
+    request: Request,
     db: Database = Depends(get_database),
-    admin: dict = Depends(verify_admin_access)
+    admin: dict = Depends(verify_admin)
 ):
     """
     Get overall system health metrics for beta monitoring
