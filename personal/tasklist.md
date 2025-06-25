@@ -1,9 +1,9 @@
 # PulseCheck - Task List & Issue Tracking
 
-**Last Updated**: January 27, 2025 - Critical Frontend 404 Debugging Session  
-**Status**: ❌ **CRITICAL PRODUCTION ISSUES** - Journal functionality broken  
-**Completion**: 90% Complete (10% critical API routing issues)  
-**Current Focus**: Router mounting and authentication dependency debugging
+**Last Updated**: January 29, 2025 - CRITICAL 404 Auth Errors RESOLVED  
+**Status**: ⚠️ **MAJOR PROGRESS** - Authentication routing fixed, dev environment setup needed  
+**Completion**: 92% Complete (8% dev environment and final testing)  
+**Current Focus**: Development environment setup for stable production workflow
 
 ---
 
@@ -25,116 +25,87 @@
 
 ---
 
-## 🎉 **MAJOR BREAKTHROUGH - January 27, 2025 Evening**
+## 🎉 **MAJOR BREAKTHROUGH - January 29, 2025**
 
-### **✅ ROOT CAUSE IDENTIFIED AND FIXED: Authentication Issues**
-**Status**: ✅ **RESOLVED** - Core infrastructure problems fixed  
-**Discovery**: Authentication was using mock users instead of real Supabase Auth  
-**Impact**: ✅ All API endpoints now working, AI responses can be enabled, security implemented
+### **✅ CRITICAL 404 AUTH ERRORS COMPLETELY RESOLVED**
+**Status**: ✅ **RESOLVED** - Both root causes identified and fixed  
+**Discovery**: HashRouter/BrowserRouter mismatch + redirect loop causing Vercel 404s  
+**Impact**: ✅ Authentication page accessible, no more routing errors, user flow restored
 
-#### **✅ FIXED: All API Endpoints Now Working**
-1. **POST `/api/v1/journal/entries`** → ✅ **200 OK**
-   - **Fixed**: Journal entry creation working perfectly
-   - **Frontend Impact**: Save button functional
-   - **User Experience**: Full functionality restored
+#### **✅ ROOT CAUSE #1: HashRouter/BrowserRouter Mismatch**
+- **Issue Found**: App used `HashRouter` but routes expected clean URLs (`/auth` vs `/#/auth`)
+- **Evidence**: Vercel looked for physical `/auth` file that doesn't exist
+- **Fix Applied**: Changed `HashRouter` → `BrowserRouter` in `main.tsx`
+- **Result**: Clean URLs now work with Vercel's SPA routing
 
-2. **POST `/api/v1/journal/ai/topic-classification`** → ✅ **200 OK**  
-   - **Fixed**: AI topic detection operational
-   - **Frontend Impact**: Emoji reactions and topic prompts working
-   - **User Experience**: Full AI intelligence available
+#### **✅ ROOT CAUSE #2: Authentication Redirect Loop**
+- **Issue Found**: `<Navigate to="/auth" replace />` caused infinite redirect when already on `/auth`
+- **Evidence**: Homepage flash → 404 pattern indicated redirect loop
+- **Fix Applied**: Changed `<Navigate to="/auth" replace />` → `<Auth />` for catch-all route
+- **Result**: Direct Auth page render, no redirect loops
 
-3. **GET `/api/v1/journal/test`** → ✅ **200 OK**
-   - **Fixed**: Basic router health check passing
-   - **Frontend Impact**: Router fully mounted and operational
-   - **Diagnostic**: Complete API functionality confirmed
+#### **✅ VERCEL CLI INTEGRATION SUCCESS**
+- ✅ **Installed**: Vercel CLI v44.2.2 operational
+- ✅ **Deployment Monitoring**: Real-time deployment status tracking
+- ✅ **Build Log Analysis**: Confirmed latest changes deployed successfully
+- ✅ **Debug Capabilities**: Now can analyze deployment issues in real-time
 
-#### **✅ Working Endpoints (Backend Operational)**
-- **GET `/health`** → 200 OK
-- **Root endpoint** → 200 OK
-- **Backend service**: Running and responsive
+### **🔧 COMPREHENSIVE FIXES IMPLEMENTED**
+1. **Routing Architecture**:
+   - ✅ `spark-realm/src/main.tsx`: HashRouter → BrowserRouter
+   - ✅ `spark-realm/src/App.tsx`: Eliminated redirect loops
+   - ✅ `spark-realm/vercel.json`: Enhanced SPA routing and API proxying
 
-### **🎉 BREAKTHROUGH: Root Cause Analysis Complete**
+2. **Authentication Service**:
+   - ✅ `spark-realm/src/services/authService.ts`: Enhanced debugging and validation
+   - ✅ `spark-realm/src/pages/Auth.tsx`: Network connectivity checks
+   - ✅ Environment variable validation and error handling
 
-#### **✅ CRITICAL DISCOVERY: Authentication Architecture Flaw**
-1. **Mock Authentication Problem**:
-   - ✅ **Issue Found**: App was using hardcoded mock users instead of real Supabase Auth
-   - ✅ **Impact**: RLS policies blocked all database access for mock users
-   - ✅ **Evidence**: `auth.uid()` returned `null`, causing `PGRST116: 0 rows returned`
-   - ✅ **Solution**: Implemented proper Supabase JWT authentication with development fallback
+3. **Mock Service Elimination** (3rd time was the charm!):
+   - ✅ Removed all problematic development mode fallbacks
+   - ✅ Fixed API service authentication requirements
+   - ✅ Backend journal router authentication cleanup
 
-2. **Database Security Issues**:
-   - ✅ **Issue Found**: Row Level Security policies expected real authenticated users
-   - ✅ **Impact**: All database queries blocked for security reasons
-   - ✅ **Evidence**: No users appearing in Supabase Auth dashboard
-   - ✅ **Solution**: Authentication now creates real Supabase users with proper access control
+---
 
-#### **✅ COMPREHENSIVE FIXES IMPLEMENTED**
-1. **Backend Authentication Overhaul** (`backend/app/routers/auth.py`):
-   - ✅ Real Supabase Auth integration with JWT token validation
-   - ✅ User signup/signin endpoints using Supabase Auth service
-   - ✅ Development mode fallback for testing without Supabase credentials
-   - ✅ Proper error handling and security measures
+## 🎯 **IMMEDIATE PRIORITY: DEVELOPMENT ENVIRONMENT SETUP**
 
-2. **Frontend Authentication Service** (`spark-realm/src/services/authService.ts`):
-   - ✅ Complete Supabase client integration
-   - ✅ Token storage and automatic inclusion in API requests
-   - ✅ Development mode detection and fallback
-   - ✅ Auth state management and session handling
+### **🔧 CRITICAL TASK: Dev Environment Architecture**
+**Priority**: ❗ **HIGHEST** - Essential for stable production workflow  
+**Goal**: Separate development environment for testing while production remains stable for users
 
-3. **API Service Updates** (`spark-realm/src/services/api.ts`):
-   - ✅ Automatic JWT token inclusion in requests
-   - ✅ 401 error handling with redirect to login
-   - ✅ Development mode user ID fallback
-   - ✅ Improved error handling and logging
+#### **Requirements**:
+1. **Vercel Preview Deployments**:
+   - Automatic preview deployments for feature branches
+   - Environment-specific configuration (dev vs prod)
+   - Isolated testing environment for new features
 
-### **🔍 Root Cause Analysis**
+2. **Railway Development Instance**:
+   - Separate Railway service for development backend
+   - Dev-specific database (Supabase development project or separate schema)
+   - Development environment variables and configuration
 
-**Most Likely Issue**: **Router Mount Failure Due to Authentication Dependencies**
+3. **Branch Strategy**:
+   - `main` branch → Production deployment (stable for testers)
+   - `development` branch → Dev environment deployment
+   - Feature branches → Preview deployments
 
-**Evidence Supporting This Theory**:
-- ✅ Backend service is running (health endpoint works)
-- ✅ Journal router code exists and looks correct
-- ✅ Recent changes were deployed successfully
-- ❌ ALL journal endpoints return 404 (not individual endpoint issues)
-- ❌ Even basic test endpoint `/api/v1/journal/test` returns 404
-
-**This suggests the entire journal router is failing to mount, most likely due to:**
-1. **Import errors** during router registration in `main.py`
-2. **Authentication dependency failures** preventing router initialization
-3. **Database connection issues** blocking service dependencies
-4. **Environment variable issues** in Railway production environment
-
-### **🎯 Immediate Next Steps**
-
-#### **Priority 1: Diagnostic Investigation**
-1. **Railway Logs Analysis**:
+4. **Environment Configuration**:
    ```bash
-   # Check for startup errors, import failures, authentication issues
-   railway logs --tail 100
-   railway logs --follow
+   # Production Environment
+   VITE_API_URL=https://pulsecheck-mobile-app-production.up.railway.app
+   VITE_SUPABASE_URL=https://qwpwlubxhtuzvmvajjjr.supabase.co
+   
+   # Development Environment  
+   VITE_API_URL=https://pulsecheck-mobile-app-dev.up.railway.app
+   VITE_SUPABASE_URL=https://dev-qwpwlubxhtuzvmvajjjr.supabase.co
    ```
 
-2. **Router Registration Verification**:
-   ```python
-   # Verify in main.py that journal router is properly included
-   app.include_router(journal.router, prefix="/api/v1")
-   ```
-
-3. **Authentication Dependency Check**:
-   ```python
-   # Test if auth imports are causing circular dependencies
-   from app.routers.journal import router
-   ```
-
-#### **Priority 2: Quick Fix Options**
-1. **Minimal Router Test**: Create journal router without auth dependencies
-2. **Health Check Addition**: Add journal-specific health endpoint  
-3. **Fallback Authentication**: Implement simple mock auth for testing
-
-#### **Priority 3: Validation & Testing**
-1. **Endpoint Testing**: Use `test_endpoints.py` to verify fixes
-2. **User Flow Testing**: Complete journal entry creation flow
-3. **Production Monitoring**: Confirm all endpoints return 200 OK
+#### **Benefits**:
+- ✅ **Stable Production**: Testers have consistent working environment
+- ✅ **Safe Development**: New features tested without affecting users
+- ✅ **Faster Iteration**: Development changes don't disrupt production
+- ✅ **Proper Testing**: Features fully validated before production deployment
 
 ---
 
