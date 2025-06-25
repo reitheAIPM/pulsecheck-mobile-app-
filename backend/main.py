@@ -619,21 +619,43 @@ try:
     
     app.include_router(adaptive_ai_router, prefix="/api/v1")
     
-    # Debug middleware router - using absolute import
+    # Debug middleware router - enhanced import with detailed logging
     try:
+        logger.info("🔄 Attempting to import debug router...")
         import app.routers.debug as debug_module
+        logger.info("✅ Debug module imported successfully")
+        
         app.include_router(debug_module.router, prefix="/api/v1")
-        logger.info("Debug middleware router loaded successfully")
+        logger.info("✅ Debug middleware router loaded successfully")
+        
+        # Log available routes for verification
+        debug_routes = [route.path for route in debug_module.router.routes]
+        logger.info(f"📋 Debug router endpoints available: {debug_routes}")
+        
     except Exception as e:
-        logger.error(f"Failed to import debug router: {e}")
+        logger.error(f"❌ Failed to import debug router: {e}")
+        logger.error(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"❌ Full traceback: {traceback.format_exc()}")
     
-    # AI Debugging router - using absolute import
+    # AI Debugging router - enhanced import with detailed logging  
     try:
+        logger.info("🔄 Attempting to import AI debug router...")
         import app.routers.ai_debug as ai_debug_module
+        logger.info("✅ AI debug module imported successfully")
+        
         app.include_router(ai_debug_module.router, prefix="/api/v1")
-        logger.info("AI debug router loaded successfully")
+        logger.info("✅ AI debug router loaded successfully")
+        
+        # Log available routes for verification
+        ai_debug_routes = [route.path for route in ai_debug_module.router.routes]
+        logger.info(f"📋 AI debug router endpoints available: {ai_debug_routes}")
+        
     except Exception as e:
-        logger.error(f"Failed to import ai_debug router: {e}")
+        logger.error(f"❌ Failed to import ai_debug router: {e}")
+        logger.error(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"❌ Full traceback: {traceback.format_exc()}")
     
     if hasattr(debugging, 'router'):
         app.include_router(debugging.router, prefix="/api/v1")
