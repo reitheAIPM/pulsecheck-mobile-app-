@@ -346,9 +346,11 @@ class ApiService {
 
   async resetJournal(): Promise<any> {
     const result = await authService.getCurrentUser();
-    const userId = result.user?.id || authService.getDevelopmentUser().id;
+    if (!result.user?.id) {
+      throw new Error('Authentication required for journal reset');
+    }
     
-    const response = await this.client.delete(`/api/v1/journal/reset/${userId}`, {
+    const response = await this.client.delete(`/api/v1/journal/reset/${result.user.id}`, {
       params: { confirm: true }
     });
     return response.data;

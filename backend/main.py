@@ -181,6 +181,10 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
 # Add custom CORS middleware - this handles all CORS logic
 app.add_middleware(CustomCORSMiddleware)
 
+# Add debug middleware for comprehensive monitoring
+from .app.middleware.debug_middleware import DebugMiddleware
+app.add_middleware(DebugMiddleware)
+
 # Security middleware
 app.add_middleware(
     TrustedHostMiddleware,
@@ -618,6 +622,10 @@ try:
     # AI Debugging router
     from .app.routers.ai_debug import router as ai_debug_router
     app.include_router(ai_debug_router, prefix="/api/v1")
+    
+    # Debug middleware router
+    from .app.routers.debug import router as debug_router
+    app.include_router(debug_router, prefix="/api/v1")
     
     if hasattr(debugging, 'router'):
         app.include_router(debugging.router, prefix="/api/v1")
