@@ -133,7 +133,8 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
             "https://pulse-check.vercel.app",
             "https://pulsecheck-web.vercel.app",
             "https://pulsecheck-app.vercel.app",
-            "https://pulsecheck-mobile.vercel.app"
+            "https://pulsecheck-mobile.vercel.app",
+            "https://pulsecheck-mobile-2objhn451-reitheaipms-projects.vercel.app"  # Current working deployment
         ]
         
         # Allow any Vercel preview domains
