@@ -4,13 +4,19 @@ Provides endpoints for accessing middleware debugging data
 """
 
 from fastapi import APIRouter, Request, HTTPException, Query
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
+import json
+import traceback
+import os
 
 from ..core.security import limiter
 from ..middleware.debug_middleware import debug_store, get_debug_summary, get_request_debug_info
+
+# Add console logging for visibility
+import sys
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/debug", tags=["debugging"])
@@ -27,14 +33,22 @@ async def get_debug_summary_endpoint(request: Request):
     - Slow requests analysis
     - Database operation statistics
     """
+    print("🔁 /api/v1/debug/summary endpoint hit - generating system overview")
+    sys.stdout.flush()  # Force immediate output
+    
     try:
         summary = get_debug_summary()
+        print(f"✅ Debug summary generated successfully: {summary}")
+        sys.stdout.flush()
         return {
             "status": "success",
             "timestamp": datetime.now().isoformat(),
             "debug_summary": summary
         }
     except Exception as e:
+        error_msg = f"❌ Error in debug summary: {str(e)}"
+        print(error_msg)
+        sys.stdout.flush()
         logger.error(f"Debug summary failed: {e}")
         raise HTTPException(status_code=500, detail=f"Debug summary failed: {str(e)}")
 
@@ -50,12 +64,17 @@ async def get_request_details(request: Request, request_id: str):
     - All database operations for the request
     - Performance analysis
     """
+    print(f"🔁 /api/v1/debug/requests/{request_id} endpoint hit")
+    sys.stdout.flush()
+    
     try:
         details = get_request_debug_info(request_id)
         
         if not details["request"]:
             raise HTTPException(status_code=404, detail="Request not found in debug store")
         
+        print(f"✅ Debug request detail: {details}")
+        sys.stdout.flush()
         return {
             "status": "success",
             "request_id": request_id,
@@ -64,6 +83,9 @@ async def get_request_details(request: Request, request_id: str):
     except HTTPException:
         raise
     except Exception as e:
+        error_msg = f"❌ Error in debug request detail: {str(e)}"
+        print(error_msg)
+        sys.stdout.flush()
         logger.error(f"Get request details failed: {e}")
         raise HTTPException(status_code=500, detail=f"Get request details failed: {str(e)}")
 
@@ -83,6 +105,9 @@ async def get_recent_requests(
     - errors: Only requests with errors
     - slow: Only slow requests (>min_time_ms)
     """
+    print(f"🔁 /api/v1/debug/requests endpoint hit - limit:{limit}, errors:{filter_type == 'errors'}, slow:{filter_type == 'slow'}")
+    sys.stdout.flush()
+    
     try:
         if filter_type == "errors":
             requests = debug_store.get_error_requests(limit)
@@ -91,6 +116,8 @@ async def get_recent_requests(
         else:
             requests = debug_store.get_recent_requests(limit)
         
+        print(f"✅ Debug requests data: {requests}")
+        sys.stdout.flush()
         return {
             "status": "success",
             "filter_applied": filter_type or "all",
@@ -99,6 +126,9 @@ async def get_recent_requests(
             "requests": requests
         }
     except Exception as e:
+        error_msg = f"❌ Error in debug requests: {str(e)}"
+        print(error_msg)
+        sys.stdout.flush()
         logger.error(f"Get recent requests failed: {e}")
         raise HTTPException(status_code=500, detail=f"Get recent requests failed: {str(e)}")
 
@@ -117,15 +147,23 @@ async def get_database_stats(
     - Performance metrics
     - Error rates
     """
+    print("🔁 /api/v1/debug/database/stats endpoint hit")
+    sys.stdout.flush()
+    
     try:
         stats = debug_store.get_database_stats(minutes_back)
         
+        print(f"✅ Database stats: {stats}")
+        sys.stdout.flush()
         return {
             "status": "success",
             "time_period_minutes": minutes_back,
             "database_stats": stats
         }
     except Exception as e:
+        error_msg = f"❌ Error in database stats: {str(e)}"
+        print(error_msg)
+        sys.stdout.flush()
         logger.error(f"Get database stats failed: {e}")
         raise HTTPException(status_code=500, detail=f"Get database stats failed: {str(e)}")
 
@@ -144,6 +182,9 @@ async def get_performance_analysis(
     - Error frequency analysis
     - Performance recommendations
     """
+    print("🔁 /api/v1/debug/performance/analysis endpoint hit")
+    sys.stdout.flush()
+    
     try:
         recent_requests = debug_store.get_recent_requests(limit)
         
@@ -194,11 +235,16 @@ async def get_performance_analysis(
             "performance_grade": _calculate_performance_grade(percentiles, error_rate, avg_db_ops)
         }
         
+        print(f"✅ Performance analysis: {analysis}")
+        sys.stdout.flush()
         return {
             "status": "success",
             "analysis": analysis
         }
     except Exception as e:
+        error_msg = f"❌ Error in performance analysis: {str(e)}"
+        print(error_msg)
+        sys.stdout.flush()
         logger.error(f"Performance analysis failed: {e}")
         raise HTTPException(status_code=500, detail=f"Performance analysis failed: {str(e)}")
 
@@ -299,6 +345,9 @@ async def run_comprehensive_edge_tests(request: Request):
     
     Tests every possible failure point and provides AI-ready analysis
     """
+    print("🔁 /api/v1/debug/edge-testing/comprehensive endpoint hit - running comprehensive tests")
+    sys.stdout.flush()
+    
     try:
         edge_test_results = {
             "test_run_id": str(uuid.uuid4()),
@@ -649,12 +698,17 @@ async def run_comprehensive_edge_tests(request: Request):
         else:
             edge_test_results["overall_status"] = "poor"
         
+        print(f"✅ Comprehensive edge testing completed: {edge_test_results}")
+        sys.stdout.flush()
         return {
             "status": "success",
             "edge_test_results": edge_test_results
         }
         
     except Exception as e:
+        error_msg = f"❌ Error in comprehensive edge testing: {str(e)}"
+        print(error_msg)
+        sys.stdout.flush()
         logger.error(f"Comprehensive edge testing failed: {e}")
         raise HTTPException(status_code=500, detail=f"Edge testing failed: {str(e)}")
 
@@ -666,6 +720,9 @@ async def analyze_potential_failure_points(request: Request):
     
     Provides comprehensive analysis of where failures might occur
     """
+    print("🔁 /api/v1/debug/failure-points/analysis endpoint hit - analyzing failure points")
+    sys.stdout.flush()
+    
     try:
         failure_analysis = {
             "analysis_id": str(uuid.uuid4()),
@@ -847,12 +904,17 @@ async def analyze_potential_failure_points(request: Request):
             "Implement comprehensive logging and tracing"
         ])
         
+        print(f"✅ Failure point analysis completed: {failure_analysis}")
+        sys.stdout.flush()
         return {
             "status": "success",
             "failure_analysis": failure_analysis
         }
         
     except Exception as e:
+        error_msg = f"❌ Error in failure point analysis: {str(e)}"
+        print(error_msg)
+        sys.stdout.flush()
         logger.error(f"Failure point analysis failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failure analysis failed: {str(e)}")
 
@@ -864,6 +926,9 @@ async def get_comprehensive_ai_insights(request: Request):
     
     Provides structured analysis perfect for AI decision making
     """
+    print("🔁 /api/v1/debug/ai-insights/comprehensive endpoint hit - generating AI insights")
+    sys.stdout.flush()
+    
     try:
         insights = {
             "analysis_id": str(uuid.uuid4()),
@@ -1056,12 +1121,17 @@ async def get_comprehensive_ai_insights(request: Request):
             ]
         }
         
+        print(f"✅ AI comprehensive insights generated: {insights}")
+        sys.stdout.flush()
         return {
             "status": "success",
             "ai_insights": insights
         }
         
     except Exception as e:
+        error_msg = f"❌ Error in AI comprehensive insights: {str(e)}"
+        print(error_msg)
+        sys.stdout.flush()
         logger.error(f"AI insights generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"AI insights failed: {str(e)}")
 
@@ -1076,6 +1146,9 @@ async def record_ai_learning_feedback(
     
     Allows AI to learn from successful/failed debugging attempts
     """
+    print(f"🔁 /api/v1/debug/ai-learning/feedback endpoint hit - processing feedback: {feedback_data}")
+    sys.stdout.flush()
+    
     try:
         learning_record = {
             "feedback_id": str(uuid.uuid4()),
@@ -1134,6 +1207,8 @@ async def record_ai_learning_feedback(
                 "total_uses": stats["total"]
             }
         
+        print(f"✅ AI learning feedback processed: {learning_insights}")
+        sys.stdout.flush()
         return {
             "status": "success",
             "feedback_recorded": learning_record,
@@ -1141,6 +1216,9 @@ async def record_ai_learning_feedback(
         }
         
     except Exception as e:
+        error_msg = f"❌ Error in AI learning feedback: {str(e)}"
+        print(error_msg)
+        sys.stdout.flush()
         logger.error(f"AI learning feedback recording failed: {e}")
         raise HTTPException(status_code=500, detail=f"Learning feedback failed: {str(e)}")
 
@@ -1189,9 +1267,14 @@ async def get_current_risk_analysis(request: Request, time_window: int = 60):
     
     Uses the enhanced risk analysis from the debug store
     """
+    print("🔁 /api/v1/debug/risk-analysis/current endpoint hit - analyzing current risks")
+    sys.stdout.flush()
+    
     try:
         risk_analysis = debug_store.get_enhanced_risk_analysis(time_window)
         
+        print(f"✅ Current risk analysis completed: {risk_analysis}")
+        sys.stdout.flush()
         return {
             "status": "success",
             "risk_analysis": risk_analysis,
@@ -1203,5 +1286,8 @@ async def get_current_risk_analysis(request: Request, time_window: int = 60):
         }
         
     except Exception as e:
+        error_msg = f"❌ Error in current risk analysis: {str(e)}"
+        print(error_msg)
+        sys.stdout.flush()
         logger.error(f"Current risk analysis failed: {e}")
         raise HTTPException(status_code=500, detail=f"Risk analysis failed: {str(e)}") 

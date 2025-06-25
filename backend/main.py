@@ -23,6 +23,8 @@ from dotenv import load_dotenv
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Dict, Any
 from datetime import datetime
+import sys
+import traceback
 
 # Load environment variables
 load_dotenv()
@@ -599,86 +601,105 @@ async def record_ai_debugging_attempt(error_id: str, attempt_details: Dict[str, 
 # Note: OPTIONS requests are handled by CustomCORSMiddleware above
 # No need for additional OPTIONS handler as it causes conflicts
 
-# Include routers - handle both imported and fallback routers
-try:
-    if hasattr(auth, 'router'):
-        app.include_router(auth.router, prefix="/api/v1")
-    else:
-        app.include_router(auth, prefix="/api/v1")
-    
-    if hasattr(journal, 'router'):
-        app.include_router(journal.router, prefix="/api/v1")
-    else:
-        app.include_router(journal, prefix="/api/v1")
-    
-    if hasattr(checkins, 'router'):
-        app.include_router(checkins.router, prefix="/api/v1")
-    else:
-        app.include_router(checkins, prefix="/api/v1")
-    
-    if hasattr(admin, 'router'):
-        app.include_router(admin.router, prefix="/api/v1")
-    else:
-        app.include_router(admin, prefix="/api/v1")
-    
-    app.include_router(adaptive_ai_router, prefix="/api/v1")
-    
-    # Debug middleware router - enhanced import with detailed logging
+# Router registration with enhanced debugging
+def register_routers():
+    """Register all API routers with comprehensive error handling"""
     try:
-        logger.info("🔄 Attempting to import debug router...")
-        from app.routers import debug as debug_module
-        logger.info("✅ Debug module imported successfully")
+        print("🔄 Starting router registration...")
+        sys.stdout.flush()
         
-        app.include_router(debug_module.router, prefix="/api/v1")
-        logger.info("✅ Debug middleware router loaded successfully")
-        
-        # Log available routes for verification
-        debug_routes = [route.path for route in debug_module.router.routes]
-        logger.info(f"📋 Debug router endpoints available: {debug_routes}")
-        
+        # Core routers
+        print("🔄 Importing auth router...")
+        sys.stdout.flush()
+        import app.routers.auth as auth_module
+        print("✅ Auth router imported successfully")
+        sys.stdout.flush()
+        app.include_router(auth_module.router, prefix="/auth", tags=["authentication"])
+        print("✅ Auth router registered")
+        sys.stdout.flush()
+
+        print("🔄 Importing journal router...")
+        sys.stdout.flush()
+        import app.routers.journal as journal_module
+        print("✅ Journal router imported successfully")
+        sys.stdout.flush()
+        app.include_router(journal_module.router, prefix="/api/v1/journal", tags=["journal"])
+        print("✅ Journal router registered")
+        sys.stdout.flush()
+
+        print("🔄 Importing adaptive AI router...")
+        sys.stdout.flush()
+        import app.routers.adaptive_ai as adaptive_ai_module
+        print("✅ Adaptive AI router imported successfully")
+        sys.stdout.flush()
+        app.include_router(adaptive_ai_module.router, prefix="/api/v1/adaptive-ai", tags=["adaptive-ai"])
+        print("✅ Adaptive AI router registered")
+        sys.stdout.flush()
+
+        print("🔄 Importing checkins router...")
+        sys.stdout.flush()
+        import app.routers.checkins as checkins_module
+        print("✅ Checkins router imported successfully")
+        sys.stdout.flush()
+        app.include_router(checkins_module.router, prefix="/api/v1/checkins", tags=["checkins"])
+        print("✅ Checkins router registered")
+        sys.stdout.flush()
+
+        print("🔄 Importing monitoring router...")
+        sys.stdout.flush()
+        import app.routers.monitoring as monitoring_module
+        print("✅ Monitoring router imported successfully")
+        sys.stdout.flush()
+        app.include_router(monitoring_module.router, prefix="/api/v1/monitoring", tags=["monitoring"])
+        print("✅ Monitoring router registered")
+        sys.stdout.flush()
+
+        # Debug router with enhanced error handling
+        print("🔄 Attempting to import debug router...")
+        sys.stdout.flush()
+        try:
+            import app.routers.debug as debug_module
+            print("✅ Debug module imported successfully")
+            sys.stdout.flush()
+            
+            print("🔄 Registering debug router...")
+            sys.stdout.flush()
+            app.include_router(debug_module.router, prefix="/api/v1/debug", tags=["debug"])
+            print("✅ Debug router registered successfully!")
+            sys.stdout.flush()
+            
+        except Exception as debug_error:
+            print(f"❌ Debug router import/registration failed: {debug_error}")
+            print(f"❌ Debug router traceback: {traceback.format_exc()}")
+            sys.stdout.flush()
+            # Continue without debug router rather than failing completely
+            pass
+
+        # Admin router
+        print("🔄 Importing admin router...")
+        sys.stdout.flush()
+        import app.routers.admin as admin_module
+        print("✅ Admin router imported successfully")
+        sys.stdout.flush()
+        app.include_router(admin_module.router, prefix="/api/v1/admin", tags=["admin"])
+        print("✅ Admin router registered")
+        sys.stdout.flush()
+
+        print("🎉 All routers registered successfully!")
+        sys.stdout.flush()
+
     except Exception as e:
-        logger.error(f"❌ Failed to import debug router: {e}")
-        logger.error(f"❌ Error type: {type(e).__name__}")
-        import traceback
-        logger.error(f"❌ Full traceback: {traceback.format_exc()}")
-    
-    # AI Debugging router - enhanced import with detailed logging  
-    try:
-        logger.info("🔄 Attempting to import AI debug router...")
-        from app.routers import ai_debug as ai_debug_module
-        logger.info("✅ AI debug module imported successfully")
-        
-        app.include_router(ai_debug_module.router, prefix="/api/v1")
-        logger.info("✅ AI debug router loaded successfully")
-        
-        # Log available routes for verification
-        ai_debug_routes = [route.path for route in ai_debug_module.router.routes]
-        logger.info(f"📋 AI debug router endpoints available: {ai_debug_routes}")
-        
-    except Exception as e:
-        logger.error(f"❌ Failed to import ai_debug router: {e}")
-        logger.error(f"❌ Error type: {type(e).__name__}")
-        import traceback
-        logger.error(f"❌ Full traceback: {traceback.format_exc()}")
-    
-    if hasattr(debugging, 'router'):
-        app.include_router(debugging.router, prefix="/api/v1")
-    else:
-        app.include_router(debugging, prefix="/api/v1")
-        
-except Exception as e:
-    logger.error(f"Error registering routers: {e}")
-    # Continue without problematic routers
+        print(f"❌ ERROR: Router registration failed: {e}")
+        print(f"❌ Full traceback: {traceback.format_exc()}")
+        sys.stdout.flush()
+        raise e
+
+# Call router registration
+register_routers()
 
 @app.get("/")
 async def root():
-    """Root endpoint with basic info"""
-    return {
-        "message": "PulseCheck API",
-        "version": "1.0.1-cors-test",
-        "status": "running",
-        "timestamp": time.time()
-    }
+    return {"message": "PulseCheck API is running", "version": "1.0.0"}
 
 if __name__ == "__main__":
     import uvicorn
