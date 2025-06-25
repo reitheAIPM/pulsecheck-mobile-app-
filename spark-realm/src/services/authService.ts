@@ -147,27 +147,31 @@ class AuthService {
     return this.signOut();
   }
 
-  async getCurrentUser(): Promise<{ user: User | null }> {
+  async getCurrentUser(): Promise<{ user: User | null; error: string | null }> {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      // Always try Supabase authentication first
+      const { data: { user: supabaseUser }, error } = await supabase.auth.getUser();
       
-      if (error) throw error;
-      
-      if (user) {
-        return {
-          user: {
-            id: user.id,
-            email: user.email || '',
-            name: user.user_metadata?.name || 'User',
-            tech_role: user.user_metadata?.tech_role || 'user'
-          }
-        };
+      if (error) {
+        console.error('❌ Auth error:', error.message);
+        return { user: null, error: error.message };
       }
-      
-      return { user: null };
+
+      if (!supabaseUser) {
+        return { user: null, error: 'No authenticated user' };
+      }
+
+      const user: User = {
+        id: supabaseUser.id,
+        email: supabaseUser.email || '',
+        name: supabaseUser.user_metadata?.name || 'User',
+        tech_role: supabaseUser.user_metadata?.tech_role || 'user'
+      };
+
+      return { user, error: null };
     } catch (error) {
-      console.error('Get user error:', error);
-      return { user: null };
+      console.error('❌ getCurrentUser error:', error);
+      return { user: null, error: 'Authentication failed' };
     }
   }
 
@@ -220,18 +224,14 @@ class AuthService {
     });
   }
 
-  // Development mode fallback
+  // Remove development mode fallback - always use real authentication
   getDevelopmentUser(): User {
-    return {
-      id: 'user_reiale01gmailcom_1750733000000',
-      email: 'rei.ale01@gmail.com',
-      name: 'Rei (Development User)',
-      tech_role: 'beta_tester'
-    };
+    throw new Error('Development mode disabled - use real authentication only');
   }
 
   isDevelopmentMode(): boolean {
-    return !supabaseUrl.includes('supabase.co') || !supabaseAnonKey || supabaseAnonKey === 'your-anon-key';
+    // Always return false - no more development mode fallbacks
+    return false;
   }
 }
 

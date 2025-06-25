@@ -75,8 +75,8 @@ class UserPreferencesService:
     async def save_user_preferences(self, preferences: UserAIPreferences) -> bool:
         """Save user AI preferences"""
         try:
-            # Update timestamp
-            preferences.updated_at = datetime.utcnow()
+            # Update timestamp as string
+            preferences.updated_at = datetime.utcnow().isoformat()
             
             # Save to database (mock for now, will implement with Supabase)
             success = await self._save_preferences_to_db(preferences)

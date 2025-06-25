@@ -137,7 +137,7 @@ const Profile = () => {
     loadSubscriptionStatus();
     loadUserProfile();
     loadAIPreferences();
-    testApiConnection();
+    handleTestApiConnection();
     checkAuthStatus();
   }, []);
 
@@ -153,25 +153,11 @@ const Profile = () => {
           expires_at: session?.expires_at
         });
       } else {
-        // Fall back to development user if no real session
-        if (authService.isDevelopmentMode()) {
-          const devUser = authService.getDevelopmentUser();
-          setUserSession({
-            user: devUser,
-            expires_at: null // Development sessions don't expire
-          });
-        } else {
-          setUserSession(null);
-        }
+        setUserSession(null);
       }
     } catch (error) {
-      console.log('No active auth session found, using development user');
-      // Always show development user info as fallback
-      const devUser = authService.getDevelopmentUser();
-      setUserSession({
-        user: devUser,
-        expires_at: null
-      });
+      console.log('No active auth session found');
+      setUserSession(null);
     }
   };
 
@@ -180,8 +166,11 @@ const Profile = () => {
     try {
       await authService.logout();
       setUserSession(null);
-      // Optionally redirect to home or auth page
-      navigate('/');
+      // Clear any cached data
+      localStorage.removeItem('lastAIResponse');
+      localStorage.removeItem('journalEntries');
+      // Redirect to login page for account switching
+      navigate('/auth');
     } catch (error) {
       console.error('Error signing out:', error);
     } finally {
@@ -189,12 +178,13 @@ const Profile = () => {
     }
   };
 
-  const testApiConnection = async () => {
+  const handleTestApiConnection = async () => {
+    setApiStatus('loading');
     try {
-      const isConnected = await apiService.testConnection();
-      setApiStatus(isConnected ? 'connected' : 'error');
+      await apiService.testConnection();
+      setApiStatus('connected');
     } catch (error) {
-      console.error('API connection test failed:', error);
+      console.error('❌ API test failed:', error);
       setApiStatus('error');
     }
   };
@@ -204,9 +194,11 @@ const Profile = () => {
       case 'loading':
         return 'Testing connection...';
       case 'connected':
-        return 'Backend connected';
+        return 'API connection successful';
       case 'error':
-        return 'Backend disconnected';
+        return 'API connection failed';
+      default:
+        return 'Connection not tested';
     }
   };
 
@@ -353,9 +345,12 @@ const Profile = () => {
   const handlePremiumToggle = async (enabled: boolean) => {
     setPremiumToggleLoading(true);
     try {
-      // Use the same user ID resolution as API service for consistency
+      // Use proper authentication - require user to be logged in
       const userResult = await authService.getCurrentUser();
-      const resolvedUserId = userResult?.user?.id || authService.getDevelopmentUser().id;
+      if (!userResult?.user?.id) {
+        throw new Error('Authentication required for premium toggle');
+      }
+      const resolvedUserId = userResult.user.id;
       
       const result = await apiService.toggleBetaPremium({
         user_id: resolvedUserId,
@@ -453,9 +448,12 @@ const Profile = () => {
       // Update local state immediately for responsive UI
       setAiSettings(prev => ({ ...prev, [settingKey]: value }));
       
-      // Save to backend - use consistent user ID resolution
+      // Save to backend - require proper authentication
       const userResult = await authService.getCurrentUser();
-      const resolvedUserId = userResult?.user?.id || authService.getDevelopmentUser().id;
+      if (!userResult?.user?.id) {
+        throw new Error('Authentication required to save AI settings');
+      }
+      const resolvedUserId = userResult.user.id;
       await apiService.updateUserPreference(resolvedUserId, settingKey, value);
       
       console.log(`AI setting ${settingKey} saved successfully:`, value);
@@ -470,9 +468,12 @@ const Profile = () => {
     try {
       // Save AI interaction level and other persona settings
       if (settings.aiInteractionLevel) {
-        // Use consistent user ID resolution
+        // Require proper authentication for persona settings
         const userResult = await authService.getCurrentUser();
-        const resolvedUserId = userResult?.user?.id || authService.getDevelopmentUser().id;
+        if (!userResult?.user?.id) {
+          throw new Error('Authentication required to save persona settings');
+        }
+        const resolvedUserId = userResult.user.id;
         await apiService.updateUserPreference(resolvedUserId, 'response_frequency', settings.aiInteractionLevel);
       }
       
@@ -1150,7 +1151,7 @@ const Profile = () => {
             <StatusIndicator
               status={apiStatus === 'loading' ? 'loading' : apiStatus === 'connected' ? 'success' : 'error'}
               message={getStatusMessage()}
-              onRetry={apiStatus === 'error' ? testApiConnection : undefined}
+              onRetry={apiStatus === 'error' ? handleTestApiConnection : undefined}
               className="mb-2"
             />
             <div className="text-xs text-muted-foreground space-y-1">

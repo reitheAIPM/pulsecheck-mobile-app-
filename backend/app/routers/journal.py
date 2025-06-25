@@ -3,6 +3,7 @@ from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
 import logging
+from fastapi import status
 
 from app.models.journal import (
     JournalEntryCreate, JournalEntryResponse, JournalEntriesResponse,
@@ -75,44 +76,44 @@ async def test_ai_response():
             "status": "error"
         }
 
-# Mock user dependency for MVP with browser session support
-async def get_current_user_with_request(request: Request):
+# Remove mock user dependency for MVP - use proper authentication only
+async def get_current_user_from_request(request: Request):
     """
-    Authentication dependency that works with both Supabase Auth and development mode
+    Authentication dependency that requires proper Supabase Auth
     """
     try:
-        # Try to get authorization header
+        # Require authorization header
         auth_header = request.headers.get('Authorization')
-        if auth_header and auth_header.startswith('Bearer '):
-            # Import here to avoid circular imports
-            from .auth import get_current_user_from_token
-            from fastapi.security import HTTPAuthorizationCredentials
-            
-            credentials = HTTPAuthorizationCredentials(
-                scheme="Bearer",
-                credentials=auth_header.split(' ')[1]
+        if not auth_header or not auth_header.startswith('Bearer '):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authorization header required"
             )
-            
-            auth_user = await get_current_user_from_token(credentials, get_database())
-            return {
-                "id": auth_user.id,
-                "email": auth_user.email,
-                "tech_role": auth_user.user_metadata.get("tech_role", "user"),
-                "name": auth_user.user_metadata.get("name", "User")
-            }
+        
+        # Import here to avoid circular imports
+        from .auth import get_current_user_from_token
+        from fastapi.security import HTTPAuthorizationCredentials
+        
+        credentials = HTTPAuthorizationCredentials(
+            scheme="Bearer",
+            credentials=auth_header.split(' ')[1]
+        )
+        
+        auth_user = await get_current_user_from_token(credentials, get_database())
+        return {
+            "id": auth_user.id,
+            "email": auth_user.email,
+            "tech_role": auth_user.user_metadata.get("tech_role", "user"),
+            "name": auth_user.user_metadata.get("name", "User")
+        }
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
     except Exception as e:
-        # Fall through to development mode
-        logger.info(f"Falling back to development auth: {e}")
-    
-    # Development mode fallback
-    user_id = request.headers.get('X-User-Id', "user_reiale01gmailcom_1750733000000")
-    
-    return {
-        "id": user_id,
-        "email": "rei.ale01@gmail.com",
-        "tech_role": "beta_tester",
-        "name": "Rei (Development User)"
-    }
+        logger.error(f"Authentication failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed"
+        )
 
 # Wrapper for endpoints that don't need request
 async def get_current_user():
@@ -130,7 +131,7 @@ async def create_journal_entry(
     request: Request,
     entry: JournalEntryCreate,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user_with_request)
+    current_user: dict = Depends(get_current_user_from_request)
 ):
     """
     Create a new journal entry
@@ -345,7 +346,7 @@ async def get_journal_entries(
     page: int = 1,
     per_page: int = 10,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user_with_request)
+    current_user: dict = Depends(get_current_user_from_request)
 ):
     """
     Get paginated list of user's journal entries
@@ -528,7 +529,7 @@ async def delete_journal_entry(
     entry_id: str,
     request: Request,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user_with_request)
+    current_user: dict = Depends(get_current_user_from_request)
 ):
     """Delete a journal entry"""
     try:
@@ -547,7 +548,7 @@ async def reset_journal(
     request: Request,
     confirm: bool = False,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user_with_request)
+    current_user: dict = Depends(get_current_user_from_request)
 ):
     """
     Reset journal - delete all journal entries for a user

@@ -243,10 +243,10 @@ class ApiService {
         
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
-        } else if (authService.isDevelopmentMode()) {
-          // Fallback to development mode
-          const devUser = authService.getDevelopmentUser();
-          config.headers['X-User-Id'] = devUser.id;
+        } else {
+          // No fallback to development mode - fail cleanly
+          console.warn('⚠️ No authentication token available for API request');
+          // Let the request proceed without auth - backend will handle 401 response
         }
 
         console.log(`🌐 API Request: ${config.method?.toUpperCase()} ${config.url}`);
@@ -376,18 +376,22 @@ class ApiService {
 
   async getUserPatterns(): Promise<UserPatterns> {
     const result = await authService.getCurrentUser();
-    const userId = result.user?.id || authService.getDevelopmentUser().id;
+    if (!result.user) {
+      throw new Error('Authentication required for user patterns');
+    }
     
-    const response = await this.client.get(`/api/v1/adaptive-ai/patterns/${userId}`);
+    const response = await this.client.get(`/api/v1/adaptive-ai/patterns/${result.user.id}`);
     return response.data;
   }
 
   async getAvailablePersonas(): Promise<PersonaInfo[]> {
     const result = await authService.getCurrentUser();
-    const userId = result.user?.id || authService.getDevelopmentUser().id;
+    if (!result.user) {
+      throw new Error('Authentication required for personas');
+    }
     
     const response = await this.client.get('/api/v1/adaptive-ai/personas', {
-      params: { user_id: userId }
+      params: { user_id: result.user.id }
     });
     // API returns personas array directly, not wrapped in an object
     return Array.isArray(response.data) ? response.data : response.data.personas || [];
@@ -395,9 +399,11 @@ class ApiService {
 
   async getSubscriptionStatus(): Promise<any> {
     const result = await authService.getCurrentUser();
-    const userId = result.user?.id || authService.getDevelopmentUser().id;
+    if (!result.user) {
+      throw new Error('Authentication required for subscription status');
+    }
     
-    const response = await this.client.get(`/api/v1/auth/subscription-status/${userId}`);
+    const response = await this.client.get(`/api/v1/auth/subscription-status/${result.user.id}`);
     return response.data;
   }
 
@@ -543,9 +549,26 @@ class ApiService {
   // User AI Preferences
   async getUserAIPreferences(userId?: string): Promise<UserAIPreferences> {
     const result = await authService.getCurrentUser();
-    const targetUserId = userId || result.user?.id || authService.getDevelopmentUser().id;
+    const targetUserId = userId || result.user?.id;
+    
+    if (!targetUserId) {
+      throw new Error('Authentication required for AI preferences');
+    }
     
     const response = await this.client.get(`/api/v1/adaptive-ai/preferences/${targetUserId}`);
+    
+    return response.data;
+  }
+
+  async updateUserAIPreferences(preferences: Partial<UserAIPreferences>, userId?: string): Promise<UserAIPreferences> {
+    const result = await authService.getCurrentUser();
+    const targetUserId = userId || result.user?.id;
+    
+    if (!targetUserId) {
+      throw new Error('Authentication required to update AI preferences');
+    }
+    
+    const response = await this.client.put(`/api/v1/adaptive-ai/preferences/${targetUserId}`, preferences);
     
     return response.data;
   }

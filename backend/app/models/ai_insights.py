@@ -224,7 +224,7 @@ class UserAIPreferences(BaseModel):
     multi_persona_enabled: bool = Field(False, description="Allow multiple personas to respond")
     
     # Persona Preferences
-    preferred_personas: List[str] = Field(default_factory=list, description="User's preferred personas")
+    preferred_personas: List[str] = Field(default_factory=lambda: ["pulse"], description="User's preferred personas")
     blocked_personas: List[str] = Field(default_factory=list, description="Personas user wants to avoid")
     
     # Response Preferences
@@ -236,6 +236,6 @@ class UserAIPreferences(BaseModel):
     pattern_analysis_enabled: bool = Field(True, description="Enable pattern learning")
     celebration_mode: bool = Field(True, description="Enable AI to celebrate user progress")
     
-    # Metadata
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="When preferences were created")
-    updated_at: datetime = Field(default_factory=datetime.utcnow, description="When preferences were last updated") 
+    # Metadata - use strings to match database format
+    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat(), description="When preferences were created")
+    updated_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat(), description="When preferences were last updated") 
