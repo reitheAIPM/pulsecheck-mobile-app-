@@ -25,7 +25,7 @@ import { StatusIndicator } from '@/components/ui/loading-states'
 interface User {
   id: string
   email: string
-  name: string
+  name?: string
 }
 
 function App() {
@@ -115,8 +115,8 @@ function App() {
             <Route path="/auth" element={<Auth />} />
             <Route path="/login" element={<Auth />} />
             <Route path="/register" element={<Auth />} />
-            {/* Redirect ALL other routes to auth when not authenticated */}
-            <Route path="*" element={<Navigate to="/auth" replace />} />
+            {/* For all other routes when not authenticated, show Auth page directly to avoid redirect loops */}
+            <Route path="*" element={<Auth />} />
           </Routes>
         )}
         <Toaster />
