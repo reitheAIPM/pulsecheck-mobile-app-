@@ -65,15 +65,9 @@ const Index = () => {
   
   useEffect(() => {
     const getUserId = async () => {
-      // The authToken IS the user ID in our mock auth system
-      const authToken = localStorage.getItem('authToken');
-      if (authToken) {
-        setUserId(authToken);
-      } else {
-        // Try to get user from authService as fallback
-        const { user } = await authService.getCurrentUser();
-        setUserId(user?.id || null);
-      }
+      // Get user from Supabase authentication
+      const { user } = await authService.getCurrentUser();
+      setUserId(user?.id || null);
     };
     getUserId();
   }, []);

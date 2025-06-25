@@ -435,32 +435,23 @@ class ApiService {
     }
   }
 
-  // User management (for mock auth integration)
+  // User management (using Supabase authentication)
   async getCurrentUser(): Promise<any> {
-    const authToken = localStorage.getItem('authToken');
-    const storedUser = localStorage.getItem('currentUser');
-    
-    if (authToken && storedUser) {
-      return JSON.parse(storedUser);
-    }
-    
-    return null;
+    // Delegate to authService for consistent authentication
+    const { user } = await authService.getCurrentUser();
+    return user;
   }
 
   async updateUserProfile(updates: any): Promise<any> {
-    const authToken = localStorage.getItem('authToken');
-    const storedUser = localStorage.getItem('currentUser');
-    
-    if (!authToken || !storedUser) {
-      throw new Error('No authenticated user');
+    // Ensure user is authenticated
+    const { user } = await authService.getCurrentUser();
+    if (!user) {
+      throw new Error('Authentication required to update profile');
     }
 
-    // Update user in localStorage for mock auth
-    const currentUser = JSON.parse(storedUser);
-    const updatedUser = { ...currentUser, ...updates };
-    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-
-    return updatedUser;
+    // Send updates to backend
+    const response = await this.client.patch(`/api/v1/user/profile/${user.id}`, updates);
+    return response.data;
   }
 
   // Analytics
