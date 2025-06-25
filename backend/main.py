@@ -616,12 +616,12 @@ async def record_ai_debugging_attempt(error_id: str, attempt_details: Dict[str, 
 def register_routers():
     """Register all API routers with comprehensive error handling"""
     try:
-        print("🔄 Starting router registration...")
-        sys.stdout.flush()
-        
-        # Use direct file imports instead of package imports to avoid resolution issues
+        # Import sys and os first before using them
         import sys
         import os
+        
+        print("🔄 Starting router registration...")
+        sys.stdout.flush()
         
         # Add the app directory to the Python path
         app_dir = os.path.join(os.path.dirname(__file__), 'app')
