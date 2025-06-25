@@ -72,9 +72,9 @@ export default function Auth() {
     const checkConnectivity = async () => {
       try {
         console.log('🌐 Testing network connectivity...');
-        // Use our own backend health endpoint instead of httpbin.org to avoid CORS issues
+        // Use GET instead of HEAD - the health endpoint doesn't support HEAD requests
         const response = await fetch('https://pulsecheck-mobile-app-production.up.railway.app/health', { 
-          method: 'HEAD',
+          method: 'GET',
           cache: 'no-cache'
         });
         if (response.ok) {
