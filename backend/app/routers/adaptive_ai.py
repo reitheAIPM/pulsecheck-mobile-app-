@@ -44,7 +44,7 @@ async def get_current_user_from_request(request: Request):
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/adaptive-ai", tags=["Adaptive AI"])
+router = APIRouter(tags=["Adaptive AI"])
 
 # Dependencies for service injection
 def get_journal_service(db = Depends(get_database)):

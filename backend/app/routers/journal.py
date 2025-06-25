@@ -19,7 +19,7 @@ from app.core.security import get_current_user, limiter, validate_input_length, 
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/journal", tags=["Journal"])
+router = APIRouter(tags=["Journal"])
 
 # Initialize PulseAI with database for beta optimization
 def get_pulse_ai_service(db: Database = Depends(get_database)):

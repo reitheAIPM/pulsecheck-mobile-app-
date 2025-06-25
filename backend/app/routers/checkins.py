@@ -7,7 +7,7 @@ Follows the API specification from ai/api-endpoints.md
 
 from fastapi import APIRouter
 
-router = APIRouter(prefix="/checkins", tags=["check-ins"])
+router = APIRouter(tags=["check-ins"])
 
 @router.get("/health")
 async def checkins_health():

@@ -73,7 +73,7 @@ except ImportError as e:
 import sys
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/debug", tags=["debugging"])
+router = APIRouter(tags=["debugging"])
 
 @router.get("/summary")
 @limiter.limit("20/minute")

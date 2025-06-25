@@ -15,7 +15,7 @@ from app.core.monitoring import (
 )
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/monitoring", tags=["monitoring"])
+router = APIRouter(tags=["monitoring"])
 
 # Pydantic models for frontend error logging
 class FrontendErrorRequest(BaseModel):

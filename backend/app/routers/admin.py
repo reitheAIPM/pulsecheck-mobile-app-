@@ -10,7 +10,7 @@ from datetime import date, datetime, timedelta, timezone
 from app.core.database import get_database, Database
 from app.services.cost_optimization import CostOptimizationService
 
-router = APIRouter(prefix="/admin")
+router = APIRouter()
 
 # Secure admin authentication
 from app.core.security import verify_admin, limiter

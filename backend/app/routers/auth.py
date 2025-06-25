@@ -21,7 +21,7 @@ from ..core.monitoring import log_error, ErrorSeverity, ErrorCategory
 from ..services.subscription_service import SubscriptionService
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/auth", tags=["authentication"])
+router = APIRouter(tags=["authentication"])
 
 # HTTP Bearer for JWT tokens
 security = HTTPBearer(auto_error=False)
