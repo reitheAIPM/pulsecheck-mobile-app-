@@ -219,23 +219,73 @@ class AuthService {
 
   getAuthToken(): string | null {
     try {
+      // First, try to get token from current Supabase session (most reliable)
+      const session = supabase.auth.getSession();
+      if (session) {
+        session.then(({ data: { session: currentSession } }) => {
+          if (currentSession?.access_token) {
+            // Update localStorage with fresh token if needed
+            localStorage.setItem('auth_tokens', JSON.stringify({
+              access_token: currentSession.access_token,
+              refresh_token: currentSession.refresh_token,
+              expires_at: currentSession.expires_at
+            }));
+          }
+        }).catch(console.error);
+      }
+
+      // Check localStorage for stored tokens
       const tokens = localStorage.getItem('auth_tokens');
       if (tokens) {
         const parsed = JSON.parse(tokens) as AuthTokens;
         
         // Check if token is expired
         if (parsed.expires_at && parsed.expires_at < Date.now() / 1000) {
+          console.log('🔄 Auth token expired, clearing localStorage');
           localStorage.removeItem('auth_tokens');
           return null;
         }
         
+        console.log('✅ Auth token retrieved successfully');
         return parsed.access_token;
       }
+
+      console.log('⚠️ No auth token found in localStorage');
+      return null;
     } catch (error) {
       console.error('Get auth token error:', error);
+      return null;
     }
-    
-    return null;
+  }
+
+  // New method to get token synchronously from current Supabase session
+  async getAuthTokenAsync(): Promise<string | null> {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Error getting session:', error);
+        return null;
+      }
+
+      if (session?.access_token) {
+        // Update localStorage with fresh token
+        localStorage.setItem('auth_tokens', JSON.stringify({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+          expires_at: session.expires_at
+        }));
+        
+        console.log('✅ Fresh auth token retrieved from Supabase session');
+        return session.access_token;
+      }
+
+      console.log('⚠️ No active Supabase session');
+      return null;
+    } catch (error) {
+      console.error('Get auth token async error:', error);
+      return null;
+    }
   }
 
   onAuthStateChange(callback: (user: User | null) => void) {

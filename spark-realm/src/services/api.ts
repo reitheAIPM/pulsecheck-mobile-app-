@@ -239,16 +239,22 @@ class ApiService {
 
     // Add request interceptor to include auth token
     this.client.interceptors.request.use(
-      (config) => {
+      async (config) => {
         // Get auth token from authService
-        const token = authService.getAuthToken();
+        let token = authService.getAuthToken();
+        
+        // If no token found, try to get fresh token from Supabase session
+        if (!token) {
+          console.log('🔄 No cached token found, trying to get fresh token from Supabase...');
+          token = await authService.getAuthTokenAsync();
+        }
         
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
+          console.log('🔑 Auth token added to request');
         } else {
-          // No fallback to development mode - fail cleanly
           console.warn('⚠️ No authentication token available for API request');
-          // Let the request proceed without auth - backend will handle 401 response
+          // Don't fail the request - let backend handle 401 response properly
         }
 
         console.log(`🌐 API Request: ${config.method?.toUpperCase()} ${config.url}`);
