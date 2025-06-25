@@ -164,8 +164,7 @@ const Profile = () => {
       // Clear any cached data
       localStorage.removeItem('lastAIResponse');
       localStorage.removeItem('journalEntries');
-      // Redirect to login page for account switching
-      navigate('/auth');
+      // Don't manually navigate - auth state change will handle redirect
     } catch (error) {
       console.error('Error signing out:', error);
     } finally {

@@ -52,6 +52,19 @@ function App() {
     }
 
     initializeAuth()
+
+    // Listen for auth state changes
+    const { data: { subscription } } = authService.onAuthStateChange((user) => {
+      console.log('Auth state changed:', user ? `User ${user.email} signed in` : 'User signed out')
+      setUser(user)
+    })
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    }
   }, [])
 
   // Show loading screen while checking authentication

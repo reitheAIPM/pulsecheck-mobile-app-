@@ -53,8 +53,7 @@ export default function Auth() {
         const { user: currentUser, error } = await authService.getCurrentUser();
         if (currentUser) {
           console.log('✅ User already authenticated:', currentUser.id);
-          // Use replace to prevent history issues
-          window.location.replace('/');
+          // Don't manually navigate - App.tsx auth state will handle this
           return;
         }
         console.log('ℹ️ No authenticated user found');
@@ -189,10 +188,8 @@ export default function Auth() {
             error: null 
           }));
           
-          // Use window.location.replace to prevent navigation throttling
-          setTimeout(() => {
-            window.location.replace('/');
-          }, 200);
+          // Auth state change will handle navigation automatically
+          // No manual navigation needed
         }
       } else {
         // Registration flow
@@ -224,10 +221,8 @@ export default function Auth() {
               error: null 
             }));
             
-            // Use window.location.replace to prevent navigation throttling
-            setTimeout(() => {
-              window.location.replace('/');
-            }, 200);
+            // Auth state change will handle navigation automatically
+            // No manual navigation needed
           } else {
             setState(prev => ({ 
               ...prev, 
