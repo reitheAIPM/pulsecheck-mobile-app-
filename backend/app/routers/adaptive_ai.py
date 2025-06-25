@@ -64,9 +64,9 @@ def get_adaptive_ai_service(
     return AdaptiveAIService(pulse_ai, pattern_analyzer)
 
 # Add dependency for user preferences service
-async def get_user_preferences_service():
+async def get_user_preferences_service(db = Depends(get_database)):
     """Dependency to get user preferences service"""
-    return UserPreferencesService()
+    return UserPreferencesService(db=db)
 
 @router.post("/analyze-patterns", response_model=PatternAnalysisResponse)
 async def analyze_user_patterns(

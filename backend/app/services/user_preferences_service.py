@@ -189,16 +189,84 @@ class UserPreferencesService:
         )
     
     async def _get_preferences_from_db(self, user_id: str) -> UserAIPreferences:
-        """Get preferences from database (placeholder for Supabase implementation)"""
-        # TODO: Implement actual database query
-        # For now, return default preferences
-        return self._get_default_preferences(user_id)
+        """Get preferences from Supabase database"""
+        try:
+            if not self.db:
+                return self._get_default_preferences(user_id)
+            
+            client = self.db.get_client()
+            
+            # Query user preferences from database
+            response = client.table('user_ai_preferences').select('*').eq('user_id', user_id).execute()
+            
+            if response.data and len(response.data) > 0:
+                data = response.data[0]
+                return UserAIPreferences(
+                    user_id=data['user_id'],
+                    response_frequency=data.get('response_frequency', 'balanced'),
+                    premium_enabled=data.get('premium_enabled', False),
+                    multi_persona_enabled=data.get('multi_persona_enabled', False),
+                    preferred_personas=data.get('preferred_personas', ['pulse']),
+                    blocked_personas=data.get('blocked_personas', []),
+                    max_response_length=data.get('max_response_length', 'medium'),
+                    tone_preference=data.get('tone_preference', 'balanced'),
+                    proactive_checkins=data.get('proactive_checkins', True),
+                    pattern_analysis_enabled=data.get('pattern_analysis_enabled', True),
+                    celebration_mode=data.get('celebration_mode', True),
+                    created_at=data.get('created_at', datetime.utcnow().isoformat()),
+                    updated_at=data.get('updated_at', datetime.utcnow().isoformat())
+                )
+            else:
+                # No preferences found, create default and save
+                default_prefs = self._get_default_preferences(user_id)
+                await self._save_preferences_to_db(default_prefs)
+                return default_prefs
+                
+        except Exception as e:
+            logger.error(f"Failed to get preferences from database for user {user_id}: {e}")
+            return self._get_default_preferences(user_id)
     
     async def _save_preferences_to_db(self, preferences: UserAIPreferences) -> bool:
-        """Save preferences to database (placeholder for Supabase implementation)"""
-        # TODO: Implement actual database save
-        # For now, simulate success
-        return True
+        """Save preferences to Supabase database"""
+        try:
+            if not self.db:
+                logger.warning("No database connection available for saving preferences")
+                return True  # Return True for development mode
+            
+            client = self.db.get_client()
+            
+            # Prepare data for database
+            pref_data = {
+                'user_id': preferences.user_id,
+                'response_frequency': preferences.response_frequency,
+                'premium_enabled': preferences.premium_enabled,
+                'multi_persona_enabled': preferences.multi_persona_enabled,
+                'preferred_personas': preferences.preferred_personas,
+                'blocked_personas': preferences.blocked_personas,
+                'max_response_length': preferences.max_response_length,
+                'tone_preference': preferences.tone_preference,
+                'proactive_checkins': preferences.proactive_checkins,
+                'pattern_analysis_enabled': preferences.pattern_analysis_enabled,
+                'celebration_mode': preferences.celebration_mode,
+                'updated_at': datetime.utcnow().isoformat()
+            }
+            
+            # Check if preferences exist
+            existing = client.table('user_ai_preferences').select('user_id').eq('user_id', preferences.user_id).execute()
+            
+            if existing.data and len(existing.data) > 0:
+                # Update existing preferences
+                response = client.table('user_ai_preferences').update(pref_data).eq('user_id', preferences.user_id).execute()
+            else:
+                # Insert new preferences
+                pref_data['created_at'] = datetime.utcnow().isoformat()
+                response = client.table('user_ai_preferences').insert(pref_data).execute()
+            
+            return len(response.data) > 0
+            
+        except Exception as e:
+            logger.error(f"Failed to save preferences to database for user {preferences.user_id}: {e}")
+            return False
     
     def get_frequency_info(self) -> Dict[str, Any]:
         """Get information about all frequency settings"""
