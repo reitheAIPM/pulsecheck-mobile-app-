@@ -5,6 +5,8 @@ Implements JWT validation, rate limiting, and admin authentication
 
 import jwt
 import logging
+import re
+import html
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from fastapi import HTTPException, status, Request, Depends
@@ -25,6 +27,90 @@ security = HTTPBearer(auto_error=False)
 # Rate Limiter Setup
 limiter = Limiter(key_func=get_remote_address)
 
+# INPUT VALIDATION FUNCTIONS
+def validate_input_length(value: str, max_length: int, field_name: str) -> str:
+    """
+    Validate input length and prevent injection attacks
+    """
+    if not value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{field_name} is required"
+        )
+    
+    # Strip whitespace
+    value = value.strip()
+    
+    if len(value) > max_length:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{field_name} must be {max_length} characters or less"
+        )
+    
+    # Basic injection prevention
+    dangerous_patterns = [
+        r'<script[^>]*>.*?</script>',
+        r'javascript:',
+        r'vbscript:',
+        r'onload\s*=',
+        r'onerror\s*=',
+        r'onclick\s*=',
+        r'--',
+        r'/\*.*?\*/',
+        r'\bexec\b',
+        r'\bselect\b.*\bfrom\b',
+        r'\bunion\b.*\bselect\b',
+        r'\binsert\b.*\binto\b',
+        r'\bupdate\b.*\bset\b',
+        r'\bdelete\b.*\bfrom\b'
+    ]
+    
+    for pattern in dangerous_patterns:
+        if re.search(pattern, value, re.IGNORECASE | re.DOTALL):
+            logger.warning(f"Potential injection attempt in {field_name}: {value}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid characters detected in {field_name}"
+            )
+    
+    return value
+
+def sanitize_user_input(value: str) -> str:
+    """
+    Sanitize user input to prevent XSS and other injection attacks
+    """
+    if not value:
+        return ""
+    
+    # HTML escape
+    value = html.escape(value)
+    
+    # Remove null bytes
+    value = value.replace('\x00', '')
+    
+    # Limit length after sanitization
+    if len(value) > 1000:
+        value = value[:1000]
+    
+    return value
+
+def validate_email(email: str) -> str:
+    """
+    Validate email format and prevent injection
+    """
+    email = validate_input_length(email, 254, "email")
+    
+    # Basic email pattern
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    
+    if not re.match(email_pattern, email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid email format"
+        )
+    
+    return email.lower()
+
 class AuthUser(BaseModel):
     id: str
     email: str
@@ -41,29 +127,44 @@ class JWTValidator:
     """Secure JWT validation for Supabase tokens"""
     
     def __init__(self):
-        self.jwt_secret = settings.supabase_jwt_secret
+        # Get JWT secret from settings - CRITICAL: Must be set for production
+        self.jwt_secret = getattr(settings, 'supabase_jwt_secret', None)
         self.algorithm = "HS256"  # Supabase uses HS256
+        
+        # Log warning if JWT secret is missing
+        if not self.jwt_secret:
+            logger.error("CRITICAL SECURITY ISSUE: JWT secret not configured!")
+            logger.error("Set SUPABASE_JWT_SECRET environment variable immediately")
         
     def validate_token(self, token: str) -> Dict[str, Any]:
         """
         Validate JWT token with proper signature verification
         """
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No authentication token provided"
+            )
+        
+        # CRITICAL: Never allow signature bypass in production
         if not self.jwt_secret:
-            logger.warning("JWT secret not configured - using fallback validation")
-            # Fallback: decode without verification (for development only)
-            return jwt.decode(token, options={"verify_signature": False})
+            logger.error("JWT validation failed: No secret configured")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authentication service misconfigured"
+            )
         
         try:
-            # Proper JWT validation with signature verification
+            # SECURE: Always verify signature in production
             payload = jwt.decode(
                 token,
                 self.jwt_secret,
                 algorithms=[self.algorithm],
                 options={
-                    "verify_signature": True,
-                    "verify_exp": True,
-                    "verify_aud": False,  # Supabase doesn't always set audience
-                    "verify_iss": False   # Supabase doesn't always set issuer
+                    "verify_signature": True,  # ALWAYS True
+                    "verify_exp": True,        # Check expiration
+                    "verify_aud": False,       # Supabase doesn't always set audience
+                    "verify_iss": False        # Supabase doesn't always set issuer
                 }
             )
             
@@ -73,6 +174,13 @@ class JWTValidator:
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid token: missing user ID"
                 )
+            
+            # Check token age (additional security)
+            issued_at = payload.get("iat")
+            if issued_at:
+                token_age = datetime.now(timezone.utc).timestamp() - issued_at
+                if token_age > 86400:  # 24 hours
+                    logger.warning(f"Old token used (age: {token_age/3600:.1f} hours)")
             
             return payload
             
@@ -157,22 +265,29 @@ async def get_current_user_with_fallback(
         # Fall through to development fallback
         pass
     
-    # Development fallback
-    user_id = request.headers.get('X-User-Id', "user_reiale01gmailcom_1750733000000")
-    
-    return {
-        "id": user_id,
-        "email": "rei.ale01@gmail.com",
-        "tech_role": "beta_tester",
-        "name": "Rei (Development User)",
-        "is_admin": True  # Grant admin access in development
-    }
+    # Development fallback - ONLY for development environment
+    if getattr(settings, 'environment', 'production') != 'production':
+        user_id = request.headers.get('X-User-Id', "user_reiale01gmailcom_1750733000000")
+        
+        return {
+            "id": user_id,
+            "email": "rei.ale01@gmail.com",
+            "tech_role": "beta_tester",
+            "name": "Rei (Development User)",
+            "is_admin": True  # Grant admin access in development
+        }
+    else:
+        # In production, no fallback - force authentication
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
 
 async def verify_admin_access(
     current_user: AuthUser = Depends(get_current_user_secure)
 ) -> AuthUser:
     """
-    Verify admin access with proper authentication
+    Verify admin access with proper authentication - SECURE VERSION
     """
     if not current_user.is_admin:
         logger.warning(f"Non-admin user {current_user.email} attempted admin access")
@@ -211,14 +326,21 @@ async def verify_admin_access_with_fallback(
         # Fall through to development fallback for other auth errors
         pass
     
-    # Development fallback - allow admin access in development
-    logger.warning("Using development admin fallback")
-    return {
-        "id": "admin_dev",
-        "email": "admin@pulsecheck.dev",
-        "role": "admin",
-        "is_admin": True
-    }
+    # Development fallback - ONLY for development environment
+    if getattr(settings, 'environment', 'production') != 'production':
+        logger.warning("Using development admin fallback")
+        return {
+            "id": "admin_dev",
+            "email": "admin@pulsecheck.dev",
+            "role": "admin",
+            "is_admin": True
+        }
+    else:
+        # In production, no admin fallback
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin authentication required"
+        )
 
 def setup_rate_limiting(app):
     """
@@ -230,35 +352,41 @@ def setup_rate_limiting(app):
     
     logger.info("Rate limiting configured successfully")
 
-# Input validation utilities
-def validate_input_length(content: str, max_length: int = 10000, field_name: str = "input") -> str:
-    """
-    Validate input length to prevent resource exhaustion
-    """
-    if len(content) > max_length:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"{field_name} exceeds maximum length of {max_length} characters"
-        )
-    return content
+# SECURITY MONITORING
+class SecurityMonitor:
+    """Monitor security events and suspicious activity"""
+    
+    def __init__(self):
+        self.failed_login_attempts = {}
+        self.suspicious_ips = set()
+        
+    def log_failed_login(self, ip_address: str, email: str):
+        """Log failed login attempt"""
+        if ip_address not in self.failed_login_attempts:
+            self.failed_login_attempts[ip_address] = []
+        
+        self.failed_login_attempts[ip_address].append({
+            "email": email,
+            "timestamp": datetime.now(timezone.utc),
+        })
+        
+        # Check for brute force
+        recent_attempts = [
+            attempt for attempt in self.failed_login_attempts[ip_address]
+            if (datetime.now(timezone.utc) - attempt["timestamp"]).seconds < 300  # 5 minutes
+        ]
+        
+        if len(recent_attempts) >= 5:
+            self.suspicious_ips.add(ip_address)
+            logger.warning(f"Suspicious activity detected from IP: {ip_address}")
+    
+    def is_suspicious_ip(self, ip_address: str) -> bool:
+        """Check if IP is marked as suspicious"""
+        return ip_address in self.suspicious_ips
 
-def sanitize_user_input(content: str) -> str:
-    """
-    Basic input sanitization
-    """
-    # Remove potential script tags and other dangerous content
-    import re
-    
-    # Remove script tags
-    content = re.sub(r'<script[^>]*>.*?</script>', '', content, flags=re.IGNORECASE | re.DOTALL)
-    
-    # Remove other potentially dangerous tags
-    dangerous_tags = ['<iframe', '<object', '<embed', '<link', '<meta']
-    for tag in dangerous_tags:
-        content = re.sub(f'{tag}[^>]*>', '', content, flags=re.IGNORECASE)
-    
-    return content.strip()
+# Global security monitor
+security_monitor = SecurityMonitor()
 
-# Export main dependencies
+# Alias for backward compatibility
 get_current_user = get_current_user_with_fallback
 verify_admin = verify_admin_access_with_fallback 

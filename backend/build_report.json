@@ -5,28 +5,28 @@
       "name": "\ud83d\udd0d Import Validation",
       "status": "success",
       "message": "\u2705 Completed successfully",
-      "duration_ms": 693,
+      "duration_ms": 866,
       "ai_context": null
     },
     {
       "name": "\ud83d\udd27 Auto-Fix Critical Issues",
       "status": "success",
       "message": "\u2705 Completed successfully",
-      "duration_ms": 0,
+      "duration_ms": 1,
       "ai_context": null
     },
     {
       "name": "\u2705 Pre-Deployment Validation",
       "status": "success",
       "message": "\u2705 Completed successfully",
-      "duration_ms": 969,
+      "duration_ms": 822,
       "ai_context": null
     },
     {
       "name": "\ud83c\udfe5 Health Check Test",
       "status": "success",
       "message": "\u2705 Completed successfully",
-      "duration_ms": 27,
+      "duration_ms": 24,
       "ai_context": null
     }
   ],
@@ -34,7 +34,7 @@
   "total_steps": 4,
   "reports": {
     "import_validation": {
-      "total_files_checked": 75,
+      "total_files_checked": 89,
       "import_issues": [],
       "critical_issues": 0,
       "warnings": 0,

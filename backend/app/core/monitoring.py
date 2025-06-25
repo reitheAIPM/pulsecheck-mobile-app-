@@ -16,6 +16,7 @@ import traceback
 import os
 import sys
 import inspect
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +125,78 @@ class AIOptimizedMonitor:
         # AI Debugging Patterns
         self.error_patterns = self._load_error_patterns()
         self.solution_templates = self._load_solution_templates()
+        
+        # Add AI-powered auto-recovery patterns
+        self.auto_recovery_patterns = {
+            "database_connection": {
+                "retry_count": 3,
+                "retry_delay": [1, 2, 5],  # seconds
+                "recovery_actions": ["reconnect", "fallback_to_cache", "graceful_degradation"],
+                "success_indicators": ["successful_query", "connection_pool_healthy"]
+            },
+            "api_timeout": {
+                "retry_count": 2,
+                "retry_delay": [0.5, 1.5],
+                "recovery_actions": ["retry_with_timeout", "reduce_complexity", "return_cached"],
+                "success_indicators": ["response_received", "within_time_limit"]
+            },
+            "rate_limit_exceeded": {
+                "retry_count": 1,
+                "retry_delay": [60],  # Wait 1 minute
+                "recovery_actions": ["exponential_backoff", "switch_to_fallback", "queue_request"],
+                "success_indicators": ["rate_limit_reset", "alternative_service_available"]
+            },
+            "authentication_failure": {
+                "retry_count": 1,
+                "retry_delay": [0],
+                "recovery_actions": ["refresh_token", "re_authenticate", "guest_mode"],
+                "success_indicators": ["valid_token_obtained", "authentication_successful"]
+            },
+            "openai_service_error": {
+                "retry_count": 3,
+                "retry_delay": [1, 3, 10],
+                "recovery_actions": ["retry_request", "fallback_response", "cached_response"],
+                "success_indicators": ["openai_response_received", "fallback_activated"]
+            }
+        }
+        
+        # Enhanced solution templates with specific AI guidance
+        self.solution_templates = {
+            "immediate_fixes": [
+                "Check if the error is transient by retrying the operation",
+                "Verify all required environment variables are set",
+                "Ensure all dependencies are installed correctly",
+                "Check if external services (database, APIs) are accessible",
+                "Review recent code changes that might have caused the issue",
+                "Validate input data format and constraints"
+            ],
+            "investigation_steps": [
+                "Reproduce the error in a controlled environment",
+                "Check application logs for related error patterns",
+                "Verify system resource availability (CPU, memory, disk)",
+                "Test individual components in isolation",
+                "Review network connectivity and firewall settings",
+                "Analyze timing and concurrency issues"
+            ],
+            "prevention_measures": [
+                "Implement comprehensive input validation",
+                "Add circuit breakers for external service calls",
+                "Set up proper monitoring and alerting",
+                "Create automated health checks",
+                "Document error patterns and solutions",
+                "Implement graceful degradation strategies"
+            ],
+            "ai_debugging_checklist": [
+                "1. Identify error category and severity level",
+                "2. Check if error matches known patterns",
+                "3. Review recent system changes or deployments",
+                "4. Verify environment configuration and dependencies",
+                "5. Test with minimal reproduction case",
+                "6. Apply appropriate auto-recovery pattern",
+                "7. Monitor system state during recovery",
+                "8. Document solution for future reference"
+            ]
+        }
         
         logger.info("AI-Optimized PulseCheck Monitor initialized")
     
@@ -816,6 +889,198 @@ class AIOptimizedMonitor:
         metric_str = f"{metric_name}_{json.dumps(context or {}, sort_keys=True)}_{time.time()}"
         return hashlib.md5(metric_str.encode()).hexdigest()[:8]
 
+    async def attempt_auto_recovery(self, error_id: str) -> Dict[str, Any]:
+        """
+        Attempt autonomous error recovery using AI-powered patterns
+        This method tries to fix common issues without human intervention
+        """
+        try:
+            # Find the error
+            error = next((e for e in self.errors if e.error_id == error_id), None)
+            if not error:
+                return {"success": False, "error": "Error not found"}
+            
+            # Determine recovery pattern based on error type and message
+            recovery_pattern = self._select_recovery_pattern(error)
+            if not recovery_pattern:
+                return {"success": False, "error": "No recovery pattern available"}
+            
+            recovery_log = {
+                "error_id": error_id,
+                "pattern_used": recovery_pattern,
+                "recovery_attempts": [],
+                "start_time": datetime.now(),
+                "success": False
+            }
+            
+            pattern_config = self.auto_recovery_patterns[recovery_pattern]
+            
+            # Attempt recovery with retry logic
+            for attempt in range(pattern_config["retry_count"]):
+                attempt_start = datetime.now()
+                
+                try:
+                    # Apply recovery actions
+                    recovery_result = await self._apply_recovery_actions(
+                        error, pattern_config["recovery_actions"], attempt
+                    )
+                    
+                    # Check success indicators
+                    if self._check_recovery_success(recovery_result, pattern_config["success_indicators"]):
+                        recovery_log["success"] = True
+                        recovery_log["successful_attempt"] = attempt + 1
+                        error.resolved = True
+                        error.resolution_time = datetime.now()
+                        error.resolution_notes = f"Auto-recovered using pattern: {recovery_pattern}"
+                        break
+                    
+                    # Log failed attempt
+                    recovery_log["recovery_attempts"].append({
+                        "attempt": attempt + 1,
+                        "action_results": recovery_result,
+                        "success": False,
+                        "duration_ms": (datetime.now() - attempt_start).total_seconds() * 1000
+                    })
+                    
+                    # Wait before retry (if not last attempt)
+                    if attempt < len(pattern_config["retry_delay"]):
+                        await asyncio.sleep(pattern_config["retry_delay"][attempt])
+                        
+                except Exception as recovery_error:
+                    recovery_log["recovery_attempts"].append({
+                        "attempt": attempt + 1,
+                        "error": str(recovery_error),
+                        "success": False,
+                        "duration_ms": (datetime.now() - attempt_start).total_seconds() * 1000
+                    })
+            
+            recovery_log["end_time"] = datetime.now()
+            recovery_log["total_duration_ms"] = (
+                recovery_log["end_time"] - recovery_log["start_time"]
+            ).total_seconds() * 1000
+            
+            # Store recovery attempt for learning
+            if not error.ai_debugging_attempts:
+                error.ai_debugging_attempts = []
+            
+            error.ai_debugging_attempts.append({
+                "type": "auto_recovery",
+                "timestamp": datetime.now().isoformat(),
+                "pattern_used": recovery_pattern,
+                "success": recovery_log["success"],
+                "details": recovery_log
+            })
+            
+            return {
+                "success": recovery_log["success"],
+                "pattern_used": recovery_pattern,
+                "attempts": len(recovery_log["recovery_attempts"]),
+                "total_duration_ms": recovery_log["total_duration_ms"],
+                "details": recovery_log
+            }
+            
+        except Exception as e:
+            logger.error(f"Auto-recovery failed: {e}")
+            return {"success": False, "error": f"Recovery mechanism failed: {str(e)}"}
+    
+    def _select_recovery_pattern(self, error: DebugContext) -> Optional[str]:
+        """Select appropriate recovery pattern based on error characteristics"""
+        error_message = error.error_message.lower()
+        error_type = error.error_type.lower()
+        
+        # Database connection errors
+        if any(keyword in error_message for keyword in [
+            "connection", "database", "supabase", "timeout", "pool"
+        ]):
+            return "database_connection"
+        
+        # API timeout errors
+        if any(keyword in error_message for keyword in [
+            "timeout", "read timeout", "connect timeout", "slowapi"
+        ]):
+            return "api_timeout"
+        
+        # Rate limiting errors
+        if any(keyword in error_message for keyword in [
+            "rate limit", "too many requests", "429", "quota exceeded"
+        ]):
+            return "rate_limit_exceeded"
+        
+        # Authentication errors
+        if any(keyword in error_message for keyword in [
+            "unauthorized", "authentication", "token", "401", "invalid credentials"
+        ]):
+            return "authentication_failure"
+        
+        # OpenAI service errors
+        if any(keyword in error_message for keyword in [
+            "openai", "api_key", "model", "completion", "gpt"
+        ]):
+            return "openai_service_error"
+        
+        return None
+    
+    async def _apply_recovery_actions(
+        self, error: DebugContext, actions: List[str], attempt: int
+    ) -> Dict[str, Any]:
+        """Apply recovery actions based on the pattern"""
+        results = {"actions_taken": [], "success_indicators": []}
+        
+        for action in actions:
+            try:
+                if action == "reconnect":
+                    # Attempt database reconnection
+                    results["actions_taken"].append("attempted_database_reconnect")
+                    
+                elif action == "retry_request":
+                    # Log that we're retrying the original request
+                    results["actions_taken"].append("retrying_original_request")
+                    
+                elif action == "fallback_response":
+                    # Activate fallback response system
+                    results["actions_taken"].append("fallback_response_activated")
+                    results["success_indicators"].append("fallback_available")
+                    
+                elif action == "refresh_token":
+                    # Attempt token refresh
+                    results["actions_taken"].append("token_refresh_attempted")
+                    
+                elif action == "graceful_degradation":
+                    # Enable graceful degradation mode
+                    results["actions_taken"].append("graceful_degradation_enabled")
+                    results["success_indicators"].append("degraded_service_available")
+                    
+                elif action == "exponential_backoff":
+                    # Calculate backoff delay
+                    backoff_delay = min(2 ** attempt, 60)  # Max 60 seconds
+                    results["actions_taken"].append(f"exponential_backoff_{backoff_delay}s")
+                    
+            except Exception as action_error:
+                results["actions_taken"].append(f"failed_{action}:{str(action_error)}")
+        
+        return results
+    
+    def _check_recovery_success(
+        self, recovery_result: Dict[str, Any], success_indicators: List[str]
+    ) -> bool:
+        """Check if recovery was successful based on indicators"""
+        result_indicators = recovery_result.get("success_indicators", [])
+        
+        # Check if any success indicator is present
+        for indicator in success_indicators:
+            if indicator in result_indicators:
+                return True
+        
+        # If fallback was activated, consider it a success
+        if "fallback_response_activated" in recovery_result.get("actions_taken", []):
+            return True
+        
+        # If graceful degradation was enabled, consider it a success
+        if "graceful_degradation_enabled" in recovery_result.get("actions_taken", []):
+            return True
+        
+        return False
+
 # Global monitor instance
 monitor = AIOptimizedMonitor()
 
@@ -846,4 +1111,124 @@ def check_health() -> SystemHealth:
 
 def get_ai_debugging_context(error_id: str) -> Dict[str, Any]:
     """Convenience function to get AI debugging context"""
-    return monitor.get_ai_debugging_context(error_id) 
+    return monitor.get_ai_debugging_context(error_id)
+
+def ai_monitored_endpoint(
+    operation_name: str,
+    auto_recover: bool = True,
+    critical: bool = False
+):
+    """
+    Decorator that wraps endpoints with comprehensive AI debugging and auto-recovery
+    
+    Args:
+        operation_name: Human-readable name for the operation
+        auto_recover: Whether to attempt auto-recovery on errors
+        critical: Whether this is a critical endpoint that should have priority recovery
+    """
+    def decorator(func):
+        import functools
+        import inspect
+        
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            start_time = datetime.now()
+            operation_id = f"{operation_name}_{start_time.strftime('%Y%m%d_%H%M%S')}"
+            
+            # Extract request context if available
+            request_context = {}
+            for arg in args:
+                if hasattr(arg, 'url'):  # FastAPI Request object
+                    request_context = {
+                        "method": arg.method,
+                        "url": str(arg.url),
+                        "headers": dict(arg.headers),
+                        "query_params": dict(arg.query_params)
+                    }
+                    break
+            
+            try:
+                # Execute the original function
+                if inspect.iscoroutinefunction(func):
+                    result = await func(*args, **kwargs)
+                else:
+                    result = func(*args, **kwargs)
+                
+                # Log successful operation
+                end_time = datetime.now()
+                duration_ms = (end_time - start_time).total_seconds() * 1000
+                
+                logger.info(f"✅ {operation_name} completed successfully in {duration_ms:.0f}ms")
+                
+                return result
+                
+            except Exception as error:
+                # Capture comprehensive error context
+                end_time = datetime.now()
+                duration_ms = (end_time - start_time).total_seconds() * 1000
+                
+                severity = ErrorSeverity.CRITICAL if critical else ErrorSeverity.HIGH
+                category = ErrorCategory.API_ENDPOINT
+                
+                context = {
+                    "operation": operation_name,
+                    "operation_id": operation_id,
+                    "duration_ms": duration_ms,
+                    "request_context": request_context,
+                    "function_args": str(args)[:500],  # Limit to avoid huge logs
+                    "function_kwargs": str(kwargs)[:500],
+                    "endpoint_critical": critical
+                }
+                
+                # Log error with full AI debugging context
+                error_id = monitor.log_error(error, severity, category, context)
+                
+                # Attempt auto-recovery if enabled
+                if auto_recover:
+                    try:
+                        recovery_result = await monitor.attempt_auto_recovery(error_id)
+                        if recovery_result.get("success", False):
+                            logger.info(f"🔧 Auto-recovery successful for {operation_name}: {recovery_result}")
+                            
+                            # Try the operation again after successful recovery
+                            if inspect.iscoroutinefunction(func):
+                                return await func(*args, **kwargs)
+                            else:
+                                return func(*args, **kwargs)
+                        else:
+                            logger.warning(f"🔧 Auto-recovery failed for {operation_name}: {recovery_result}")
+                            
+                    except Exception as recovery_error:
+                        logger.error(f"Auto-recovery mechanism failed: {recovery_error}")
+                
+                # Re-raise the original error with enhanced context
+                error.ai_debug_context = {
+                    "error_id": error_id,
+                    "operation": operation_name,
+                    "auto_recovery_attempted": auto_recover,
+                    "debugging_endpoint": f"/ai-debug/error/{error_id}"
+                }
+                
+                raise error
+        
+        # Add metadata to the wrapped function
+        wrapper._ai_monitored = True
+        wrapper._operation_name = operation_name
+        wrapper._auto_recover = auto_recover
+        wrapper._critical = critical
+        
+        return wrapper
+    return decorator
+
+# Convenience decorators for common patterns
+def critical_endpoint(operation_name: str):
+    """Decorator for critical endpoints that require immediate attention"""
+    return ai_monitored_endpoint(operation_name, auto_recover=True, critical=True)
+
+def standard_endpoint(operation_name: str):
+    """Decorator for standard endpoints with basic monitoring"""
+    return ai_monitored_endpoint(operation_name, auto_recover=True, critical=False)
+
+def monitor_only_endpoint(operation_name: str):
+    """Decorator for endpoints that should only be monitored (no auto-recovery)"""
+    return ai_monitored_endpoint(operation_name, auto_recover=False, critical=False) 

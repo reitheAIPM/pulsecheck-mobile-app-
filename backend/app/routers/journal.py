@@ -181,7 +181,9 @@ async def create_journal_entry(
         raise HTTPException(status_code=500, detail=f"Error creating journal entry: {str(e)}")
 
 @router.get("/entries/{entry_id}/pulse", response_model=PulseResponse)
+@limiter.limit("10/minute")  # Rate limit AI requests
 async def get_pulse_response(
+    request: Request,  # Required for rate limiter
     entry_id: str,
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user),
@@ -238,7 +240,9 @@ async def get_pulse_response(
         raise HTTPException(status_code=500, detail=f"Error generating Pulse response: {str(e)}")
 
 @router.post("/entries/{entry_id}/feedback")
+@limiter.limit("30/minute")  # Rate limit feedback submissions
 async def submit_pulse_feedback(
+    request: Request,  # Required for rate limiter
     entry_id: str,
     feedback_type: str,  # 'thumbs_up', 'thumbs_down', 'report'
     feedback_text: Optional[str] = None,
@@ -282,7 +286,9 @@ async def submit_pulse_feedback(
         raise HTTPException(status_code=500, detail=f"Error submitting feedback: {str(e)}")
 
 @router.get("/entries/{entry_id}/analysis", response_model=AIAnalysisResponse)
+@limiter.limit("5/minute")  # Rate limit AI analysis requests (more expensive)
 async def get_ai_analysis(
+    request: Request,  # Required for rate limiter
     entry_id: str,
     include_history: bool = True,
     db: Database = Depends(get_database),
@@ -341,6 +347,7 @@ async def get_ai_analysis(
         raise HTTPException(status_code=500, detail=f"Error generating AI analysis: {str(e)}")
 
 @router.get("/entries", response_model=JournalEntriesResponse)
+@limiter.limit("60/minute")  # Rate limit entry retrieval
 async def get_journal_entries(
     request: Request,
     page: int = 1,
@@ -416,7 +423,9 @@ async def get_journal_entries(
         raise HTTPException(status_code=500, detail=f"Error fetching journal entries: {str(e)}")
 
 @router.get("/stats", response_model=JournalStats)
+@limiter.limit("30/minute")  # Rate limit stats requests
 async def get_journal_stats(
+    request: Request,  # Required for rate limiter
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user)
 ):
@@ -471,7 +480,9 @@ async def get_journal_stats(
         raise HTTPException(status_code=500, detail=f"Error calculating journal stats: {str(e)}")
 
 @router.get("/entries/{entry_id}", response_model=JournalEntryResponse)
+@limiter.limit("100/minute")  # Rate limit individual entry requests
 async def get_journal_entry(
+    request: Request,  # Required for rate limiter
     entry_id: str,
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user)
@@ -495,7 +506,9 @@ async def get_journal_entry(
         raise HTTPException(status_code=500, detail=f"Error retrieving journal entry: {str(e)}")
 
 @router.put("/entries/{entry_id}", response_model=JournalEntryResponse)
+@limiter.limit("20/minute")  # Rate limit entry updates
 async def update_journal_entry(
+    request: Request,  # Required for rate limiter
     entry_id: str,
     entry: JournalEntryUpdate,
     db: Database = Depends(get_database),
@@ -525,84 +538,91 @@ async def update_journal_entry(
         raise HTTPException(status_code=500, detail=f"Error updating journal entry: {str(e)}")
 
 @router.delete("/entries/{entry_id}", status_code=204)
+@limiter.limit("10/minute")  # Rate limit delete requests
 async def delete_journal_entry(
+    request: Request,  # Required for rate limiter
     entry_id: str,
-    request: Request,
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user_from_request)
 ):
     """Delete a journal entry"""
     try:
         client = db.get_client()
-        result = client.table("journal_entries").delete().eq("id", entry_id).eq("user_id", current_user["id"]).execute()
+        
+        # Check if entry exists and belongs to user
+        result = client.table("journal_entries").select("id").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
-            
+        
+        # Delete the entry
+        client.table("journal_entries").delete().eq("id", entry_id).eq("user_id", current_user["id"]).execute()
+        
+        return {"message": "Journal entry deleted successfully"}
+        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting journal entry: {str(e)}")
 
 @router.delete("/reset/{user_id}")
+@limiter.limit("1/hour")  # Strict rate limit for reset operations
 async def reset_journal(
+    request: Request,  # Required for rate limiter
     user_id: str,
-    request: Request,
     confirm: bool = False,
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user_from_request)
 ):
     """
-    Reset journal - delete all journal entries for a user
-    Requires confirmation parameter to prevent accidental deletion
+    Reset user's journal data (for testing/admin purposes)
+    
+    Requires explicit confirmation and user authentication
     """
     try:
-        # Security check - user can only reset their own journal
+        # Security: Only allow users to reset their own data
         if current_user["id"] != user_id:
-            raise HTTPException(status_code=403, detail="You can only reset your own journal")
+            raise HTTPException(status_code=403, detail="Cannot reset another user's data")
         
-        # Require confirmation to prevent accidental deletion
         if not confirm:
             raise HTTPException(
                 status_code=400, 
-                detail="Journal reset requires confirmation. Add ?confirm=true to proceed."
+                detail="Must set confirm=true to reset journal data"
             )
         
         client = db.get_client()
         
-        # First, get count of entries to be deleted
+        # Count entries before deletion for confirmation
         count_result = client.table("journal_entries").select("id", count="exact").eq("user_id", user_id).execute()
-        entries_count = count_result.count or 0
+        entry_count = count_result.count if count_result.count else 0
         
-        if entries_count == 0:
+        if entry_count == 0:
             return {
-                "success": True,
-                "deleted_count": 0,
-                "message": "No journal entries found to delete"
+                "message": "No journal entries found to reset",
+                "entries_deleted": 0
             }
         
-        # Delete all journal entries for the user
-        delete_result = client.table("journal_entries").delete().eq("user_id", user_id).execute()
+        # Delete all journal entries for user
+        client.table("journal_entries").delete().eq("user_id", user_id).execute()
         
-        # Also clear any cached user patterns to start fresh
-        try:
-            # Clear pattern cache (if exists)
-            client.table("user_patterns").delete().eq("user_id", user_id).execute()
-        except:
-            # Pattern cache might not exist, that's okay
-            pass
+        # Also delete related AI insights
+        client.table("ai_insights").delete().eq("user_id", user_id).execute()
         
         return {
-            "success": True,
-            "deleted_count": entries_count,
-            "message": f"Successfully deleted {entries_count} journal entries. Your journal has been reset."
+            "message": f"Journal reset completed for user {user_id}",
+            "entries_deleted": entry_count,
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
-            
+        
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error resetting journal: {str(e)}")
 
 @router.post("/entries/{entry_id}/adaptive-response", response_model=AIInsightResponse)
+@limiter.limit("15/minute")  # Rate limit adaptive AI requests
 async def get_adaptive_ai_response(
+    request: Request,  # Required for rate limiter
     entry_id: str,
     persona: Optional[str] = "auto",  # "auto", "pulse", "sage", "spark", "anchor"
     db: Database = Depends(get_database),
@@ -610,247 +630,121 @@ async def get_adaptive_ai_response(
     adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
 ):
     """
-    Get adaptive AI response with dynamic persona selection and topic classification
+    Get adaptive AI response with persona selection
     
     Features:
-    - Dynamic persona selection based on content analysis
-    - Topic classification and flagging
-    - Pattern-based personalization
-    - User context memory
+    - Dynamic persona selection based on content
+    - Pattern-aware responses using user history
+    - Premium tier gating for advanced personas
     """
     try:
-        # Get the database client
-        client = db.get_client()
-        
         # Get the journal entry
+        client = db.get_client()
         result = client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
         
         entry_data = result.data
-        # Ensure updated_at field exists before creating response
         if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
             entry_data['updated_at'] = entry_data.get('created_at', datetime.now(timezone.utc))
             
         journal_entry = JournalEntryResponse(**entry_data)
         
-        # Get user's journal history for pattern analysis
-        history_result = client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(20).execute()
-        journal_history = [JournalEntryResponse(**entry) for entry in history_result.data]
-        
         # Generate adaptive response
-        adaptive_response = await adaptive_ai.generate_adaptive_response(
+        response = await adaptive_ai.generate_adaptive_response(
             user_id=current_user["id"],
             journal_entry=journal_entry,
-            journal_history=journal_history,
-            persona=persona
+            requested_persona=persona
         )
         
-        return adaptive_response
+        return response
         
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating adaptive response: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generating adaptive AI response: {str(e)}")
 
 @router.get("/personas")
+@limiter.limit("60/minute")  # Rate limit persona requests
 async def get_available_personas(
+    request: Request,  # Required for rate limiter
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user),
     adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
 ):
     """
-    Get available AI personas with recommendations based on user patterns
+    Get list of available AI personas for user
+    
+    Returns personas available based on user's subscription tier
     """
     try:
-        # Get user's journal history for pattern analysis
-        client = db.get_client()
-        history_result = client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(20).execute()
-        journal_history = [JournalEntryResponse(**entry) for entry in history_result.data]
-        
-        # Analyze user patterns
-        pattern_analyzer = UserPatternAnalyzer(db=db)
-        user_patterns = await pattern_analyzer.analyze_user_patterns(current_user["id"], journal_history)
-        
-        # Get available personas with recommendations
-        personas = adaptive_ai.get_available_personas(user_patterns)
+        personas = await adaptive_ai.get_available_personas(current_user["id"])
         
         return {
             "personas": personas,
-            "user_patterns": {
-                "writing_style": user_patterns.writing_style,
-                "common_topics": user_patterns.common_topics,
-                "response_preference": user_patterns.response_length_preference
-            }
+            "total_count": len(personas),
+            "premium_count": len([p for p in personas if p.get("requires_premium", False)]),
+            "user_id": current_user["id"]
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting personas: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching personas: {str(e)}")
 
 @router.post("/ai/self-test")
+@limiter.limit("5/minute")  # Rate limit AI self-tests
 async def run_ai_self_tests(
+    request: Request,  # Required for rate limiter
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user),
     adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
 ):
     """
     Run comprehensive AI self-tests for debugging and validation
-    AI-OPTIMIZED TESTING ENDPOINT
+    
+    Tests all AI components, personas, and integration points
     """
     try:
-        # Run all self-tests
         test_results = await adaptive_ai.run_self_tests()
         
-        # Calculate overall health score
-        passed_tests = sum(1 for result in test_results if result.passed)
-        total_tests = len(test_results)
-        health_score = (passed_tests / total_tests) * 100 if total_tests > 0 else 0
-        
-        # Get debug summary
-        debug_summary = adaptive_ai.get_debug_summary()
-        
-        # Generate recommendations
-        recommendations = []
-        if health_score < 80:
-            recommendations.append("System health below 80% - review error patterns and performance metrics")
-        
-        failed_tests = [result for result in test_results if not result.passed]
-        for test in failed_tests:
-            recommendations.append(f"Fix {test.test_name}: {test.error_message}")
-        
-        # Performance recommendations
-        if debug_summary["performance_metrics"]["avg_response_time"] > 3000:
-            recommendations.append("Average response time exceeds 3s - optimize AI service performance")
-        
-        if debug_summary["performance_metrics"]["total_errors"] > 10:
-            recommendations.append("High error count detected - investigate error patterns")
-        
         return {
-            "test_results": [
-                {
-                    "test_name": result.test_name,
-                    "passed": result.passed,
-                    "execution_time_ms": result.execution_time_ms,
-                    "error_message": result.error_message,
-                    "performance_metrics": result.performance_metrics
-                }
-                for result in test_results
-            ],
-            "health_score": health_score,
-            "passed_tests": passed_tests,
-            "total_tests": total_tests,
-            "debug_summary": debug_summary,
-            "recommendations": recommendations,
-            "system_status": "healthy" if health_score >= 80 else "degraded" if health_score >= 60 else "critical"
+            "test_results": test_results,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "user_id": current_user["id"]
         }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error running AI self-tests: {str(e)}")
 
 @router.get("/ai/debug-summary")
+@limiter.limit("30/minute")  # Rate limit debug requests
 async def get_ai_debug_summary(
+    request: Request,  # Required for rate limiter
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user),
     adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
 ):
     """
-    Get comprehensive AI debugging summary for system analysis
-    AI-OPTIMIZED DEBUGGING ENDPOINT
+    Get comprehensive AI debugging summary
+    
+    Provides debugging context, error patterns, and performance metrics
     """
     try:
-        debug_summary = adaptive_ai.get_debug_summary()
-        
-        # Add system recommendations
-        recommendations = []
-        
-        # Error pattern analysis
-        total_errors = sum(debug_summary["error_patterns"].values())
-        if total_errors > 0:
-            most_common_error = max(debug_summary["error_patterns"].items(), key=lambda x: x[1])
-            recommendations.append(f"Most common error: {most_common_error[0]} ({most_common_error[1]} occurrences)")
-        
-        # Performance analysis
-        avg_response_time = debug_summary["performance_metrics"]["avg_response_time"]
-        if avg_response_time > 3000:
-            recommendations.append(f"High average response time: {avg_response_time:.0f}ms - consider optimization")
-        
-        # Recovery analysis
-        recent_errors = debug_summary["recent_errors"]
-        recovery_success_rate = sum(1 for error in recent_errors if error["fallback_used"]) / len(recent_errors) if recent_errors else 0
-        if recovery_success_rate < 0.8:
-            recommendations.append(f"Low recovery success rate: {recovery_success_rate:.1%} - improve fallback mechanisms")
+        debug_summary = await adaptive_ai.get_debug_summary()
         
         return {
             "debug_summary": debug_summary,
-            "recommendations": recommendations,
-            "system_health": {
-                "error_rate": total_errors / max(len(debug_summary["debug_contexts_count"]), 1),
-                "avg_response_time": avg_response_time,
-                "recovery_success_rate": recovery_success_rate,
-                "overall_status": "healthy" if total_errors == 0 and avg_response_time < 3000 else "degraded"
-            }
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "user_id": current_user["id"]
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting AI debug summary: {str(e)}")
-
-@router.post("/ai/topic-classification")
-@limiter.limit("20/minute")  # Rate limit AI requests
-async def classify_topics(
-    request: Request,  # Fixed: rate limiter needs 'request' as first parameter
-    request_body: dict,  # Accept JSON body instead of query parameter
-    db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user),
-    adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
-):
-    """
-    Classify topics in journal content for testing and validation
-    AI-OPTIMIZED TOPIC CLASSIFICATION ENDPOINT
-    """
-    try:
-        # Extract content from request body
-        content = request_body.get("content", "")
-        if not content:
-            raise HTTPException(status_code=400, detail="Content is required")
-        
-        # Create debug context for topic classification
-        debug_context = AIDebugContext(
-            operation="topic_classification_test",
-            user_id=current_user["id"],
-            system_state={
-                "content_length": len(content),
-                "content_preview": content[:100] + "..." if len(content) > 100 else content
-            }
-        )
-        
-        # Classify topics with monitoring
-        topics = await adaptive_ai._classify_topics_with_monitoring(content, debug_context)
-        
-        # Get topic confidence scores
-        topic_scores = {}
-        content_lower = content.lower()
-        for topic, keywords in adaptive_ai.topic_keywords.items():
-            matches = sum(1 for keyword in keywords if keyword in content_lower)
-            if matches > 0:
-                topic_scores[topic] = matches / len(keywords)  # Normalized score
-        
-        return {
-            "topics": topics,
-            "topic_scores": topic_scores,
-            "content_length": len(content),
-            "classification_confidence": len(topics) / len(adaptive_ai.topic_keywords) if adaptive_ai.topic_keywords else 0,
-            "debug_context": {
-                "operation": debug_context.operation,
-                "system_state": debug_context.system_state
-            }
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error classifying topics: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching debug summary: {str(e)}")
 
 @router.get("/weekly-summary")
+@limiter.limit("20/minute")  # Rate limit weekly summary requests
 async def get_weekly_summary(
+    request: Request,  # Required for rate limiter
     week_offset: int = 0,  # 0 = current week, 1 = last week, etc.
     summary_type: str = "comprehensive",  # "wellness", "productivity", "emotional", "comprehensive"
     db: Database = Depends(get_database),

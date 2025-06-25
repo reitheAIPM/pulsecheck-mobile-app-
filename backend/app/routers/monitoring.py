@@ -382,4 +382,110 @@ async def record_ai_debugging_attempt(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to record AI debugging attempt"
+        )
+
+@router.post("/ai-debug/auto-recover/{error_id}")
+async def trigger_auto_recovery(error_id: str):
+    """
+    Trigger autonomous error recovery using AI-powered patterns
+    This endpoint allows the AI to attempt to fix issues without human intervention
+    """
+    try:
+        recovery_result = await monitor.attempt_auto_recovery(error_id)
+        
+        return {
+            "success": True,
+            "error_id": error_id,
+            "recovery_result": recovery_result,
+            "ai_instructions": {
+                "next_steps": [
+                    "Monitor the recovery result to see if the issue was resolved",
+                    "If recovery failed, analyze the failure details for additional insights",
+                    "Check if the error pattern needs to be updated based on this attempt",
+                    "Document successful recovery patterns for future use"
+                ],
+                "recovery_assessment": {
+                    "successful": recovery_result.get("success", False),
+                    "pattern_used": recovery_result.get("pattern_used", "none"),
+                    "attempts_made": recovery_result.get("attempts", 0),
+                    "total_time_ms": recovery_result.get("total_duration_ms", 0)
+                }
+            }
+        }
+        
+    except Exception as e:
+        log_error(e, ErrorSeverity.HIGH, ErrorCategory.API_ENDPOINT, {
+            "operation": "trigger_auto_recovery",
+            "error_id": error_id
+        })
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to trigger auto-recovery: {str(e)}"
+        )
+
+@router.post("/ai-debug/batch-recover")
+async def trigger_batch_auto_recovery():
+    """
+    Attempt auto-recovery for all unresolved critical and high-severity errors
+    This endpoint allows the AI to batch-fix multiple issues at once
+    """
+    try:
+        # Get all unresolved critical and high-severity errors
+        unresolved_errors = [
+            e for e in monitor.errors 
+            if not e.resolved and e.severity in [ErrorSeverity.CRITICAL, ErrorSeverity.HIGH]
+        ]
+        
+        if not unresolved_errors:
+            return {
+                "success": True,
+                "message": "No unresolved critical/high-severity errors found",
+                "recovery_results": []
+            }
+        
+        recovery_results = []
+        
+        # Attempt recovery for each error
+        for error in unresolved_errors[-10:]:  # Limit to last 10 errors
+            try:
+                result = await monitor.attempt_auto_recovery(error.error_id)
+                recovery_results.append({
+                    "error_id": error.error_id,
+                    "error_type": error.error_type,
+                    "severity": error.severity.value,
+                    "recovery_result": result
+                })
+            except Exception as recovery_error:
+                recovery_results.append({
+                    "error_id": error.error_id,
+                    "error_type": error.error_type,
+                    "severity": error.severity.value,
+                    "recovery_result": {
+                        "success": False,
+                        "error": str(recovery_error)
+                    }
+                })
+        
+        successful_recoveries = sum(1 for r in recovery_results if r["recovery_result"].get("success", False))
+        
+        return {
+            "success": True,
+            "total_errors_processed": len(recovery_results),
+            "successful_recoveries": successful_recoveries,
+            "recovery_rate": successful_recoveries / len(recovery_results) if recovery_results else 0,
+            "recovery_results": recovery_results,
+            "ai_summary": {
+                "batch_recovery_completed": True,
+                "errors_remaining": len(unresolved_errors) - successful_recoveries,
+                "next_action": "Monitor system for new errors" if successful_recoveries == len(recovery_results) else "Review failed recoveries for pattern improvements"
+            }
+        }
+        
+    except Exception as e:
+        log_error(e, ErrorSeverity.HIGH, ErrorCategory.API_ENDPOINT, {
+            "operation": "trigger_batch_auto_recovery"
+        })
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to trigger batch auto-recovery: {str(e)}"
         ) 

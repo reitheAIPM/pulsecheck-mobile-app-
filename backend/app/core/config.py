@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
-    # Supabase JWT Secret for token validation
+    # Supabase JWT Secret for token validation - CRITICAL for security
     supabase_jwt_secret: str = ""
     
     # Rate Limiting Configuration
@@ -45,46 +45,35 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.allowed_origins.split(",")]
     
     def validate_required_settings(self):
-        """Validate that required settings are present"""
-        missing = []
-        security_missing = []
+        """Validate that required settings are configured"""
+        missing_settings = []
         
         if not self.supabase_url:
-            missing.append("SUPABASE_URL")
+            missing_settings.append("SUPABASE_URL")
+        
         if not self.supabase_anon_key:
-            missing.append("SUPABASE_ANON_KEY")
-        if not self.openai_api_key:
-            missing.append("OPENAI_API_KEY")
-        if not self.supabase_jwt_secret:
-            security_missing.append("SUPABASE_JWT_SECRET")
-            
-        if security_missing:
-            print(f"🚨 CRITICAL SECURITY WARNING: Missing JWT secret!")
-            print(f"🔐 Please set SUPABASE_JWT_SECRET in your environment")
-            
-        if missing and self.environment == "production":
-            print(f"⚠️  WARNING: Missing required environment variables in production: {', '.join(missing)}")
-            print("🔧 Please set these variables in your Railway dashboard")
-            # Don't fail in production, just warn
-        elif missing:
-            print(f"⚠️  Missing environment variables: {', '.join(missing)}")
-            print("💡 These are required for full functionality")
+            missing_settings.append("SUPABASE_ANON_KEY")
+        
+        # JWT secret is critical for production
+        if self.environment == "production" and not self.supabase_jwt_secret:
+            missing_settings.append("SUPABASE_JWT_SECRET")
+        
+        if missing_settings:
+            raise ValueError(f"Missing required environment variables: {', '.join(missing_settings)}")
     
     class Config:
         env_file = ".env"
         case_sensitive = False
-        extra = "ignore"  # Allow extra fields from environment
+        extra = "ignore"  # Ignore extra environment variables that aren't defined in the model
 
 # Global settings instance
+settings = Settings()
+
+# Validate on import
 try:
-    settings = Settings()
     settings.validate_required_settings()
-except Exception as e:
-    print(f"❌ Configuration error: {e}")
-    print("🔧 Check your environment variables")
-    # Create minimal settings for health checks
-    settings = Settings(
-        supabase_url="",
-        supabase_anon_key="", 
-        openai_api_key=""
-    ) 
+except ValueError as e:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning(f"Configuration validation failed: {e}")
+    # Don't raise in development to allow for gradual setup 
