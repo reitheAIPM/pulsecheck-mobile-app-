@@ -51,7 +51,7 @@ python -c "from app.models import User"  # Will show exact import error
 grep -r "from app.models" backend/app/  # Find all import usages
 
 # Step 4: Verify frontend-backend interface consistency
-grep -r "authService\." frontend/src/  # Find all method calls
+grep -r "authService\." spark-realm/src/  # Find all method calls
 ```
 
 ---

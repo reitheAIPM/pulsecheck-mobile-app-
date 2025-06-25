@@ -615,6 +615,10 @@ try:
     
     app.include_router(adaptive_ai_router, prefix="/api/v1")
     
+    # AI Debugging router
+    from .app.routers.ai_debug import router as ai_debug_router
+    app.include_router(ai_debug_router, prefix="/api/v1")
+    
     if hasattr(debugging, 'router'):
         app.include_router(debugging.router, prefix="/api/v1")
     else:

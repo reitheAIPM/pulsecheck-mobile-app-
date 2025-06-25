@@ -25,6 +25,17 @@ export default defineConfig(({ mode }) => {
       assetsDir: "assets",
       // Generate clean URLs
       sourcemap: false,
+      // Fix chunk size warnings by splitting large dependencies
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom'],
+            ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs'],
+            builder: ['@builder.io/react', '@builder.io/sdk']
+          }
+        }
+      },
+      chunkSizeWarningLimit: 1000
     },
     server: {
       port: 5173,

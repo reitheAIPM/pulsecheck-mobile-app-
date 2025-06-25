@@ -1,8 +1,198 @@
 # PulseCheck - Technical Reference Guide
 
-**Status**: ✅ **PRODUCTION READY** (Updated: January 27, 2025)  
+**Status**: ✅ **PRODUCTION READY** (Updated: January 30, 2025)  
 **Phase**: Strategic Enhancement & iOS Beta Preparation  
-**Critical Issue**: Journal API endpoints returning 404 (Router mounting problem)
+**Security Status**: Critical privacy vulnerabilities resolved, additional security gaps identified
+
+---
+
+## 🏗️ **PROJECT STRUCTURE & PATH REFERENCE**
+
+### **Directory Structure Overview**
+```
+Passion Project v6 - Mobile App/
+├── ai/                          # AI documentation (this directory)
+├── backend/                     # FastAPI backend - Railway deployment
+│   ├── app/
+│   │   ├── core/               # Configuration and shared utilities
+│   │   ├── models/             # Pydantic models and database schemas  
+│   │   ├── routers/            # API route handlers
+│   │   └── services/           # Business logic
+│   ├── main.py                 # FastAPI application entry
+│   └── requirements.txt        # Python dependencies
+├── spark-realm/                # Web frontend - Vercel deployment ⭐ CURRENT FOCUS
+│   ├── src/
+│   │   ├── components/         # React components
+│   │   ├── pages/              # Page components  
+│   │   ├── services/           # API and external services
+│   │   └── utils/              # Helper functions
+│   ├── package.json            # Node.js dependencies
+│   └── vite.config.ts          # Vite configuration
+├── PulseCheckMobile/           # React Native mobile app - Future development
+│   ├── src/
+│   │   ├── screens/            # Mobile screens
+│   │   ├── components/         # Mobile components
+│   │   └── services/           # Mobile-specific services
+│   ├── app.json                # Expo configuration
+│   └── package.json            # React Native dependencies
+└── supabase/                   # Database migrations and configuration
+    ├── config.toml
+    └── migrations/
+```
+
+### **Active Development Paths**
+- **Current Production**: `spark-realm/` (web frontend) + `backend/` 
+- **Future Development**: `PulseCheckMobile/` (mobile app)
+- **Deployment URLs**:
+  - **Backend**: `https://pulsecheck-mobile-app-production.up.railway.app`
+  - **Web Frontend**: Vercel deployment (configured via `vercel.json`)
+  - **Database**: `https://qwpwlubxhtuzvmvajjjr.supabase.co`
+
+---
+
+## 🔒 **COMPREHENSIVE SECURITY AUDIT & IMPLEMENTATION STATUS**
+
+### **📊 SECURITY STATUS OVERVIEW**
+**Date**: January 29, 2025  
+**Auditor**: AI Assistant (Claude)  
+**Status**: Critical RLS vulnerability resolved, 11 additional security/optimization issues identified
+
+#### **✅ RECENTLY RESOLVED CRITICAL ISSUES**
+
+**1. Critical Data Privacy Vulnerability** ✅ **SECURED**
+- **Issue**: Row Level Security (RLS) missing, allowing cross-user data access
+- **Impact**: Users could see other users' journal entries and private data
+- **Resolution**: Comprehensive RLS policies implemented on all user data tables
+- **Tables Secured**: `journal_entries`, `ai_feedback`, `ai_usage_logs`, `user_feedback`
+- **Result**: Users can now ONLY see their own data - Privacy fully restored
+
+**2. User ID Consistency Issues** ✅ **FIXED**
+- **Issue**: Different user ID systems causing save/load mismatches
+- **Resolution**: Standardized user ID resolution across all API calls
+- **Result**: Premium settings and AI interaction preferences now persist correctly
+
+#### **🚨 CRITICAL SECURITY VULNERABILITIES IDENTIFIED**
+
+**1. NO RATE LIMITING - CRITICAL** 🔴
+- **Severity**: CRITICAL
+- **Impact**: Application vulnerable to abuse, DoS attacks, and resource exhaustion
+- **Missing Protection**: API endpoints, authentication, AI requests, journal entries
+- **Exploitation Risks**: Spam attacks, brute force, AI budget drain, database overwhelm
+
+```python
+# IMPLEMENT: FastAPI rate limiting middleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
+
+@router.post("/journal/entries")
+@limiter.limit("5/minute")  # Max 5 journal entries per minute
+async def create_journal_entry(...):
+```
+
+**2. WEAK ADMIN AUTHENTICATION - CRITICAL** 🔴
+- **Severity**: CRITICAL
+- **Location**: `backend/app/routers/admin.py:20`
+- **Issue**: No actual authentication - anyone can access admin endpoints
+- **Current**: `return {"admin": True, "user_id": "admin"}` (hardcoded)
+
+```python
+# IMMEDIATE FIX REQUIRED:
+async def verify_admin_access(current_user: AuthUser = Depends(get_current_user_from_token)):
+    if current_user.app_metadata.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+```
+
+**3. JWT TOKEN SECURITY ISSUES - HIGH** 🟠
+- **Severity**: HIGH
+- **Location**: `backend/app/routers/auth.py:66`
+- **Issues**: No signature verification, no expiration checking, no issuer validation
+- **Current**: `options={"verify_signature": False}` (dangerous)
+
+**4. INPUT VALIDATION GAPS - HIGH** 🟠
+- **Severity**: HIGH
+- **Missing Validation**: Journal content sanitization, AI prompt filtering, file upload limits
+- **Security Risks**: XSS attacks, prompt injection, resource exhaustion
+
+#### **💰 COST OPTIMIZATION CONCERNS**
+
+**5. AI COST PROTECTION GAPS - MEDIUM** 🟡
+- **Missing**: User-specific limits, emergency shutdown, real-time alerts
+- **Current**: Good foundation in `cost_optimization.py` but incomplete
+
+```python
+# RECOMMENDED: User-specific cost tracking
+def check_user_cost_limit(user_id: str, estimated_cost: float) -> bool:
+    daily_user_cost = get_user_daily_cost(user_id)
+    if daily_user_cost + estimated_cost > USER_DAILY_LIMIT:
+        return False
+    return True
+```
+
+#### **🔧 OPERATIONAL SECURITY ISSUES**
+
+**6. ERROR HANDLING LEAKS INFORMATION - MEDIUM** 🟡
+- **Issues**: Stack traces exposed, database errors leaked, API key hints visible
+
+```python
+# SECURE ERROR HANDLING:
+except Exception as e:
+    logger.error(f"Internal error: {e}")
+    raise HTTPException(status_code=500, detail="Internal server error")
+```
+
+**7. DEVELOPMENT MODE FALLBACKS IN PRODUCTION - MEDIUM** 🟡
+- **Issues**: Mock users active, weak authentication fallbacks, bypassed security
+
+#### **📊 LOAD HANDLING & SCALABILITY ISSUES**
+
+**8. NO CONNECTION POOLING - HIGH** 🟠
+- **Impact**: Database connections not optimized for high load
+- **Issues**: Single connection per request, no reuse, no limits
+
+**9. IN-MEMORY CACHING ONLY - MEDIUM** 🟡
+- **Issues**: Single server limitation, memory leaks, no cache invalidation
+
+#### **🧪 TESTING & MONITORING GAPS**
+
+**10. INSUFFICIENT EDGE CASE TESTING - MEDIUM** 🟡
+- **Missing**: AI failure scenarios, database connection loss, rate limit enforcement
+
+**11. NO SECURITY MONITORING - HIGH** 🟠
+- **Missing**: Failed login tracking, suspicious activity monitoring, security event logging
+
+#### **🎯 IMMEDIATE ACTION PLAN**
+
+**Phase 1: Critical Security (This Week)**
+1. **Implement rate limiting** on all endpoints
+2. **Fix admin authentication** with proper role verification
+3. **Add JWT signature verification** and validation
+4. **Implement input sanitization** and validation
+
+**Phase 2: Enhanced Protection (Next Week)**
+1. **Add user-specific cost limits** and emergency shutoff
+2. **Implement security monitoring** and alerting
+3. **Fix error handling** to prevent information leakage
+4. **Add connection pooling** and database optimization
+
+**Phase 3: Scalability (Following Week)**
+1. **Implement distributed caching** (Redis)
+2. **Add comprehensive testing** for edge cases
+3. **Implement monitoring dashboards** and metrics
+4. **Load testing** and performance optimization
+
+#### **📈 RISK ASSESSMENT MATRIX**
+
+| **Issue** | **Severity** | **Likelihood** | **Business Impact** | **Technical Effort** |
+|-----------|--------------|----------------|---------------------|----------------------|
+| No Rate Limiting | Critical | High | Severe | Medium |
+| Weak Admin Auth | Critical | Medium | Severe | Low |
+| JWT Security | High | Medium | High | Medium |
+| Input Validation | High | High | Medium | Medium |
+| Cost Protection | Medium | Low | High | Low |
+| Security Monitoring | High | High | Medium | High |
 
 ---
 
@@ -155,10 +345,11 @@ def select_persona(user_context, entry_content, topic_flags, mood_score):
 - **Monitoring**: AI-optimized error handling and debugging system
 
 ### **Frontend Stack**
-- **Framework**: React + TypeScript with Vite (React Native conversion in progress)
+- **Web Frontend**: React + TypeScript with Vite (`spark-realm/`)
+- **Mobile App**: React Native + Expo (`PulseCheckMobile/`)
 - **UI Library**: Shadcn/ui components with Tailwind CSS
 - **State Management**: React hooks with comprehensive error boundaries
-- **Build System**: Optimized for mobile-first delivery
+- **Build System**: Vite for web, Expo for mobile
 - **Testing**: Vitest with 100% test coverage
 
 ### **AI System (Enhanced)**

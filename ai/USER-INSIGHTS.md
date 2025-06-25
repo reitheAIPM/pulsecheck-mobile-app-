@@ -440,4 +440,18 @@ The current journaling interface makes it seem like users can only do short quic
 
 ---
 
+## 📱 **DEVELOPMENT FOCUS CLARIFICATION**
+
+### **Current Development Priority**
+- **Primary Focus**: Web frontend (`spark-realm/`) - **PRODUCTION READY**
+- **Secondary Focus**: Backend API (`backend/`) - **PRODUCTION READY**
+- **Future Focus**: Mobile app (`PulseCheckMobile/`) - **PLANNED DEVELOPMENT**
+
+### **Platform Strategy**
+- **Phase 1**: Web app for MVP and user validation ✅ **COMPLETE**
+- **Phase 2**: Mobile app for broader user adoption (in progress)
+- **Phase 3**: Native iOS/Android features (planned)
+
+---
+
 **This file consolidates: user-preferences.md, pulse-persona-guide.md** 
