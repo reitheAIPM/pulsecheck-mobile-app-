@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Heart, Sparkles, Brain, Crown, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { authService } from "@/services/authService";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [entries, setEntries] = useState([]);
   const [apiStatus, setApiStatus] = useState<'loading' | 'connected' | 'error'>('loading');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -32,6 +33,19 @@ const Index = () => {
     };
     getUserId();
   }, []);
+
+  // Check for celebration when component mounts
+  useEffect(() => {
+    if (searchParams.get('newEntry') === 'true') {
+      toast({
+        title: "🎉 Reflection saved!",
+        description: "Your journal entry has been saved successfully. Great job taking time for yourself!",
+        duration: 4000,
+      });
+      // Clean up the URL parameter
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     // Test API connection on component mount
