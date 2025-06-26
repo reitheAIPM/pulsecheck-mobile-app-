@@ -39,11 +39,18 @@ except ImportError as e:
             MIDDLEWARE_AVAILABLE = True
             print("✅ Debug middleware imported successfully (direct import)!")
         except ImportError as e3:
-            print(f"⚠️ All debug middleware import attempts failed:")
-            print(f"   Relative import: {e}")
-            print(f"   Absolute import: {e2}")
-            print(f"   Direct import: {e3}")
-            MIDDLEWARE_AVAILABLE = False
+            try:
+                # Try inline copy as ultimate fallback
+                from .debug_middleware_inline import debug_store, get_debug_summary, get_request_debug_info
+                MIDDLEWARE_AVAILABLE = True
+                print("✅ Debug middleware imported successfully (inline copy)!")
+            except ImportError as e4:
+                print(f"⚠️ All debug middleware import attempts failed:")
+                print(f"   Relative import: {e}")
+                print(f"   Absolute import: {e2}")
+                print(f"   Direct import: {e3}")
+                print(f"   Inline copy: {e4}")
+                MIDDLEWARE_AVAILABLE = False
     
     # Create minimal fallbacks
     class MockDebugStore:
@@ -1444,12 +1451,17 @@ async def reload_debug_middleware(request: Request):
                 from ..middleware.debug_middleware import DebugMiddleware, debug_store as fresh_store
                 print("✅ Reloaded with relative import")
             except ImportError:
-                # Try direct import
-                middleware_path = os.path.join(os.path.dirname(__file__), '..', 'middleware')
-                if middleware_path not in sys.path:
-                    sys.path.insert(0, middleware_path)
-                from debug_middleware import DebugMiddleware, debug_store as fresh_store
-                print("✅ Reloaded with direct import")
+                try:
+                    # Try direct import
+                    middleware_path = os.path.join(os.path.dirname(__file__), '..', 'middleware')
+                    if middleware_path not in sys.path:
+                        sys.path.insert(0, middleware_path)
+                    from debug_middleware import DebugMiddleware, debug_store as fresh_store
+                    print("✅ Reloaded with direct import")
+                except ImportError:
+                    # Try inline copy
+                    from .debug_middleware_inline import DebugMiddleware, debug_store as fresh_store
+                    print("✅ Reloaded with inline copy")
         
         global debug_store, MIDDLEWARE_AVAILABLE
         debug_store = fresh_store
