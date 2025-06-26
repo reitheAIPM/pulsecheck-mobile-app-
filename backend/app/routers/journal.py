@@ -15,7 +15,7 @@ from app.services.adaptive_ai_service import AdaptiveAIService, AIDebugContext
 from app.services.user_pattern_analyzer import UserPatternAnalyzer
 from app.services.weekly_summary_service import WeeklySummaryService, SummaryType
 from app.core.database import get_database, Database
-from app.core.security import get_current_user, limiter, validate_input_length, sanitize_user_input
+from app.core.security import get_current_user, get_current_user_with_fallback, limiter, validate_input_length, sanitize_user_input
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +155,7 @@ async def create_journal_entry(
     request: Request,
     entry: JournalEntryCreate,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user_from_request)
+    current_user: dict = Depends(get_current_user_with_fallback)
 ):
     """
     Create a new journal entry
@@ -235,7 +235,7 @@ async def get_pulse_response(
     request: Request,  # Required for rate limiter
     entry_id: str,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_with_fallback),
     pulse_ai: PulseAI = Depends(get_pulse_ai_service)
 ):
     """
@@ -295,7 +295,7 @@ async def submit_pulse_feedback(
     entry_id: str,
     feedback_type: str,  # 'thumbs_up', 'thumbs_down', 'report'
     feedback_text: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_with_fallback),
     pulse_ai: PulseAI = Depends(get_pulse_ai_service)
 ):
     """
@@ -402,7 +402,7 @@ async def get_journal_entries(
     page: int = 1,
     per_page: int = 10,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user_from_request)
+    current_user: dict = Depends(get_current_user_with_fallback)
 ):
     """
     Get paginated list of user's journal entries
@@ -476,7 +476,7 @@ async def get_journal_entries(
 async def get_journal_stats(
     request: Request,  # Required for rate limiter
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_with_fallback)
 ):
     """
     Get user's journal statistics and wellness trends
@@ -534,7 +534,7 @@ async def get_journal_entry(
     request: Request,  # Required for rate limiter
     entry_id: str,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_with_fallback)
 ):
     """Get a single journal entry by ID"""
     try:
@@ -561,7 +561,7 @@ async def update_journal_entry(
     entry_id: str,
     entry: JournalEntryUpdate,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_from_request)
 ):
     """Update an existing journal entry"""
     try:

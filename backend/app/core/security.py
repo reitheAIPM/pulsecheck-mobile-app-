@@ -261,12 +261,15 @@ async def get_current_user_with_fallback(
                 "name": auth_user.user_metadata.get("name", "User"),
                 "is_admin": auth_user.is_admin
             }
-    except HTTPException:
-        # Fall through to development fallback
+    except HTTPException as e:
+        # Only use fallback for 401 errors in development
+        if e.status_code != status.HTTP_401_UNAUTHORIZED:
+            raise
+        # Fall through to development fallback only for auth errors
         pass
     
-    # Development fallback - ONLY for development environment
-    if getattr(settings, 'environment', 'production') != 'production':
+    # Development fallback - ONLY for development environment AND no credentials
+    if getattr(settings, 'environment', 'production') != 'production' and not credentials:
         user_id = request.headers.get('X-User-Id', "user_reiale01gmailcom_1750733000000")
         
         return {
