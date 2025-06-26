@@ -194,11 +194,21 @@ app.add_middleware(CustomCORSMiddleware)
 
 # Add debug middleware for comprehensive monitoring
 try:
-    from app.middleware.debug_middleware import DebugMiddleware
+    from app.middleware.debug_middleware import DebugMiddleware, debug_store
     app.add_middleware(DebugMiddleware)
     print("✅ Debug middleware loaded successfully")
+    print(f"✅ Debug store initialized: {type(debug_store).__name__}")
+    print(f"✅ Debug store has {len(debug_store.requests)} requests in memory")
 except ImportError as e:
-    print(f"⚠️  Debug middleware not available: {e}")
+    print(f"⚠️  Debug middleware import failed: {e}")
+    import traceback
+    print(f"⚠️  Traceback: {traceback.format_exc()}")
+    # Continue without debug middleware
+    pass
+except Exception as e:
+    print(f"⚠️  Debug middleware setup failed: {e}")
+    import traceback
+    print(f"⚠️  Traceback: {traceback.format_exc()}")
     # Continue without debug middleware
     pass
 

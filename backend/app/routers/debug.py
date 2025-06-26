@@ -11,6 +11,8 @@ import uuid
 import json
 import traceback
 import os
+import sys
+import importlib
 
 from ..core.security import limiter
 
@@ -25,6 +27,12 @@ except ImportError as e:
     
     # Create minimal fallbacks
     class MockDebugStore:
+        def __init__(self):
+            self.requests = {}
+            self.responses = {}
+            self.database_ops = []
+            self.request_order = []
+        
         def get_recent_requests(self, limit=50):
             return [{"request_id": "mock", "method": "GET", "url": "/test", "status_code": 200, 
                     "response_time_ms": 100, "db_operations": 1, "has_errors": False, 
@@ -38,6 +46,16 @@ except ImportError as e:
         
         def get_database_stats(self, minutes_back=60):
             return {"message": "Debug middleware not available - using mock data"}
+        
+        def get_enhanced_risk_analysis(self, time_window=60):
+            return {
+                "overall_risk_level": "unknown",
+                "total_requests": 0,
+                "error_rate": 0,
+                "avg_response_time": 0,
+                "slow_request_rate": 0,
+                "recommendations": ["Debug middleware not available - using mock data"]
+            }
     
     debug_store = MockDebugStore()
     
@@ -365,28 +383,54 @@ async def debug_system_health():
     Check health of the debugging system itself
     """
     try:
-        return {
-            "status": "healthy",
-            "debug_middleware": "active",
-            "store_status": {
-                "requests_in_memory": len(debug_store.requests),
-                "responses_in_memory": len(debug_store.responses),
-                "database_ops_in_memory": len(debug_store.database_ops),
-                "memory_usage_estimate_mb": (
-                    len(debug_store.requests) * 0.5 +  # Rough estimate
-                    len(debug_store.responses) * 1.0 +
-                    len(debug_store.database_ops) * 0.3
-                )
-            },
-            "capabilities": [
-                "request_response_tracking",
-                "database_operation_monitoring",
-                "performance_analysis",
-                "error_tracking",
-                "live_streaming"
-            ],
-            "timestamp": datetime.now().isoformat()
-        }
+        # Check if we're using real middleware or mock
+        is_mock = not MIDDLEWARE_AVAILABLE or type(debug_store).__name__ == "MockDebugStore"
+        
+        if is_mock:
+            return {
+                "status": "limited",
+                "debug_middleware": "mock_fallback",
+                "message": "Debug middleware not available - using fallback mock",
+                "store_status": {
+                    "requests_in_memory": 0,
+                    "responses_in_memory": 0,
+                    "database_ops_in_memory": 0,
+                    "memory_usage_estimate_mb": 0
+                },
+                "capabilities": [
+                    "basic_endpoint_testing",
+                    "mock_data_responses"
+                ],
+                "recommendations": [
+                    "Check Railway logs for middleware import errors",
+                    "Verify all dependencies are installed",
+                    "Check file permissions and imports"
+                ],
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            return {
+                "status": "healthy",
+                "debug_middleware": "active",
+                "store_status": {
+                    "requests_in_memory": len(debug_store.requests),
+                    "responses_in_memory": len(debug_store.responses),
+                    "database_ops_in_memory": len(debug_store.database_ops),
+                    "memory_usage_estimate_mb": (
+                        len(debug_store.requests) * 0.5 +  # Rough estimate
+                        len(debug_store.responses) * 1.0 +
+                        len(debug_store.database_ops) * 0.3
+                    )
+                },
+                "capabilities": [
+                    "request_response_tracking",
+                    "database_operation_monitoring",
+                    "performance_analysis",
+                    "error_tracking",
+                    "live_streaming"
+                ],
+                "timestamp": datetime.now().isoformat()
+            }
     except Exception as e:
         logger.error(f"Debug health check failed: {e}")
         raise HTTPException(status_code=500, detail=f"Debug health check failed: {str(e)}")
@@ -1345,6 +1389,128 @@ async def get_current_risk_analysis(request: Request, time_window: int = 60):
         sys.stdout.flush()
         logger.error(f"Current risk analysis failed: {e}")
         raise HTTPException(status_code=500, detail=f"Risk analysis failed: {str(e)}")
+
+@router.get("/middleware/reload")
+@limiter.limit("2/minute")
+async def reload_debug_middleware(request: Request):
+    """
+    Attempt to reload debug middleware and check status
+    """
+    print("🔄 Debug middleware reload requested")
+    sys.stdout.flush()
+    
+    try:
+        # Try to import fresh
+        import importlib
+        
+        # Clear any cached imports
+        if 'app.middleware.debug_middleware' in sys.modules:
+            importlib.reload(sys.modules['app.middleware.debug_middleware'])
+        
+        from app.middleware.debug_middleware import DebugMiddleware, debug_store as fresh_store
+        
+        global debug_store, MIDDLEWARE_AVAILABLE
+        debug_store = fresh_store
+        MIDDLEWARE_AVAILABLE = True
+        
+        print("✅ Debug middleware reloaded successfully")
+        sys.stdout.flush()
+        
+        return {
+            "status": "success",
+            "message": "Debug middleware reloaded successfully",
+            "middleware_available": True,
+            "store_type": type(debug_store).__name__,
+            "store_stats": {
+                "requests_tracked": len(debug_store.requests),
+                "responses_tracked": len(debug_store.responses),
+                "db_operations": len(debug_store.database_ops)
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        error_msg = f"❌ Failed to reload debug middleware: {str(e)}"
+        print(error_msg)
+        sys.stdout.flush()
+        
+        return {
+            "status": "failed",
+            "message": "Failed to reload debug middleware",
+            "error": str(e),
+            "middleware_available": False,
+            "fallback_mode": True,
+            "timestamp": datetime.now().isoformat()
+        }
+
+@router.get("/middleware/diagnostic")
+@limiter.limit("5/minute") 
+async def debug_middleware_diagnostic(request: Request):
+    """
+    Comprehensive diagnostic of debug middleware status
+    """
+    print("🔍 Debug middleware diagnostic requested")
+    sys.stdout.flush()
+    
+    diagnostic = {
+        "timestamp": datetime.now().isoformat(),
+        "middleware_status": {},
+        "import_status": {},
+        "environment_check": {},
+        "recommendations": []
+    }
+    
+    # Check middleware availability
+    diagnostic["middleware_status"] = {
+        "available": MIDDLEWARE_AVAILABLE,
+        "store_type": type(debug_store).__name__,
+        "is_mock": type(debug_store).__name__ == "MockDebugStore"
+    }
+    
+    # Test imports
+    try:
+        from app.middleware.debug_middleware import DebugMiddleware
+        diagnostic["import_status"]["middleware_class"] = "✅ Available"
+    except Exception as e:
+        diagnostic["import_status"]["middleware_class"] = f"❌ Failed: {e}"
+    
+    try:
+        from app.middleware.debug_middleware import debug_store as test_store
+        diagnostic["import_status"]["debug_store"] = f"✅ Available ({type(test_store).__name__})"
+    except Exception as e:
+        diagnostic["import_status"]["debug_store"] = f"❌ Failed: {e}"
+    
+    try:
+        from app.middleware.debug_middleware import get_debug_summary
+        diagnostic["import_status"]["helper_functions"] = "✅ Available"
+    except Exception as e:
+        diagnostic["import_status"]["helper_functions"] = f"❌ Failed: {e}"
+    
+    # Environment checks
+    diagnostic["environment_check"] = {
+        "python_path": sys.path[:3],  # First 3 entries
+        "working_directory": os.getcwd() if 'os' in globals() else "unknown",
+        "module_cache": "app.middleware.debug_middleware" in sys.modules
+    }
+    
+    # Generate recommendations
+    if diagnostic["middleware_status"]["is_mock"]:
+        diagnostic["recommendations"].extend([
+            "Debug middleware is using mock fallback",
+            "Check Railway startup logs for import errors", 
+            "Verify all dependencies are installed",
+            "Try the /debug/middleware/reload endpoint"
+        ])
+    else:
+        diagnostic["recommendations"].append("Debug middleware is working correctly")
+    
+    print(f"✅ Diagnostic complete: {diagnostic}")
+    sys.stdout.flush()
+    
+    return {
+        "status": "success",
+        "diagnostic": diagnostic
+    }
 
 @router.get("/claude/context")
 @limiter.limit("10/minute")
