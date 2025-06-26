@@ -18,12 +18,32 @@ from ..core.security import limiter
 
 # Try to import middleware, fallback if not available
 try:
+    # Try relative import first
     from ..middleware.debug_middleware import debug_store, get_debug_summary, get_request_debug_info
     MIDDLEWARE_AVAILABLE = True
-    print("✅ Debug middleware imported successfully!")
+    print("✅ Debug middleware imported successfully (relative import)!")
 except ImportError as e:
-    print(f"⚠️ Debug middleware not available: {e}")
-    MIDDLEWARE_AVAILABLE = False
+    try:
+        # Try absolute import as fallback
+        from app.middleware.debug_middleware import debug_store, get_debug_summary, get_request_debug_info
+        MIDDLEWARE_AVAILABLE = True
+        print("✅ Debug middleware imported successfully (absolute import)!")
+    except ImportError as e2:
+        try:
+            # Try direct import as last resort
+            import sys
+            import os
+            middleware_path = os.path.join(os.path.dirname(__file__), '..', 'middleware')
+            sys.path.insert(0, middleware_path)
+            from debug_middleware import debug_store, get_debug_summary, get_request_debug_info
+            MIDDLEWARE_AVAILABLE = True
+            print("✅ Debug middleware imported successfully (direct import)!")
+        except ImportError as e3:
+            print(f"⚠️ All debug middleware import attempts failed:")
+            print(f"   Relative import: {e}")
+            print(f"   Absolute import: {e2}")
+            print(f"   Direct import: {e3}")
+            MIDDLEWARE_AVAILABLE = False
     
     # Create minimal fallbacks
     class MockDebugStore:
@@ -1404,10 +1424,32 @@ async def reload_debug_middleware(request: Request):
         import importlib
         
         # Clear any cached imports
-        if 'app.middleware.debug_middleware' in sys.modules:
-            importlib.reload(sys.modules['app.middleware.debug_middleware'])
+        modules_to_clear = [
+            'app.middleware.debug_middleware',
+            'debug_middleware'
+        ]
+        for module in modules_to_clear:
+            if module in sys.modules:
+                importlib.reload(sys.modules[module])
         
-        from app.middleware.debug_middleware import DebugMiddleware, debug_store as fresh_store
+        # Try multiple import methods
+        fresh_store = None
+        DebugMiddleware = None
+        
+        try:
+            from app.middleware.debug_middleware import DebugMiddleware, debug_store as fresh_store
+            print("✅ Reloaded with absolute import")
+        except ImportError:
+            try:
+                from ..middleware.debug_middleware import DebugMiddleware, debug_store as fresh_store
+                print("✅ Reloaded with relative import")
+            except ImportError:
+                # Try direct import
+                middleware_path = os.path.join(os.path.dirname(__file__), '..', 'middleware')
+                if middleware_path not in sys.path:
+                    sys.path.insert(0, middleware_path)
+                from debug_middleware import DebugMiddleware, debug_store as fresh_store
+                print("✅ Reloaded with direct import")
         
         global debug_store, MIDDLEWARE_AVAILABLE
         debug_store = fresh_store
@@ -1467,24 +1509,39 @@ async def debug_middleware_diagnostic(request: Request):
         "is_mock": type(debug_store).__name__ == "MockDebugStore"
     }
     
-    # Test imports
+    # Test imports - try multiple methods
+    import_methods = [
+        ("absolute", "from app.middleware.debug_middleware import DebugMiddleware"),
+        ("relative", "from ..middleware.debug_middleware import DebugMiddleware"),
+        ("direct", "import debug_middleware")
+    ]
+    
+    diagnostic["import_status"]["test_results"] = {}
+    
+    for method_name, import_statement in import_methods:
+        try:
+            if method_name == "direct":
+                # Add middleware path for direct import
+                middleware_path = os.path.join(os.path.dirname(__file__), '..', 'middleware')
+                if middleware_path not in sys.path:
+                    sys.path.insert(0, middleware_path)
+                exec(import_statement)
+            else:
+                exec(import_statement)
+            diagnostic["import_status"]["test_results"][method_name] = "✅ Success"
+        except Exception as e:
+            diagnostic["import_status"]["test_results"][method_name] = f"❌ Failed: {e}"
+    
+    # Test specific imports
     try:
         from app.middleware.debug_middleware import DebugMiddleware
-        diagnostic["import_status"]["middleware_class"] = "✅ Available"
-    except Exception as e:
-        diagnostic["import_status"]["middleware_class"] = f"❌ Failed: {e}"
-    
-    try:
-        from app.middleware.debug_middleware import debug_store as test_store
-        diagnostic["import_status"]["debug_store"] = f"✅ Available ({type(test_store).__name__})"
-    except Exception as e:
-        diagnostic["import_status"]["debug_store"] = f"❌ Failed: {e}"
-    
-    try:
-        from app.middleware.debug_middleware import get_debug_summary
-        diagnostic["import_status"]["helper_functions"] = "✅ Available"
-    except Exception as e:
-        diagnostic["import_status"]["helper_functions"] = f"❌ Failed: {e}"
+        diagnostic["import_status"]["middleware_class"] = "✅ Available (absolute)"
+    except Exception:
+        try:
+            from ..middleware.debug_middleware import DebugMiddleware
+            diagnostic["import_status"]["middleware_class"] = "✅ Available (relative)"
+        except Exception as e:
+            diagnostic["import_status"]["middleware_class"] = f"❌ Failed: {e}"
     
     # Environment checks
     diagnostic["environment_check"] = {
