@@ -359,7 +359,7 @@ const JournalEntry = () => {
       if (searchParams.get('returnTo') === 'insights') {
         navigate('/insights');
       } else {
-        navigate(`/pulse-response?entryId=${journalEntry.id}&showCelebration=true`);
+        navigate(`/pulse/${journalEntry.id}?showCelebration=true`);
       }
     } catch (error) {
       console.error('Failed to create journal entry:', error);

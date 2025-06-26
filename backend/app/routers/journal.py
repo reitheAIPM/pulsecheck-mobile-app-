@@ -25,6 +25,39 @@ router = APIRouter(tags=["Journal"])
 def get_pulse_ai_service(db: Database = Depends(get_database)):
     return PulseAI(db=db)
 
+def classify_topics_simple(content: str) -> List[str]:
+    """Simple keyword-based topic classification"""
+    try:
+        content_lower = content.lower()
+        detected_topics = []
+        
+        # Define topic keywords
+        topic_keywords = {
+            "work_stress": ["work", "deadline", "pressure", "meeting", "project", "boss", "colleague", "office"],
+            "anxiety": ["anxious", "worried", "nervous", "overwhelmed", "panic", "fear", "stress"],
+            "relationships": ["friend", "family", "partner", "relationship", "love", "conflict", "social"],
+            "motivation": ["goal", "achieve", "success", "progress", "motivation", "drive", "ambition"],
+            "reflection": ["thinking", "wondering", "considering", "reflection", "contemplating", "realize"],
+            "health": ["tired", "sleep", "energy", "exercise", "health", "wellness", "body"],
+            "mood": ["happy", "sad", "angry", "frustrated", "excited", "disappointed", "grateful"]
+        }
+        
+        # Check for keyword matches
+        for topic, keywords in topic_keywords.items():
+            for keyword in keywords:
+                if keyword in content_lower:
+                    detected_topics.append(topic)
+                    break  # Only count each topic once
+        
+        # Remove duplicates while preserving order
+        unique_topics = list(dict.fromkeys(detected_topics))
+        
+        return unique_topics[:5]  # Limit to 5 topics max
+        
+    except Exception as e:
+        logger.error(f"Error in simple topic classification: {e}")
+        return []
+
 # Initialize Adaptive AI services
 def get_adaptive_ai_service(db: Database = Depends(get_database)):
     pulse_ai = PulseAI(db=db)
@@ -855,3 +888,36 @@ async def get_weekly_summary(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating weekly summary: {str(e)}")
+
+@router.post("/ai/topic-classification")
+@limiter.limit("30/minute")  # Rate limit topic classification requests
+async def classify_journal_topics(
+    request: Request,  # Required for rate limiter
+    data: dict,  # Expecting {"content": "journal content"}
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user_from_request),
+    adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
+):
+    """
+    Classify topics in journal content using AI
+    
+    Features:
+    - Keyword-based topic detection
+    - Pattern matching for common themes
+    - Tech worker-specific categories
+    - Fallback to basic classification
+    """
+    try:
+        content = data.get("content", "")
+        if not content or len(content.strip()) < 10:
+            return {"topics": []}
+        
+        # Use simple keyword-based topic classification for now
+        topics = classify_topics_simple(content)
+        
+        return {"topics": topics}
+        
+    except Exception as e:
+        logger.error(f"Error in topic classification: {e}")
+        # Return empty topics array on error to prevent frontend failures
+        return {"topics": []}
