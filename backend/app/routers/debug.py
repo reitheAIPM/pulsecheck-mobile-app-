@@ -43,7 +43,7 @@ except ImportError as e:
                 # Try inline copy as ultimate fallback
                 from .debug_middleware_inline import debug_store, get_debug_summary, get_request_debug_info
                 MIDDLEWARE_AVAILABLE = True
-                print("✅ Debug middleware imported successfully (inline copy)!")
+                print("✅ Debug middleware imported successfully (inline copy)! 🎉")
             except ImportError as e4:
                 print(f"⚠️ All debug middleware import attempts failed:")
                 print(f"   Relative import: {e}")
