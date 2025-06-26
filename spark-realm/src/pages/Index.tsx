@@ -27,9 +27,17 @@ const Index = () => {
   
   useEffect(() => {
     const getUserId = async () => {
+      console.log('🔍 Checking user authentication status...');
       // Get user from Supabase authentication
-      const { user } = await authService.getCurrentUser();
-      setUserId(user?.id || null);
+      const { user, error } = await authService.getCurrentUser();
+      
+      if (user) {
+        console.log('✅ User authenticated:', user.id, user.email);
+        setUserId(user.id);
+      } else {
+        console.log('❌ No authenticated user found:', error);
+        setUserId(null);
+      }
     };
     getUserId();
   }, []);
@@ -114,8 +122,22 @@ const Index = () => {
     
     setIsLoadingEntries(true);
     try {
+      console.log('🔄 Loading journal entries for user:', userId);
+      
+      // Ensure we have a valid auth token before making the request
+      const token = authService.getAuthToken();
+      if (!token) {
+        console.warn('⚠️ No auth token available, trying to refresh...');
+        const freshToken = await authService.getAuthTokenAsync();
+        if (!freshToken) {
+          throw new Error('Authentication required. Please sign in again.');
+        }
+      }
+      
       // Load journal entries
       let realEntries = await apiService.getJournalEntries();
+      
+      console.log('📥 Received journal entries:', realEntries.length, 'entries');
       
       // Transform the entries to match the expected format
       const transformedEntries = realEntries.map(entry => ({
@@ -128,21 +150,38 @@ const Index = () => {
       setEntries(transformedEntries);
       
       if (realEntries.length === 0) {
+        console.log('ℹ️ No journal entries found for user');
         toast({
           title: "No entries yet",
           description: "Start your wellness journey by creating your first entry!",
           duration: 3000,
         });
+      } else {
+        console.log('✅ Successfully loaded', realEntries.length, 'journal entries');
       }
     } catch (error) {
-      console.error('Failed to load real entries:', error);
+      console.error('❌ Failed to load journal entries:', error);
       console.error('Error details:', error.response?.data || error.message);
-      toast({
-        title: "Loading failed",
-        description: "Unable to load your entries. Please try refreshing.",
-        variant: "destructive",
-        duration: 3000,
-      });
+      
+      // Handle authentication errors specifically
+      if (error.response?.status === 401) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in again to view your entries.",
+          variant: "destructive",
+          duration: 5000,
+        });
+        // Clear invalid auth state
+        authService.signOut();
+        window.location.href = '/auth';
+      } else {
+        toast({
+          title: "Loading failed",
+          description: "Unable to load your entries. Please try refreshing.",
+          variant: "destructive",
+          duration: 3000,
+        });
+      }
       // Don't set mock data - let empty state show instead
     } finally {
       setIsLoadingEntries(false);
