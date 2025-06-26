@@ -1344,4 +1344,383 @@ async def get_current_risk_analysis(request: Request, time_window: int = 60):
         print(error_msg)
         sys.stdout.flush()
         logger.error(f"Current risk analysis failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Risk analysis failed: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Risk analysis failed: {str(e)}")
+
+@router.get("/claude/context")
+@limiter.limit("10/minute")
+async def get_claude_debugging_context(
+    request: Request,
+    issue_type: Optional[str] = Query(default="general", description="Issue type: 'error', 'performance', 'auth', 'cors', 'loading', 'general'"),
+    time_window: int = Query(default=30, le=120, description="Minutes of history to analyze"),
+    include_predictions: bool = Query(default=True, description="Include predictive analysis")
+):
+    """
+    CLAUDE-OPTIMIZED DEBUG CONTEXT
+    
+    Single endpoint that provides everything Claude needs to debug ANY issue efficiently.
+    Replaces 5-10 separate tool calls with 1 comprehensive response.
+    
+    Returns AI-structured debugging context optimized for Claude's reasoning patterns.
+    """
+    print(f"🤖 /api/v1/debug/claude/context endpoint hit - issue_type:{issue_type}, time_window:{time_window}")
+    sys.stdout.flush()
+    
+    try:
+        context = {
+            "claude_debug_session": {
+                "session_id": str(uuid.uuid4()),
+                "timestamp": datetime.now().isoformat(),
+                "issue_type": issue_type,
+                "analysis_window_minutes": time_window,
+                "system_status": "analyzing"
+            },
+            "immediate_insights": {},
+            "structured_data": {},
+            "ai_reasoning_aids": {},
+            "debugging_roadmap": {},
+            "confidence_indicators": {}
+        }
+        
+        # Get core system data
+        recent_requests = debug_store.get_recent_requests(50)
+        error_requests = debug_store.get_error_requests(20)
+        slow_requests = debug_store.get_slow_requests(1000, 15)
+        db_stats = debug_store.get_database_stats(time_window)
+        
+        # IMMEDIATE INSIGHTS (First thing Claude should see)
+        context["immediate_insights"] = {
+            "critical_issues": len([r for r in error_requests if r.get("status_code", 200) >= 500]),
+            "auth_issues": len([r for r in error_requests if r.get("status_code", 200) == 401]),
+            "cors_issues": len([r for r in error_requests if "cors" in str(r.get("error_details", "")).lower()]),
+            "performance_issues": len(slow_requests),
+            "system_health": "healthy" if len(error_requests) < 3 else "degraded" if len(error_requests) < 10 else "critical",
+            "recent_activity": len(recent_requests),
+            "last_successful_request": max([r.get("timestamp", "") for r in recent_requests if not r.get("has_errors", False)], default="none"),
+            "last_error": max([r.get("timestamp", "") for r in error_requests], default="none")
+        }
+        
+        # ISSUE-SPECIFIC ANALYSIS
+        if issue_type == "loading":
+            context["immediate_insights"]["loading_analysis"] = {
+                "stuck_requests": len([r for r in recent_requests if r.get("response_time_ms", 0) > 10000]),
+                "timeout_errors": len([r for r in error_requests if "timeout" in str(r.get("error_details", "")).lower()]),
+                "js_navigation_issues": len([r for r in error_requests if "navigation" in str(r.get("url", "")).lower()]),
+                "ai_service_calls": len([r for r in recent_requests if "/pulse" in str(r.get("url", "")) or "/ai" in str(r.get("url", ""))]),
+                "recommendation": "Check for disabled AI endpoints causing infinite loading states"
+            }
+        elif issue_type == "auth":
+            context["immediate_insights"]["auth_analysis"] = {
+                "failed_logins": len([r for r in error_requests if r.get("status_code", 200) == 401]),
+                "token_issues": len([r for r in error_requests if "token" in str(r.get("error_details", "")).lower()]),
+                "user_sessions": len(set([r.get("user_id") for r in recent_requests if r.get("user_id")])),
+                "recommendation": "Check authentication middleware and token validation"
+            }
+        elif issue_type == "performance":
+            response_times = [r.get("response_time_ms", 0) for r in recent_requests if r.get("response_time_ms")]
+            context["immediate_insights"]["performance_analysis"] = {
+                "avg_response_time": sum(response_times) / len(response_times) if response_times else 0,
+                "slow_endpoints": list(set([r.get("url", "") for r in slow_requests])),
+                "db_heavy_requests": len([r for r in recent_requests if r.get("db_operations", 0) > 5]),
+                "recommendation": "Focus on database query optimization and caching"
+            }
+        
+        # STRUCTURED DATA (For deeper analysis)
+        context["structured_data"] = {
+            "recent_requests_sample": recent_requests[:10],
+            "error_requests_sample": error_requests[:5],
+            "endpoint_performance": {},
+            "database_hotspots": db_stats,
+            "user_patterns": {}
+        }
+        
+        # Calculate endpoint performance
+        endpoint_stats = {}
+        for req in recent_requests:
+            url = req.get("url", "unknown")
+            if url not in endpoint_stats:
+                endpoint_stats[url] = {"count": 0, "errors": 0, "avg_time": 0, "status": "healthy"}
+            
+            endpoint_stats[url]["count"] += 1
+            if req.get("has_errors", False):
+                endpoint_stats[url]["errors"] += 1
+            
+            if req.get("response_time_ms"):
+                endpoint_stats[url]["avg_time"] = (
+                    (endpoint_stats[url]["avg_time"] * (endpoint_stats[url]["count"] - 1) + 
+                     req.get("response_time_ms", 0)) / endpoint_stats[url]["count"]
+                )
+            
+            # Determine endpoint health
+            error_rate = endpoint_stats[url]["errors"] / endpoint_stats[url]["count"]
+            if error_rate > 0.2 or endpoint_stats[url]["avg_time"] > 2000:
+                endpoint_stats[url]["status"] = "critical"
+            elif error_rate > 0.1 or endpoint_stats[url]["avg_time"] > 1000:
+                endpoint_stats[url]["status"] = "degraded"
+        
+        context["structured_data"]["endpoint_performance"] = endpoint_stats
+        
+        # AI REASONING AIDS (Help Claude understand patterns)
+        context["ai_reasoning_aids"] = {
+            "error_patterns": {
+                "by_status_code": {},
+                "by_endpoint": {},
+                "by_time_pattern": {},
+                "common_causes": []
+            },
+            "performance_trends": {
+                "getting_worse": len([r for r in recent_requests[-10:] if r.get("response_time_ms", 0) > 1000]) > 3,
+                "consistent_slow": len(slow_requests) > 5,
+                "intermittent_issues": len(error_requests) > 0 and len(error_requests) < len(recent_requests) * 0.1
+            },
+            "system_context": {
+                "high_load": len(recent_requests) > 30,
+                "authentication_active": any(r.get("user_id") for r in recent_requests),
+                "database_active": any(r.get("db_operations", 0) > 0 for r in recent_requests),
+                "ai_services_accessed": any("/pulse" in str(r.get("url", "")) or "/ai" in str(r.get("url", "")) for r in recent_requests)
+            }
+        }
+        
+        # Group errors by status code
+        for req in error_requests:
+            status = req.get("status_code", "unknown")
+            if status not in context["ai_reasoning_aids"]["error_patterns"]["by_status_code"]:
+                context["ai_reasoning_aids"]["error_patterns"]["by_status_code"][status] = []
+            context["ai_reasoning_aids"]["error_patterns"]["by_status_code"][status].append(req)
+        
+        # DEBUGGING ROADMAP (Step-by-step guidance for Claude)
+        context["debugging_roadmap"] = {
+            "primary_focus": _get_primary_focus(issue_type, context["immediate_insights"]),
+            "investigation_steps": _get_investigation_steps(issue_type, context["immediate_insights"]),
+            "likely_causes": _get_likely_causes(issue_type, context["immediate_insights"]),
+            "verification_commands": _get_verification_commands(issue_type),
+            "escalation_triggers": _get_escalation_triggers(context["immediate_insights"])
+        }
+        
+        # CONFIDENCE INDICATORS (Help Claude assess data quality)
+        context["confidence_indicators"] = {
+            "data_freshness": "high" if len(recent_requests) > 10 else "medium" if len(recent_requests) > 3 else "low",
+            "sample_size": "sufficient" if len(recent_requests) > 20 else "limited",
+            "error_data_quality": "detailed" if any(r.get("error_details") for r in error_requests) else "basic",
+            "performance_data_quality": "complete" if any(r.get("response_time_ms") for r in recent_requests) else "partial",
+            "analysis_reliability": "high"
+        }
+        
+        # Add confidence score
+        confidence_score = 0.8
+        if len(recent_requests) > 20:
+            confidence_score += 0.1
+        if len(error_requests) > 0:
+            confidence_score += 0.05
+        if any(r.get("error_details") for r in error_requests):
+            confidence_score += 0.05
+        
+        context["confidence_indicators"]["overall_confidence"] = min(confidence_score, 1.0)
+        
+        # PREDICTIVE ANALYSIS (if requested)
+        if include_predictions:
+            context["predictive_analysis"] = {
+                "risk_level": _calculate_risk_level(error_requests, slow_requests, recent_requests),
+                "failure_probability": _calculate_failure_probability(error_requests, recent_requests),
+                "performance_trend": _analyze_performance_trend(recent_requests),
+                "recommended_monitoring": _get_monitoring_recommendations(context["immediate_insights"])
+            }
+        
+        print(f"✅ Claude debugging context generated successfully: {context['claude_debug_session']['session_id']}")
+        sys.stdout.flush()
+        
+        return {
+            "status": "success",
+            "optimized_for": "Claude Sonnet",
+            "debug_efficiency": "single_call_complete_context",
+            "context": context
+        }
+        
+    except Exception as e:
+        error_msg = f"❌ Error in Claude debugging context: {str(e)}"
+        print(error_msg)
+        sys.stdout.flush()
+        logger.error(f"Claude debugging context failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Claude debugging context failed: {str(e)}")
+
+# Helper functions for the Claude debugging context
+
+def _get_primary_focus(issue_type: str, insights: dict) -> str:
+    """Determine what Claude should focus on first"""
+    if issue_type == "loading":
+        if insights.get("loading_analysis", {}).get("ai_service_calls", 0) > 0:
+            return "Check for disabled AI endpoints causing infinite loading states"
+        return "Investigate timeout and stuck request patterns"
+    elif issue_type == "auth":
+        return "Verify authentication middleware and token validation flow"
+    elif issue_type == "performance":
+        return "Analyze slow endpoints and database operation patterns"
+    elif insights["critical_issues"] > 0:
+        return "Address critical server errors immediately"
+    elif insights["auth_issues"] > 0:
+        return "Resolve authentication problems"
+    else:
+        return "Perform general system health assessment"
+
+def _get_investigation_steps(issue_type: str, insights: dict) -> list:
+    """Provide step-by-step investigation guidance"""
+    if issue_type == "loading":
+        return [
+            "1. Check recent requests for stuck/timeout patterns",
+            "2. Identify requests to disabled AI endpoints",
+            "3. Verify frontend navigation flow after journal creation", 
+            "4. Check for infinite loops in React components",
+            "5. Validate error handling in API calls"
+        ]
+    elif issue_type == "auth":
+        return [
+            "1. Check authentication middleware status",
+            "2. Verify token generation and validation",
+            "3. Test user session management",
+            "4. Check CORS configuration for auth endpoints",
+            "5. Validate user permissions and roles"
+        ]
+    elif issue_type == "performance":
+        return [
+            "1. Identify slowest endpoints from performance data",
+            "2. Analyze database operation patterns",
+            "3. Check for N+1 query problems",
+            "4. Review caching implementation",
+            "5. Monitor memory and CPU usage patterns"
+        ]
+    else:
+        return [
+            "1. Review recent error patterns",
+            "2. Check system health indicators",
+            "3. Analyze endpoint performance",
+            "4. Verify core functionality",
+            "5. Monitor for recurring issues"
+        ]
+
+def _get_likely_causes(issue_type: str, insights: dict) -> list:
+    """Suggest likely root causes based on issue type"""
+    if issue_type == "loading":
+        return [
+            "Frontend calling disabled AI endpoints",
+            "Navigation to non-existent routes",
+            "API timeout without proper error handling",
+            "React component infinite re-render loops",
+            "Failed async operations without fallbacks"
+        ]
+    elif issue_type == "auth":
+        return [
+            "Token expiration not handled properly",
+            "CORS configuration blocking auth requests",
+            "Authentication middleware misconfiguration",
+            "Invalid user session management",
+            "Database connection issues for user lookup"
+        ]
+    else:
+        return [
+            "Database connection or query issues",
+            "External API dependency failures",
+            "Memory or resource constraints",
+            "Configuration or environment problems",
+            "Rate limiting or throttling issues"
+        ]
+
+def _get_verification_commands(issue_type: str) -> list:
+    """Provide verification commands for Claude to run"""
+    base_url = "https://pulsecheck-mobile-app-production.up.railway.app"
+    
+    if issue_type == "loading":
+        return [
+            f"curl -s '{base_url}/api/v1/debug/requests?filter_type=slow'",
+            f"curl -s '{base_url}/api/v1/journal/stats'",
+            f"curl -s '{base_url}/api/v1/debug/performance/analysis'"
+        ]
+    elif issue_type == "auth":
+        return [
+            f"curl -s '{base_url}/api/v1/auth/health'",
+            f"curl -s '{base_url}/api/v1/debug/requests?filter_type=errors'",
+            f"curl -s '{base_url}/api/v1/debug/database/stats'"
+        ]
+    else:
+        return [
+            f"curl -s '{base_url}/api/v1/debug/summary'",
+            f"curl -s '{base_url}/api/v1/debug/health'",
+            f"curl -s '{base_url}/api/v1/debug/requests'"
+        ]
+
+def _get_escalation_triggers(insights: dict) -> list:
+    """Define when Claude should escalate or ask for human help"""
+    triggers = []
+    
+    if insights["critical_issues"] > 5:
+        triggers.append("High number of critical errors - may need human intervention")
+    
+    if insights["system_health"] == "critical":
+        triggers.append("System health is critical - consider emergency response")
+    
+    if insights["recent_activity"] < 3:
+        triggers.append("Very low activity - system may be completely down")
+    
+    return triggers if triggers else ["No escalation triggers detected"]
+
+def _calculate_risk_level(error_requests: list, slow_requests: list, recent_requests: list) -> str:
+    """Calculate system risk level"""
+    if not recent_requests:
+        return "unknown"
+    
+    error_rate = len(error_requests) / len(recent_requests)
+    slow_rate = len(slow_requests) / len(recent_requests)
+    
+    if error_rate > 0.3 or slow_rate > 0.5:
+        return "high"
+    elif error_rate > 0.1 or slow_rate > 0.2:
+        return "medium"
+    else:
+        return "low"
+
+def _calculate_failure_probability(error_requests: list, recent_requests: list) -> str:
+    """Calculate probability of system failure"""
+    if not recent_requests:
+        return "unknown"
+    
+    error_rate = len(error_requests) / len(recent_requests)
+    
+    if error_rate > 0.4:
+        return "high"
+    elif error_rate > 0.2:
+        return "medium"
+    else:
+        return "low"
+
+def _analyze_performance_trend(recent_requests: list) -> str:
+    """Analyze if performance is improving, degrading, or stable"""
+    if len(recent_requests) < 10:
+        return "insufficient_data"
+    
+    # Split into first half and second half
+    mid_point = len(recent_requests) // 2
+    first_half = recent_requests[:mid_point]
+    second_half = recent_requests[mid_point:]
+    
+    first_avg = sum(r.get("response_time_ms", 0) for r in first_half) / len(first_half)
+    second_avg = sum(r.get("response_time_ms", 0) for r in second_half) / len(second_half)
+    
+    if second_avg > first_avg * 1.2:
+        return "degrading"
+    elif second_avg < first_avg * 0.8:
+        return "improving"
+    else:
+        return "stable"
+
+def _get_monitoring_recommendations(insights: dict) -> list:
+    """Get specific monitoring recommendations"""
+    recommendations = []
+    
+    if insights["critical_issues"] > 0:
+        recommendations.append("Monitor error rates every 5 minutes")
+    
+    if insights["performance_issues"] > 3:
+        recommendations.append("Set up performance alerts for response times > 2s")
+    
+    if insights["auth_issues"] > 0:
+        recommendations.append("Monitor authentication success rates")
+    
+    return recommendations if recommendations else ["Standard monitoring recommended"] 
