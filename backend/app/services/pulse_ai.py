@@ -42,16 +42,30 @@ class PulseAI:
     def __init__(self, db=None):
         # Initialize OpenAI client only if API key is available
         self.client = None
+        self.api_key_configured = False
+        
+        # Check for OpenAI API key in multiple places
+        openai_api_key = None
         if hasattr(settings, 'openai_api_key') and settings.openai_api_key:
-            try:
-                openai.api_key = settings.openai_api_key
-                self.client = openai.OpenAI(api_key=settings.openai_api_key)
-                logger.info("OpenAI client initialized successfully")
-            except Exception as e:
-                logger.warning(f"Failed to initialize OpenAI client: {e}")
-                self.client = None
+            openai_api_key = settings.openai_api_key
         else:
-            logger.warning("OpenAI API key not configured - AI features will use fallback responses")
+            # Try environment variable directly
+            openai_api_key = os.getenv('OPENAI_API_KEY')
+        
+        if openai_api_key:
+            try:
+                openai.api_key = openai_api_key
+                self.client = openai.OpenAI(api_key=openai_api_key)
+                self.api_key_configured = True
+                logger.info("✅ OpenAI client initialized successfully")
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize OpenAI client: {e}")
+                self.client = None
+                self.api_key_configured = False
+        else:
+            logger.warning("⚠️ OPENAI_API_KEY not configured - AI features will use fallback responses")
+            logger.warning("💡 To enable AI personas, add OPENAI_API_KEY to Railway environment variables")
+            logger.warning("🔗 Get your API key from: https://platform.openai.com/api-keys")
         
         # Beta optimization integration
         self.beta_service = BetaOptimizationService(db, self.client) if db else None

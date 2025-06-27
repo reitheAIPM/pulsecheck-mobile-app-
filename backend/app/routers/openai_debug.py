@@ -20,6 +20,7 @@ from app.services.adaptive_ai_service import AdaptiveAIService
 from app.services.user_pattern_analyzer import UserPatternAnalyzer
 from app.core.observability import observability, capture_error
 from app.models.journal import JournalEntryResponse
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["OpenAI Debugging"])
@@ -392,37 +393,69 @@ async def _test_openai_client_health() -> Dict[str, Any]:
     try:
         import os
         
-        api_key_configured = bool(os.getenv("OPENAI_API_KEY"))
+        # Check multiple sources for API key
+        api_key_configured = False
+        api_key_source = "not found"
+        
+        # Check environment variable
+        if os.getenv("OPENAI_API_KEY"):
+            api_key_configured = True
+            api_key_source = "environment"
+        # Check settings
+        elif hasattr(settings, 'openai_api_key') and settings.openai_api_key:
+            api_key_configured = True  
+            api_key_source = "settings"
         
         if not api_key_configured:
             return {
                 "configured": False,
                 "api_key_status": "❌ NOT SET",
-                "connection_test": "❌ SKIPPED",
-                "last_successful_request": "Never"
+                "api_key_source": api_key_source,
+                "connection_test": "❌ SKIPPED - No API key",
+                "last_successful_request": "Never",
+                "setup_instructions": [
+                    "1. Get your OpenAI API key from https://platform.openai.com/api-keys",
+                    "2. Add to Railway: Variables tab → Add Variable",
+                    "3. Name: OPENAI_API_KEY, Value: your-api-key",
+                    "4. Railway will auto-deploy with the new variable"
+                ]
             }
         
         # Test connection with minimal request
-        client = get_observable_openai_client()
-        test_response = client.chat_completions_create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": "Hi"}],
-            max_tokens=5
-        )
-        
-        return {
-            "configured": True,
-            "api_key_status": "✅ CONFIGURED",
-            "connection_test": "✅ SUCCESS",
-            "last_successful_request": datetime.now().isoformat()
-        }
+        try:
+            client = get_observable_openai_client()
+            test_response = client.chat_completions_create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": "Hi"}],
+                max_tokens=5
+            )
+            
+            return {
+                "configured": True,
+                "api_key_status": f"✅ CONFIGURED (from {api_key_source})",
+                "api_key_source": api_key_source,
+                "connection_test": "✅ SUCCESS", 
+                "last_successful_request": datetime.now().isoformat()
+            }
+        except Exception as conn_error:
+            return {
+                "configured": True,
+                "api_key_status": f"✅ CONFIGURED (from {api_key_source})",
+                "api_key_source": api_key_source,
+                "connection_test": f"❌ FAILED: {str(conn_error)}",
+                "last_successful_request": "Failed",
+                "error_details": {
+                    "type": type(conn_error).__name__,
+                    "message": str(conn_error)
+                }
+            }
         
     except Exception as e:
         return {
-            "configured": api_key_configured if 'api_key_configured' in locals() else False,
-            "api_key_status": "✅ CONFIGURED" if api_key_configured else "❌ NOT SET",
-            "connection_test": f"❌ FAILED: {str(e)}",
-            "last_successful_request": "Failed"
+            "configured": False,
+            "api_key_status": "❌ ERROR CHECKING",
+            "connection_test": f"❌ ERROR: {str(e)}",
+            "last_successful_request": "Unknown"
         }
 
 async def _generate_openai_debug_insights() -> List[str]:
