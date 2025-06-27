@@ -766,6 +766,23 @@ def register_routers():
             # Continue without journal fix router rather than failing completely
             pass
 
+        # Database Debug router for connection diagnostics
+        print("🔄 Importing Database debug router...")
+        sys.stdout.flush()
+        try:
+            from app.routers.database_debug import router as database_debug_router
+            print("✅ Database debug router imported successfully")
+            sys.stdout.flush()
+            app.include_router(database_debug_router, prefix="/api/v1", tags=["database-debug"])
+            print("✅ Database debug router registered")
+            sys.stdout.flush()
+        except Exception as db_debug_error:
+            print(f"❌ Database debug router import/registration failed: {db_debug_error}")
+            print(f"❌ Database debug router traceback: {traceback.format_exc()}")
+            sys.stdout.flush()
+            # Continue without database debug router rather than failing completely
+            pass
+
         # Admin router
         print("🔄 Importing admin router...")
         sys.stdout.flush()

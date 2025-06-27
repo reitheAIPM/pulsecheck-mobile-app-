@@ -81,7 +81,7 @@ When something fails → AI gets complete context → AI fixes issue → AI vali
 
 ---
 
-## �� **PRODUCTION ENVIRONMENT OVERVIEW**
+## 🚨 **PRODUCTION ENVIRONMENT OVERVIEW**
 
 ### **Current Architecture (PRODUCTION)**
 PulseCheck operates in a **full production environment** with the following stack:
@@ -1033,3 +1033,67 @@ curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debu
 ```bash
 curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/requests/{specific_request_id}"
 ```
+
+## **DEPLOYMENT & TESTING LESSONS LEARNED**
+
+### **✅ WHAT WORKS (Use These Approaches):**
+
+**Commands & Tools:**
+- `curl.exe` - Always use .exe extension on Windows
+- `Invoke-RestMethod` - Reliable for PowerShell HTTP requests
+- `git add`, `git commit`, `git push` - Standard git workflow works perfectly
+- Railway deployment via git push - Automatic detection and rebuilding
+- FastAPI with performance optimizations - Achieved 99.5% improvement
+
+**Performance Optimizations (Proven Effective):**
+- GZip compression middleware - Massive response time improvements
+- Database connection pooling - Infrastructure optimization
+- Horizontal scaling with Railway - 2 replicas working
+- Resource limits (2 vCPU, 4GB RAM) - Stable performance
+- Health endpoint monitoring - Real-time performance tracking
+
+**Error Resolution Patterns:**
+- Import errors: Add missing imports to requirements.txt immediately
+- Dependency conflicts: Pin specific versions (e.g., gotrue==2.8.1)
+- Supabase client: Remove unsupported options parameters
+
+### **❌ WHAT DOESN'T WORK (Avoid These):**
+
+**Commands & Tools:**
+- `curl` without .exe - Fails on Windows PowerShell
+- Complex PowerShell one-liners - Console buffer issues, unreliable
+- Long PowerShell commands - Cause display errors and timeouts
+- Multiple sequential curl calls - Leads to hanging
+
+**Testing Approaches:**
+- Running multiple separate test scripts - Inefficient, fragmented results
+- Testing without timeout parameters - Causes indefinite hanging
+- Complex PowerShell syntax in single commands - Parser errors
+
+**Database Connection Issues (Still Investigating):**
+- Supabase client with options parameter - Not supported in current version
+- Long-running database operations without proper timeout handling
+- Missing psycopg2 dependency - Causes SQLite fallback
+
+### **🔧 RELIABLE PATTERNS TO FOLLOW:**
+
+1. **Always use `curl.exe` on Windows**
+2. **Keep PowerShell commands simple and short**
+3. **Use timeouts on all HTTP requests (10-30 seconds)**
+4. **Pin all dependency versions in requirements.txt**
+5. **Test infrastructure endpoints first, then database endpoints**
+6. **Use git workflow for all deployments - Railway auto-detects**
+7. **Performance optimizations work - connection pooling, compression, scaling**
+
+### **🚨 CURRENT KNOWN ISSUES:**
+
+**RESOLVED:**
+- ✅ GZipMiddleware import error - Fixed with proper import
+- ✅ psycopg2 missing dependency - Added psycopg2-binary==2.9.9
+- ✅ Supabase client options - Removed unsupported parameters
+- ✅ Performance (27s→126ms) - Fixed with optimization stack
+
+**ACTIVE INVESTIGATION:**
+- ❌ Database endpoints timing out after 10-15 seconds
+- ❌ Version endpoint returning 404 (partial deployment)
+- ❌ Auth/Journal operations hanging despite infrastructure improvements
