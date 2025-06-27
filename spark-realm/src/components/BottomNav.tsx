@@ -9,17 +9,23 @@ export function BottomNav() {
   const tabs = [
     { id: "home", label: "Home", icon: Home, path: "/" },
     { id: "history", label: "History", icon: History, path: "/history" },
-    { id: "new", label: "New", icon: Plus, path: "/new-entry", isAction: true },
+    { id: "new", label: "New", icon: Plus, path: "/journal", isAction: true },
     { id: "insights", label: "Insights", icon: BarChart3, path: "/insights" },
     { id: "profile", label: "Me", icon: User, path: "/profile" },
   ];
 
   const handleTabClick = (tab: (typeof tabs)[0]) => {
-    navigate(tab.path);
+    // For home navigation, preserve scroll position if user was already on home
+    if (tab.path === "/" && location.pathname === "/") {
+      // User is already on home, scroll to top instead of reloading
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      navigate(tab.path);
+    }
   };
 
-  // Don't show on new entry screen to avoid distraction
-  if (location.pathname === "/new-entry") {
+  // Don't show on journal entry screen to avoid distraction
+  if (location.pathname === "/journal" || location.pathname.startsWith("/journal/")) {
     return null;
   }
 

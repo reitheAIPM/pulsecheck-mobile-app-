@@ -119,28 +119,28 @@ const Index = () => {
     }
   }, [shouldReloadEntries, apiStatus, userId]);
 
-  // Add effect to reload entries when returning to this page
+  // Add effect to reload entries when returning to this page (but less aggressively)
   useEffect(() => {
+    let lastReloadTime = 0;
+    const RELOAD_COOLDOWN = 30000; // 30 seconds cooldown between reloads
+
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && apiStatus === 'connected' && userId) {
-        // Reload entries when page becomes visible and we're connected
+      const now = Date.now();
+      // Only reload if page becomes visible, we're connected, have a user, and enough time has passed
+      if (document.visibilityState === 'visible' && 
+          apiStatus === 'connected' && 
+          userId && 
+          (now - lastReloadTime) > RELOAD_COOLDOWN) {
+        lastReloadTime = now;
         loadRealEntries();
       }
     };
 
-    // Also reload when the page gains focus
-    const handleFocus = () => {
-      if (apiStatus === 'connected' && userId) {
-        loadRealEntries();
-      }
-    };
-
+    // Remove aggressive focus reload - only use visibility change
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
     };
   }, [apiStatus, userId]); // Dependencies on apiStatus and userId
 
