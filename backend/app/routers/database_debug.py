@@ -173,4 +173,140 @@ async def simple_ping():
             "status": "client_failed", 
             "error": str(e),
             "message": "Failed to create database client"
-        } 
+        }
+
+@router.get("/database/comprehensive-status")
+async def comprehensive_database_status():
+    """
+    Comprehensive database status with Railway environment analysis
+    """
+    start_time = time.time()
+    
+    try:
+        status_report = {
+            "timestamp": time.time(),
+            "railway_environment": {
+                "SUPABASE_URL": "✅ Set" if os.getenv("SUPABASE_URL") else "❌ Missing",
+                "SUPABASE_ANON_KEY": "✅ Set" if os.getenv("SUPABASE_ANON_KEY") else "❌ Missing", 
+                "SUPABASE_SERVICE_ROLE_KEY": "✅ Set" if os.getenv("SUPABASE_SERVICE_ROLE_KEY") else "❌ Missing",
+                "DB_PASSWORD": "✅ Set" if os.getenv("DB_PASSWORD") else "❌ Missing"
+            },
+            "connection_tests": {},
+            "recommendations": []
+        }
+        
+        # Test 1: Basic client creation
+        try:
+            db = get_database()
+            client = db.get_client()
+            status_report["connection_tests"]["client_creation"] = "✅ Success"
+        except Exception as e:
+            status_report["connection_tests"]["client_creation"] = f"❌ Failed: {str(e)}"
+        
+        # Test 2: Simple query with anon key
+        try:
+            db = get_database()
+            client = db.get_client()
+            
+            # Set a reasonable timeout
+            import signal
+            def timeout_handler(signum, frame):
+                raise TimeoutError("Query timeout")
+            
+            # Try query with 10 second timeout
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(10)
+            
+            try:
+                result = client.table('profiles').select('id').limit(1).execute()
+                status_report["connection_tests"]["database_query"] = "✅ Success"
+                status_report["connection_tests"]["query_result_count"] = len(result.data) if result.data else 0
+            except TimeoutError:
+                status_report["connection_tests"]["database_query"] = "❌ Timeout (10s)"
+            except Exception as query_error:
+                status_report["connection_tests"]["database_query"] = f"❌ Query failed: {str(query_error)}"
+            finally:
+                signal.alarm(0)
+                
+        except Exception as e:
+            status_report["connection_tests"]["database_query"] = f"❌ Setup failed: {str(e)}"
+        
+        # Test 3: Auth operations
+        try:
+            # Test if auth operations work with current setup
+            db = get_database()
+            client = db.get_client()
+            
+            # Try to access auth without actually creating a user
+            auth_methods = dir(client.auth)
+            status_report["connection_tests"]["auth_available"] = "✅ Auth methods accessible"
+            status_report["connection_tests"]["auth_methods_count"] = len([m for m in auth_methods if not m.startswith('_')])
+            
+        except Exception as e:
+            status_report["connection_tests"]["auth_available"] = f"❌ Auth failed: {str(e)}"
+        
+        # Generate recommendations
+        missing_vars = [k for k, v in status_report["railway_environment"].items() if "Missing" in v]
+        
+        if missing_vars:
+            status_report["recommendations"].append({
+                "priority": "HIGH",
+                "action": "Add missing environment variables to Railway",
+                "variables": missing_vars,
+                "instructions": "Go to Railway Dashboard → Project → Variables tab → Add variables"
+            })
+        
+        if status_report["connection_tests"]["database_query"].startswith("❌"):
+            status_report["recommendations"].append({
+                "priority": "MEDIUM", 
+                "action": "Database query issues detected",
+                "possible_causes": [
+                    "Missing SUPABASE_SERVICE_ROLE_KEY for backend operations",
+                    "Network connectivity issues",
+                    "RLS policies blocking anon key access",
+                    "Supabase regional connectivity problems"
+                ]
+            })
+        
+        response_time = (time.time() - start_time) * 1000
+        status_report["response_time_ms"] = round(response_time, 2)
+        
+        # Determine overall status
+        if status_report["connection_tests"]["client_creation"].startswith("✅") and \
+           status_report["connection_tests"]["database_query"].startswith("✅"):
+            status_report["overall_status"] = "✅ HEALTHY"
+        elif status_report["connection_tests"]["client_creation"].startswith("✅"):
+            status_report["overall_status"] = "⚠️  PARTIAL - Client OK, queries failing"
+        else:
+            status_report["overall_status"] = "❌ UNHEALTHY"
+        
+        return status_report
+        
+    except Exception as e:
+        response_time = (time.time() - start_time) * 1000
+        return {
+            "overall_status": "❌ ERROR",
+            "error": str(e),
+            "response_time_ms": round(response_time, 2),
+            "timestamp": time.time()
+        }
+
+@router.get("/database/wait-for-fix")
+async def wait_for_service_key():
+    """
+    Monitor Railway environment until SUPABASE_SERVICE_ROLE_KEY is added
+    """
+    return {
+        "monitoring": "Waiting for SUPABASE_SERVICE_ROLE_KEY to be added to Railway",
+        "current_status": "✅ Set" if os.getenv("SUPABASE_SERVICE_ROLE_KEY") else "❌ Still missing",
+        "instructions": [
+            "1. Go to Railway Dashboard: https://railway.app/",
+            "2. Select your PulseCheck project", 
+            "3. Go to Variables tab",
+            "4. Add SUPABASE_SERVICE_ROLE_KEY with your service role key",
+            "5. Wait for automatic redeploy",
+            "6. Test this endpoint again"
+        ],
+        "when_added": "Database operations should work within 2-3 minutes of adding the key",
+        "test_endpoint": "/api/v1/database/comprehensive-status"
+    } 
