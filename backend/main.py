@@ -676,6 +676,22 @@ def register_routers():
         print("✅ Adaptive AI router registered")
         sys.stdout.flush()
 
+        print("🔄 Importing proactive AI router...")
+        sys.stdout.flush()
+        try:
+            from app.routers.proactive_ai import router as proactive_ai_router
+            print("✅ Proactive AI router imported successfully")
+            sys.stdout.flush()
+            app.include_router(proactive_ai_router, prefix="/api/v1/proactive-ai", tags=["proactive-ai"])
+            print("✅ Proactive AI router registered")
+            sys.stdout.flush()
+        except Exception as proactive_ai_error:
+            print(f"❌ Proactive AI router import/registration failed: {proactive_ai_error}")
+            print(f"❌ Proactive AI router traceback: {traceback.format_exc()}")
+            sys.stdout.flush()
+            # Continue without proactive AI router rather than failing completely
+            pass
+
         print("🔄 Importing checkins router...")
         sys.stdout.flush()
         from app.routers.checkins import router as checkins_router

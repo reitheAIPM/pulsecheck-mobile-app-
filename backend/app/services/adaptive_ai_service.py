@@ -263,7 +263,8 @@ class AdaptiveAIService:
         user_id: str, 
         journal_entry: JournalEntryResponse,
         journal_history: List[JournalEntryResponse],
-        persona: str = "auto"
+        persona: str = "auto",
+        additional_context: Optional[str] = None
     ) -> AIInsightResponse:
         """
         Generate adaptive AI response based on user patterns and context
@@ -316,7 +317,7 @@ class AdaptiveAIService:
             
             # Step 5: Generate AI Response (with comprehensive error handling)
             ai_start = datetime.now()
-            personalized_prompt = self._create_personalized_prompt(persona, adaptive_context, journal_entry)
+            personalized_prompt = self._create_personalized_prompt(persona, adaptive_context, journal_entry, additional_context)
             
             base_response = await self._generate_ai_response_with_fallback(
                 journal_entry.content, personalized_prompt, debug_context
@@ -858,7 +859,8 @@ class AdaptiveAIService:
         self, 
         persona: str, 
         context: AdaptiveContext, 
-        entry: JournalEntryResponse
+        entry: JournalEntryResponse,
+        additional_context: Optional[str] = None
     ) -> str:
         """
         Create personalized prompt based on user patterns and context
@@ -893,6 +895,11 @@ class AdaptiveAIService:
             # Add user-specific context
             user_context = self._get_user_context_instruction(context.user_patterns, entry)
             
+            # Add additional context for proactive responses
+            proactive_context = ""
+            if additional_context:
+                proactive_context = f"\n\nIMPORTANT CONTEXT:\n{additional_context}\n"
+            
             # Combine all instructions
             personalized_prompt = f"""
 {base_prompt}
@@ -908,6 +915,8 @@ class AdaptiveAIService:
 {user_context}
 
 Remember: You are having a conversation with someone who has a {context.user_patterns.writing_style} writing style and typically writes {context.user_patterns.avg_entry_length} words per entry. They prefer {context.user_patterns.response_length_preference} responses and often discuss {', '.join(context.user_patterns.common_topics[:3])}.
+
+{proactive_context}
 
 Respond naturally as if you're having a real conversation with them.
 """
