@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from contextvars import ContextVar
 from dataclasses import dataclass, asdict
 import traceback
+import uuid
 
 from openai import OpenAI
 from openai._exceptions import (
@@ -59,7 +60,8 @@ class OpenAIObservability:
     
     def start_request(self, operation: str, model: str, **kwargs) -> str:
         """Start tracking an OpenAI API request"""
-        request_id = observability.generate_request_id()
+        # Generate a unique request ID
+        request_id = str(uuid.uuid4())
         
         metrics = OpenAIRequestMetrics(
             request_id=request_id,
@@ -73,6 +75,7 @@ class OpenAIObservability:
         
         # Log to main observability system
         observability.start_request(
+            request_id=request_id,
             operation=f"openai_{operation}",
             endpoint=f"/openai/{operation}",
             method="POST",
