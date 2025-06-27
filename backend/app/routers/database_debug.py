@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from ..core.config import settings
 from ..core.database import get_database, Database, create_optimized_engine, get_connection_stats
+from supabase import create_client, Client
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["database-debug"])
