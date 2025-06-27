@@ -312,7 +312,7 @@ async def wait_for_service_key():
         "test_endpoint": "/api/v1/database/comprehensive-status"
     }
 
-@router.get("/full-system-check")
+@router.get("/database/full-system-check")
 async def full_system_check():
     """
     🎯 CONSOLIDATED SYSTEM VERIFICATION
