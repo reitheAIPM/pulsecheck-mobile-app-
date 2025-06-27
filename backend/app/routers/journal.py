@@ -100,54 +100,8 @@ async def test_ai_response():
             "status": "error"
         }
 
-# Remove mock user dependency for MVP - use proper authentication only
-async def get_current_user_from_request(request: Request):
-    """
-    Authentication dependency that requires proper Supabase Auth
-    """
-    try:
-        # Require authorization header
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authorization header required"
-            )
-        
-        # Import here to avoid circular imports
-        from ..core.security import get_current_user_secure
-        from fastapi.security import HTTPAuthorizationCredentials
-        
-        credentials = HTTPAuthorizationCredentials(
-            scheme="Bearer",
-            credentials=auth_header.split(' ')[1]
-        )
-        
-        auth_user = await get_current_user_secure(credentials, get_database())
-        return {
-            "id": auth_user.id,
-            "email": auth_user.email,
-            "tech_role": auth_user.user_metadata.get("tech_role", "user"),
-            "name": auth_user.user_metadata.get("name", "User")
-        }
-    except HTTPException:
-        raise  # Re-raise HTTP exceptions
-    except Exception as e:
-        logger.error(f"Authentication failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication failed"
-        )
-
-# Wrapper for endpoints that don't need request
-async def get_current_user():
-    """Fallback for endpoints without request access"""
-    return {
-        "id": "user_reiale01gmailcom_1750733000000",
-        "email": "rei.ale01@gmail.com",
-        "tech_role": "beta_tester", 
-        "name": "Rei (Development User)"
-    }
+# STANDARDIZED: Use centralized authentication from core.security
+# Local functions removed - using get_current_user_with_fallback and get_current_user from core.security
 
 @router.post("/entries", response_model=JournalEntryResponse)
 @limiter.limit("5/minute")  # Prevent spam
@@ -561,7 +515,7 @@ async def update_journal_entry(
     entry_id: str,
     entry: JournalEntryUpdate,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user_from_request)
+    current_user: dict = Depends(get_current_user_with_fallback)
 ):
     """Update an existing journal entry"""
     try:
@@ -592,7 +546,7 @@ async def delete_journal_entry(
     request: Request,  # Required for rate limiter
     entry_id: str,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user_from_request)
+    current_user: dict = Depends(get_current_user_with_fallback)
 ):
     """Delete a journal entry"""
     try:
@@ -621,7 +575,7 @@ async def reset_journal(
     user_id: str,
     confirm: bool = False,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user_from_request)
+    current_user: dict = Depends(get_current_user_with_fallback)
 ):
     """
     Reset user's journal data (for testing/admin purposes)
@@ -895,7 +849,7 @@ async def classify_journal_topics(
     request: Request,  # Required for rate limiter
     data: dict,  # Expecting {"content": "journal content"}
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user_from_request),
+    current_user: dict = Depends(get_current_user_with_fallback),
     adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
 ):
     """

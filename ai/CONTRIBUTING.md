@@ -1,8 +1,543 @@
-# Contributing to PulseCheck - AI Documentation Guide
+# Contributing to PulseCheck - AI-Only Development Environment
 
-**Purpose**: Master directory and guidelines for AI-assisted development  
-**Last Updated**: January 30, 2025  
-**Status**: Consolidated and optimized for maximum AI efficiency
+**Purpose**: Master directory and guidelines for **AI-ONLY** development and debugging  
+**Last Updated**: June 27, 2025  
+**Critical Reality**: ❌ **NOT PRODUCTION READY** - Failed initial beta launch with bugs
+
+---
+
+## 🚨 **CRITICAL: AI-ONLY DEVELOPMENT REALITY**
+
+### **🤖 PRIMARY CONSTRAINT: CURSOR AI IS SOLE DEVELOPER**
+**❗ ABSOLUTE REQUIREMENT**: All systems must be designed for **AI-only operation**
+
+- **NO HUMAN DEBUGGING ASSISTANCE**: AI must diagnose and fix all issues independently
+- **MAXIMUM AI EFFICIENCY**: All tools optimized for minimal tool calls
+- **COMPLETE CONTEXT PROVISION**: Every debugging scenario must provide full context
+- **ERROR RECOVERY**: AI must understand and fix errors without human interpretation
+- **DOCUMENTATION**: All notes, tools, and guides written specifically for AI understanding
+
+### **🎯 PRIMARY GOAL: AI AUTONOMOUS PROBLEM SOLVING**
+```
+When something fails → AI gets complete context → AI fixes issue → AI validates fix
+```
+
+### **⚡ SECONDARY GOAL: MINIMAL TOOL CALLS**
+- **1-3 calls maximum** for issue diagnosis
+- **Single file references** provide complete context
+- **Parallel tool calls** when gathering information
+- **Comprehensive endpoints** eliminate investigation loops
+
+---
+
+## 🚨 **CRITICAL: PRODUCTION READINESS REALITY CHECK**
+
+### **❌ CURRENT STATUS: FAILED BETA LAUNCH**
+- **Beta Testers**: 3-6 users experienced constant bugs
+- **Launch Result**: Failed due to overlooked issues
+- **User Experience**: Poor - bugs disrupted core functionality
+- **Production Readiness**: ❌ **NOT READY** despite previous optimistic assessments
+
+### **🎯 USER EXPERIENCE IS PRIMARY PRIORITY**
+- **User experience supersedes all technical considerations**
+- **Bug-free operation is mandatory before any launch**
+- **Beta tester feedback must be addressed comprehensively**
+- **Launch readiness requires thorough testing and validation**
+
+### **📊 HONEST ASSESSMENT REQUIREMENTS**
+- **NO SUGARCOATING**: Distinguish between "working" vs "tested"
+- **REALISTIC CONFIDENCE LEVELS**: Based on actual user validation
+- **COMPREHENSIVE TESTING**: End-to-end user flows must be validated
+- **ERROR SCENARIOS**: All failure modes must be tested and handled
+- **LAUNCH READINESS**: See `LAUNCH-READINESS-ASSESSMENT.md` for comprehensive criteria
+
+---
+
+## 🚨 **CRITICAL: ENVIRONMENT STRATEGY**
+
+### **CURRENT: PRODUCTION-ONLY DEVELOPMENT**
+**We are currently using PRODUCTION infrastructure for all development:**
+
+- **Frontend**: Vercel deployment (spark-realm) - **LIVE PRODUCTION DATA**
+- **Backend**: Railway deployment (FastAPI) - **LIVE PRODUCTION API**  
+- **Database**: Supabase production instance - **LIVE USER DATA**
+- **AI Services**: OpenAI production API - **LIVE PROCESSING & COSTS**
+- **Environment**: Windows PowerShell - **PRODUCTION DEBUGGING ONLY**
+
+### **FUTURE: DEVELOPMENT BRANCH STRATEGY**
+**When we create development branches (NOT YET):**
+- **GitHub**: dev branch → triggers Railway/Vercel dev deployments
+- **Railway**: Separate dev environment with mock data
+- **Vercel**: Separate dev preview with test configurations
+- **Database**: Separate dev Supabase project or staging tables
+- **Testing**: Mock data and local testing allowed
+
+### **⚠️ UNTIL DEV BRANCHES: NO LOCAL/MOCK DATA**
+- **NO localhost references** in any code
+- **NO mock data** in any debugging tools
+- **NO local development** environment setup
+- **ALL debugging** uses production endpoints
+- **ALL testing** affects live user experience
+
+---
+
+## �� **PRODUCTION ENVIRONMENT OVERVIEW**
+
+### **Current Architecture (PRODUCTION)**
+PulseCheck operates in a **full production environment** with the following stack:
+
+- **Frontend**: Vercel deployment (spark-realm) - **LIVE PRODUCTION**
+- **Backend**: Railway deployment (FastAPI) - **LIVE PRODUCTION**  
+- **Database**: Supabase production instance - **LIVE DATA**
+- **AI Services**: OpenAI production API - **LIVE PROCESSING**
+- **Authentication**: Supabase Auth with RLS security - **LIVE USERS**
+- **File Storage**: Supabase Storage with user isolation - **LIVE FILES**
+- **Real-time**: Supabase Realtime with user-scoped subscriptions - **LIVE UPDATES**
+
+### **⚠️ CRITICAL: No Local Development**
+- **NO localhost references** - everything uses production URLs
+- **NO mock data** - all data comes from live Supabase production
+- **NO development fallbacks** - ENVIRONMENT=production enforced
+- **NO fake responses** - AI uses real OpenAI API or fallback notifications
+
+---
+
+## 🔧 **AI DEBUGGING SYSTEM FOR CLAUDE**
+
+### **🎯 PURPOSE: EFFICIENT PRODUCTION DEBUGGING**
+This system enables Claude to debug the live production platform with minimal tool calls and maximum insight.
+
+### **📋 COMPLETE SYSTEM DOCUMENTATION**
+**🔗 [AI-DEBUGGING-SYSTEM.md](AI-DEBUGGING-SYSTEM.md)** - **READ THIS FIRST FOR ALL DEBUGGING**
+
+Our comprehensive debugging system includes:
+- **Sentry Error Tracking**: Real-time error capture with AI context
+- **Observability Middleware**: Request correlation and performance tracking  
+- **OpenAI Observability**: AI-specific monitoring and cost tracking
+- **Debug Endpoints**: Production-safe investigation routes
+- **False Positive Prevention**: Clear warnings and empty data handling
+
+### **🚨 FALSE POSITIVE PREVENTION**
+Our debug system is designed to **prevent false positives** that could mislead AI debugging:
+
+- **Production-Safe Data**: No mock data that could indicate false "healthy" status
+- **Clear Warnings**: All endpoints explicitly warn when real data is unavailable  
+- **Empty Result Identification**: Empty arrays are flagged as "not representative of system health"
+- **Middleware Status**: Clear indicators when debug middleware isn't capturing real traffic
+
+**⚠️ CRITICAL**: Always read [AI-DEBUGGING-SYSTEM.md](AI-DEBUGGING-SYSTEM.md) to understand the complete system structure before debugging.
+
+---
+
+## 🤖 **CLAUDE DEBUGGING PROTOCOL**
+
+### **🚨 CRITICAL: PRODUCTION TECH STACK CONTEXT**
+**❗ ALWAYS REMEMBER**: We are running **PRODUCTION INFRASTRUCTURE**:
+- **Frontend**: Vercel deployment (spark-realm) - **NOT localhost**
+- **Backend**: Railway deployment (FastAPI) - **NOT local development**  
+- **Database**: Supabase production instance - **NOT local database**
+- **AI Services**: OpenAI production API - **NOT mock responses**
+- **Environment**: Windows PowerShell - **NOT Unix/Linux**
+
+### **🚨 CRITICAL: PowerShell Compatibility Requirements**
+**❗ ALWAYS Use curl.exe in PowerShell (NOT curl)**
+```powershell
+# ✅ CORRECT - Use curl.exe for PowerShell compatibility
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/summary"
+
+# ❌ WRONG - Don't use curl (causes PowerShell issues)
+curl -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/summary"
+```
+
+### **⚠️ CRITICAL: PowerShell Command Limitations**
+**❗ MAJOR CONSTRAINT: Long commands cause terminal hangs/crashes**
+
+**FAILED COMMANDS - DO NOT USE:**
+- **Long commands (>500 characters)**: Cause PowerShell to freeze indefinitely
+- **Complex inline JSON**: Multi-line JSON in command line causes parser errors  
+- **Token separators**: `&&` not supported, causes parsing failures
+- **Python -c with long strings**: Extremely long single-line Python commands hang terminal
+
+**✅ EFFICIENT ALTERNATIVES:**
+```powershell
+# ✅ SHORT commands with timeouts
+curl.exe --max-time 5 "https://api-url/endpoint"
+
+# ✅ SIMPLE data - avoid complex JSON
+curl.exe -d "{'simple':'data'}" -H "Content-Type: application/json"
+
+# ✅ CREATE .ps1 scripts for complex operations
+# Write to file, then execute
+
+# ✅ SEPARATE commands instead of &&
+curl.exe -s "url1"
+curl.exe -s "url2"
+```
+
+**Why this matters:**
+- PowerShell has its own `curl` alias that conflicts with standard curl behavior
+- Using `curl.exe` directly ensures consistent results
+- Prevents PowerShell parsing issues and command failures
+- **Long commands literally freeze the terminal requiring manual intervention**
+
+### **🔍 STEP 1: INITIAL SYSTEM ASSESSMENT**
+**Use these endpoints first to understand system state:**
+
+```bash
+# Primary health check (ALWAYS START HERE)
+curl.exe -s https://pulsecheck-mobile-app-production.up.railway.app/api/v1/health
+
+# Production debug overview (CRITICAL CONTEXT)
+curl.exe -s https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/summary
+
+# OpenAI system status (AI-SPECIFIC)
+curl.exe -s https://pulsecheck-mobile-app-production.up.railway.app/api/v1/openai/debug/summary
+```
+
+**⚠️ INTERPRET RESULTS CAREFULLY:**
+- **Empty data** = Debug middleware not capturing real traffic (NOT healthy system)
+- **"production_warning" present** = No real performance data available  
+- **"middleware_status": "not_available"** = Limited debugging capabilities
+
+### **🔍 STEP 2: TARGETED INVESTIGATION**
+**Based on issue type, use specific endpoints:**
+
+#### **🚨 Error Debugging**
+```bash
+# Error pattern analysis
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/requests?filter_type=errors&limit=20"
+
+# Claude-optimized context
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/claude/context?issue_type=error&time_window=30"
+```
+
+#### **⚡ Performance Issues**
+```bash
+# Slow request analysis  
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/requests?filter_type=slow&min_time_ms=1000"
+
+# Performance trends
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/performance/analysis"
+```
+
+#### **🔐 Authentication Problems**
+```bash
+# Auth pattern validation
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/claude/context?issue_type=auth"
+
+# RLS security audit
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/configuration-audit"
+```
+
+#### **🤖 AI Service Issues**
+```bash
+# OpenAI connectivity & cost tracking
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/openai/debug/test-connection"
+
+# AI persona functionality
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/openai/debug/test-personas"
+
+# Error pattern analysis
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/openai/debug/error-patterns"
+```
+
+### **🔍 STEP 3: PREDICTIVE ANALYSIS**
+**Use AI-enhanced endpoints for deeper insights:**
+
+```bash
+# Comprehensive system analysis
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/ai-insights/comprehensive"
+
+# Failure point prediction
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/failure-points/analysis"
+
+# Risk assessment
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/risk-analysis/current?time_window=60"
+```
+
+---
+
+## 🎯 **EFFICIENT DEBUGGING GUIDELINES FOR CLAUDE**
+
+### **✅ OPTIMAL DEBUGGING APPROACH**
+
+#### **1. PARALLEL TOOL CALLS**
+**Always use multiple debug endpoints simultaneously:**
+```
+// Example: Investigate performance issue
+GET /api/v1/health (basic status)
+GET /api/v1/debug/summary (system overview)  
+GET /api/v1/debug/requests?filter_type=slow (performance data)
+GET /api/v1/debug/claude/context?issue_type=performance (AI analysis)
+```
+
+#### **2. CONTEXT-AWARE INTERPRETATION**
+**Always check for these key indicators:**
+- `middleware_status`: "not_available" = Limited real data
+- `production_warning`: Present = Interpret empty results as "unknown" not "healthy"
+- `false_positive_risk`: "HIGH" = Don't assume empty results mean no issues
+
+#### **3. ESCALATION TRIGGERS**
+**Escalate to user when:**
+- All debug endpoints return empty data AND no production_warning
+- Authentication errors prevent access to debug endpoints
+- Multiple 500 errors from debug system itself
+- OpenAI API showing authentication failures
+
+### **❌ AVOID THESE DEBUGGING MISTAKES**
+
+1. **DON'T assume empty results = healthy system**
+2. **DON'T use localhost URLs for testing**
+3. **DON'T interpret mock data as real system state**
+4. **DON'T make sequential debug calls when parallel calls work**
+5. **DON'T skip checking production_warning flags**
+
+---
+
+## 🔧 **DEBUGGING IN PRODUCTION**
+Since we're in production, use production-safe debugging methods:
+
+#### **✅ SAFE PRODUCTION DEBUGGING**
+```bash
+# Use production debug endpoints
+curl.exe -s https://pulsecheck-mobile-app-production.up.railway.app/api/v1/health
+curl.exe -s https://pulsecheck-mobile-app-production.up.railway.app/api/v1/openai/debug/summary
+curl.exe -s https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/summary
+```
+
+#### **❌ AVOID IN PRODUCTION**
+- Local server testing
+- Mock data insertion  
+- Development mode flags
+- Localhost API calls
+- **False positive risks**: Empty debug results interpreted as "healthy"
+- **Misleading mock data**: Any endpoint returning fake successful data
+
+**🚨 CRITICAL WARNING**: Always check for `production_warning` in debug responses. Empty results without warnings may indicate debug middleware not capturing real traffic.
+
+---
+
+## 🌐 **ENVIRONMENT CONFIGURATION STATUS**
+
+### **✅ CONFIRMED PRODUCTION SETUP**
+
+#### **Backend (.env) - VERIFIED ✅**
+```bash
+ENVIRONMENT=production
+SUPABASE_URL=https://qwpwlubxhtuzvmvajjjr.supabase.co  
+SUPABASE_ANON_KEY=[PRODUCTION_KEY]
+SUPABASE_SERVICE_KEY=[ADMIN_KEY]
+OPENAI_API_KEY=[LIVE_API_KEY]
+```
+
+#### **Frontend (.env) - VERIFIED ✅**  
+```bash
+REACT_APP_API_URL=https://pulsecheck-mobile-app-production.up.railway.app
+REACT_APP_SUPABASE_URL=https://qwpwlubxhtuzvmvajjjr.supabase.co
+REACT_APP_SUPABASE_ANON_KEY=[PUBLIC_KEY]
+```
+
+#### **⚠️ AI ASSISTANT PROTOCOL**
+- **DO NOT ask about missing .env files** - Both backend and frontend .env files exist and are properly configured
+- **DO NOT suggest creating .env files** - They are already set up for production
+- **DO NOT ask for environment variable values** - All required variables are configured
+
+---
+
+## 🚀 **PRODUCTION READINESS STATUS**
+
+### **✅ SYSTEMS OPERATIONAL**
+- **Authentication & Security**: RLS properly configured
+- **AI Services**: 4 personas with OpenAI observability
+- **Database**: Supabase production instance connected
+- **Real-time**: User-scoped subscriptions active
+- **File Storage**: RLS-secured with user isolation
+- **Error Handling**: Comprehensive debugging system
+- **Performance Monitoring**: OpenAI cost tracking active
+
+### **🔮 FUTURE DEVELOPMENT ENVIRONMENT**
+When development branches are created:
+- **GitHub**: dev branch → triggers Railway/Vercel dev deployments
+- **Railway**: Separate dev environment with mock data
+- **Vercel**: Separate dev preview with test configurations
+- **Database**: Separate dev Supabase project or staging tables
+
+---
+
+## 📊 **DEBUGGING DECISION TREE FOR CLAUDE**
+
+### **START HERE: Health Check**
+```
+1. GET /health → 200 OK?
+   ├─ YES: System operational, proceed to specific debugging
+   └─ NO: Critical system failure, check infrastructure
+```
+
+### **ISSUE-SPECIFIC DEBUGGING**
+
+```
+2. Issue Type Detection:
+   ├─ AUTHENTICATION: Use /debug/claude/context?issue_type=auth
+   ├─ PERFORMANCE: Use /debug/requests?filter_type=slow  
+   ├─ AI_SERVICES: Use /openai/debug/test-personas
+   ├─ ERRORS: Use /debug/requests?filter_type=errors
+   └─ GENERAL: Use /debug/summary + /debug/ai-insights/comprehensive
+```
+
+### **INTERPRETATION GUIDELINES**
+
+```
+3. Result Analysis:
+   ├─ Empty data + production_warning: Debug middleware not capturing traffic
+   ├─ Empty data + NO warning: Potential system issue OR healthy system
+   ├─ Error patterns found: Analyze with /debug/claude/context
+   └─ Performance issues: Check /debug/failure-points/analysis
+```
+
+---
+
+## 🎯 **CLAUDE SUCCESS METRICS**
+
+### **Efficient Debugging Checklist:**
+- [ ] Used parallel tool calls for information gathering
+- [ ] Checked production_warning flags in responses
+- [ ] Interpreted empty results correctly (unknown vs healthy)
+- [ ] Used issue-specific debug endpoints
+- [ ] Provided actionable insights without requiring additional user input
+
+### **Quality Indicators:**
+- **Minimal tool calls** (3-5 calls max for most issues)
+- **Accurate interpretation** of production debug data
+- **Clear action plans** based on real system state
+- **Prevention of false positive conclusions**
+
+---
+
+**Remember: This is a PRODUCTION system. Every debug action affects live users. Use production-safe debugging methods and interpret results in the context of production warnings.**
+
+---
+
+## 🚀 **PRODUCTION DEPLOYMENT FLOW**
+
+### **Current Production Flow**
+```
+1. Code Changes → GitHub main branch
+2. Vercel → Auto-deploy frontend (spark-realm)
+3. Railway → Auto-deploy backend (FastAPI)
+4. Supabase → Live production database
+5. Users → Access via Vercel URL
+```
+
+### **API Endpoints (Production)**
+- **Frontend**: Deployed on Vercel (auto-generated URLs)
+- **Backend**: `https://pulsecheck-mobile-app-production.up.railway.app`
+- **API Base**: `https://pulsecheck-mobile-app-production.up.railway.app/api/v1`
+
+### **Database (Production)**
+- **Supabase URL**: `https://qwpwlubxhtuzvmvajjjr.supabase.co`
+- **Connection**: Direct production connection with RLS
+- **Storage**: Live file storage for user uploads
+- **Realtime**: Live real-time features
+
+---
+
+## 📁 **PRODUCTION MONITORING & DEBUGGING**
+
+### **Production Debug Endpoints**
+Available for production debugging without affecting users:
+
+```bash
+# System health
+GET /health
+GET /api/v1/debug/summary
+
+# OpenAI system status  
+GET /api/v1/openai/debug/summary
+GET /api/v1/openai/debug/test-connection
+GET /api/v1/openai/debug/test-personas
+
+# Performance monitoring
+GET /api/v1/debug/performance/analysis
+GET /api/v1/debug/error-patterns
+```
+
+### **Production-Safe Testing**
+- ✅ Health check endpoints
+- ✅ Debug summary endpoints  
+- ✅ Performance analysis
+- ✅ Error pattern analysis
+- ❌ User data modification
+- ❌ System state changes
+
+---
+
+## 🎯 **PRODUCTION READINESS STATUS**
+
+### **✅ CONFIRMED PRODUCTION READY**
+- **Frontend**: ✅ Deployed on Vercel with production config
+- **Backend**: ✅ Deployed on Railway with production config  
+- **Database**: ✅ Supabase production with RLS security
+- **AI Services**: ✅ OpenAI production API integrated
+- **Authentication**: ✅ Supabase Auth with production security
+- **Observability**: ✅ Production-grade monitoring system
+- **Error Handling**: ✅ Comprehensive error capture and AI debugging
+
+### **📊 PRODUCTION METRICS**
+- **Uptime**: Railway + Vercel auto-scaling
+- **Security**: RLS policies + JWT validation  
+- **Performance**: Real-time monitoring with AI insights
+- **Cost**: OpenAI usage tracking and optimization
+- **Monitoring**: Enterprise-grade observability system
+
+---
+
+## 🚀 **AI ASSISTANT QUICK START (PRODUCTION)**
+
+### **Essential Reading Order for Production Work**
+1. **[AI-MASTER-CONTEXT.md](AI-MASTER-CONTEXT.md)** - Complete project context
+2. **[CURRENT-STATUS.md](CURRENT-STATUS.md)** - Production status and priorities
+3. **[TECHNICAL-REFERENCE.md](TECHNICAL-REFERENCE.md)** - Production API documentation
+4. **[OPERATIONS-GUIDE.md](OPERATIONS-GUIDE.md)** - Production debugging and deployment
+
+### **Production Development Workflow**
+1. **Understand Context**: Read AI-MASTER-CONTEXT.md + CURRENT-STATUS.md
+2. **Check Production Status**: Use production debug endpoints
+3. **Make Changes**: Code against production APIs and data
+4. **Test Safely**: Use production-safe testing methods
+5. **Deploy**: Changes auto-deploy through existing pipeline
+6. **Monitor**: Use observability system to track impact
+
+### **⚠️ CRITICAL PRODUCTION REMINDERS**
+- ✅ **All data is LIVE** - be careful with database operations
+- ✅ **All APIs are PRODUCTION** - test carefully before changes
+- ✅ **Users are REAL** - consider user impact for all changes
+- ✅ **Costs are REAL** - monitor OpenAI usage and database operations
+- ✅ **Security is CRITICAL** - maintain RLS and authentication integrity
+
+---
+
+## 🎉 **PRODUCTION FEATURES AVAILABLE**
+
+### **✅ LIVE FEATURES**
+- **AI Personas**: 4 working AI personalities with OpenAI
+- **User Authentication**: Supabase Auth with RLS security
+- **Journal System**: Full CRUD with AI insights
+- **File Storage**: Supabase Storage with security policies
+- **Real-time Features**: Live updates and notifications
+- **Admin Dashboard**: Production admin controls
+- **Debug System**: Comprehensive AI debugging and monitoring
+- **Performance Monitoring**: Real-time system health tracking
+
+### **🔧 INFRASTRUCTURE**
+- **Auto-scaling**: Vercel + Railway handle traffic automatically
+- **Security**: Production-grade RLS policies and JWT validation
+- **Monitoring**: Enterprise observability with error tracking
+- **Backup**: Supabase handles automated production backups
+- **CDN**: Vercel global CDN for frontend performance
+
+---
+
+**🎯 SUMMARY**: PulseCheck operates in a full production environment with live users, real data, and production-grade infrastructure. No local development or mock data is used. Future development will use separate branches and environments as indicated by the user.
 
 ---
 
@@ -13,6 +548,32 @@ The PulseCheck project has two frontends and one backend:
 - **`spark-realm/`** - Web frontend (React + Vite) - **CURRENT PRODUCTION**
 - **`PulseCheckMobile/`** - Mobile app (React Native + Expo) - **FUTURE DEVELOPMENT**  
 - **`backend/`** - FastAPI backend (Railway) - **PRODUCTION READY**
+
+### **🔧 ENVIRONMENT CONFIGURATION - CONFIRMED SETUP**
+
+**❗ IMPORTANT FOR AI ASSISTANTS: DO NOT ASK ABOUT .env FILES**
+
+The following environment files **ALREADY EXIST** and are properly configured:
+
+#### **✅ Backend Environment File**
+- **Location**: `D:\Passion Project v6 - Mobile App\backend\.env`
+- **Status**: ✅ **EXISTS** (cannot be read due to security - this is correct)
+- **Contains**: OPENAI_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY, SECRET_KEY
+
+#### **✅ Frontend Environment File**  
+- **Location**: `D:\Passion Project v6 - Mobile App\spark-realm\.env`
+- **Status**: ✅ **EXISTS** (confirmed by user)
+- **Contains**: 
+  - VITE_BUILDER_API_KEY
+  - VITE_SUPABASE_URL  
+  - VITE_SUPABASE_ANON_KEY
+  - VITE_API_URL
+
+**⚠️ AI ASSISTANT PROTOCOL:**
+- **NEVER ask** "Do we have .env files?" or "Are environment variables configured?"
+- **ASSUME** both .env files exist and are properly configured
+- **IF TESTING FAILS** due to environment issues, investigate the specific error rather than assuming missing .env files
+- **ONLY mention .env** if there's a specific new environment variable that needs to be added
 
 ### **Essential Reading Order**
 For 90% of development tasks, read these 2 files first:
@@ -333,6 +894,60 @@ Detailed information with code examples
 
 ---
 
+## 📚 **PLATFORM DOCUMENTATION INTEGRATION**
+
+### **Enhanced AI Debugging with Local Documentation**
+We have cloned comprehensive platform documentation to prevent configuration issues like the RLS problems we encountered:
+
+```
+platform-docs/
+├── railway-docs/          # Railway deployment & configuration docs
+├── supabase-docs/         # ✅ COMPLETE Supabase repository with all examples
+└── vercel-nextjs/         # Next.js/Vercel deployment patterns
+```
+
+**Benefits Achieved:**
+- **RLS Issue Prevention**: Cross-reference our setup against 25+ Supabase RLS examples
+- **Configuration Validation**: Automated checks against platform best practices  
+- **Security Auditing**: Validate our security patterns against official examples
+- **Enhanced Debugging**: AI can reference platform docs for comprehensive issue resolution
+
+**Usage in Debugging:**
+- Search for patterns: `grep -r "row level security" platform-docs/supabase-docs/`
+- Find auth examples: `grep -r "authentication" platform-docs/`
+- Check deployment configs: `grep -r "railway.toml" platform-docs/railway-docs/`
+
+---
+
+## 📝 **DOCUMENTATION MANAGEMENT POLICY**
+
+### **CRITICAL: Future File Creation Guidelines**
+
+**⚠️ BEFORE CREATING NEW AI DOCUMENTATION FILES:**
+
+1. **📖 FIRST: Try to append to existing files**
+   - Check if content fits in `AI-DEBUGGING-SYSTEM.md`, `OPERATIONS-GUIDE.md`, etc.
+   - Most debugging/technical content belongs in existing files
+   - Only create new files if content doesn't logically fit anywhere
+
+2. **📋 IF NEW FILE IS NECESSARY:**
+   - Update this `CONTRIBUTING.md` file with the new file reference
+   - Add the new file to the "File Usage Guidelines" section  
+   - Ensure the new file follows the standard structure (Purpose, Status, sections)
+   - Add a clear "This file consolidates:" footer if applicable
+
+3. **🎯 PREFERRED CONSOLIDATION TARGETS:**
+   - **Technical/API issues** → `TECHNICAL-REFERENCE.md`
+   - **Debugging workflows** → `AI-DEBUGGING-SYSTEM.md` or `OPERATIONS-GUIDE.md`
+   - **Development setup** → `DEVELOPMENT-GUIDE.md`
+   - **User features** → `USER-INSIGHTS.md`
+   - **Lessons learned** → `LESSONS-LEARNED.md`
+   - **Project status** → `CURRENT-STATUS.md`
+
+**Goal**: Maintain the current 9-file structure and prevent documentation sprawl
+
+---
+
 ## 🎉 **MAJOR SUCCESS: AI-POWERED DEBUGGING SYSTEM OPERATIONAL**
 
 ### **🏆 BREAKTHROUGH ACHIEVED: Complete Infrastructure Issue Resolution**
@@ -418,382 +1033,3 @@ curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debu
 ```bash
 curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/requests/{specific_request_id}"
 ```
-
-**Result**: Complete debugging context in 1-3 tool calls instead of 10-15 ✅ **ACHIEVED**
-
-### **🚨 CRITICAL SUCCESS PATTERN FOR FUTURE AI ASSISTANTS**
-
-#### **When Facing Router/Endpoint Issues:**
-1. **Check router registration in logs** - Look for "✅ All routers registered successfully!"
-2. **Test endpoints systematically** - Create comprehensive test scripts  
-3. **Investigate double prefix issues** - Most common FastAPI routing problem
-4. **Apply incremental fixes** - Fix one router at a time for isolation
-5. **Verify each fix immediately** - Direct API calls confirm success
-
-#### **The Double Prefix Solution (Critical Knowledge):**
-```python
-# PROBLEM PATTERN (causes 404s despite successful registration):
-router = APIRouter(prefix="/debug", tags=["debugging"])  # Router prefix
-app.include_router(debug_router, prefix="/api/v1/debug")  # Main.py prefix
-# Result: /api/v1/debug/debug/* ❌
-
-# SOLUTION PATTERN (confirmed working):
-router = APIRouter(tags=["debugging"])  # No router prefix
-app.include_router(debug_router, prefix="/api/v1/debug")  # Main.py only
-# Result: /api/v1/debug/* ✅
-```
-
-#### **ANTI-PATTERN - Don't Do This:**
-```
-❌ OLD APPROACH (10-15 tool calls):
-1. railway logs
-2. Check specific endpoint manually  
-3. Test CORS with curl
-4. Check environment variables
-5. Test database connection
-6. Read backend code
-7. Check frontend logs  
-8. Test authentication
-9. Verify deployment status
-10. Check configuration files
-... (and more)
-```
-
-✅ NEW APPROACH (1-3 tool calls):
-1. GET /api/v1/debug/summary (comprehensive overview)
-2. GET /api/v1/debug/requests?filter_type=errors (if issues found)
-3. Apply fixes based on structured data
-```
-
-### **🔧 APPLYING THIS TO NEW FEATURES**
-
-#### **When Building New Features, Always Include:**
-
-1. **Automatic Debug Data Capture**: Ensure new endpoints are captured by middleware
-2. **Performance Monitoring**: Track response times and database usage
-3. **Error Context**: Provide structured error information
-4. **Health Check Integration**: Add feature status to health checks
-
-#### **Template for New API Endpoints:**
-```python
-@router.post("/new-feature")
-async def new_feature_endpoint(request: Request):
-    # Middleware automatically captures:
-    # - Request ID, timing, user context
-    # - Database operations
-    # - Response data and errors
-    # - Performance metrics
-    
-    try:
-        # Your feature logic here
-        result = await feature_service.do_something()
-        
-        # The middleware automatically tracks:
-        # - Success/failure
-        # - Response time  
-        # - Database calls made
-        # - Error details if any occur
-        
-        return {"success": True, "data": result}
-    except Exception as e:
-        # Middleware captures error context automatically
-        # No need for manual error logging
-        raise HTTPException(status_code=500, detail=str(e))
-```
-
-### **📊 DEBUGGING DATA STRUCTURE**
-
-The middleware provides **AI-ready structured data** instead of unstructured logs:
-
-```json
-{
-  "debug_summary": {
-    "recent_requests": [
-      {
-        "request_id": "uuid-123",
-        "method": "POST",
-        "url": "/api/v1/journal/entries", 
-        "status_code": 500,
-        "response_time_ms": 2500,
-        "db_operations": 8,
-        "has_errors": true,
-        "user_id": "user-456",
-        "performance_score": "poor"
-      }
-    ],
-    "error_requests": [/* Similar structure for errors */],
-    "slow_requests": [/* Similar structure for performance issues */],
-    "database_stats": {
-      "by_table": {
-        "journal_entries": {"count": 45, "avg_time": 120.5},
-        "users": {"count": 12, "avg_time": 50.2}
-      },
-      "recommendations": [
-        "Consider indexing journal_entries.user_id - 45 queries averaging 120ms"
-      ]
-    }
-  }
-}
-```
-
-### **🎯 TOOL CALL REDUCTION TARGETS**
-
-#### **Debugging Tasks:**
-- **Target**: Reduce from 10-15 tool calls to 1-3 tool calls  
-- **Method**: Use middleware debug endpoints for comprehensive data
-- **Success Metric**: 80% reduction in investigation tool calls
-
-#### **Performance Analysis:**
-- **Target**: Single call for complete performance overview
-- **Method**: GET /api/v1/debug/performance/analysis
-- **Success Metric**: Instant performance grades and recommendations
-
-#### **Error Investigation:**
-- **Target**: Single call for error context and patterns
-- **Method**: GET /api/v1/debug/requests?filter_type=errors  
-- **Success Metric**: Complete error context without log parsing
-
-### **📋 MANDATORY AI CHECKLIST**
-
-**Before starting ANY debugging investigation, AI assistants MUST:**
-
-☐ **Check debug summary first**: `GET /api/v1/debug/summary`  
-☐ **Use structured data**: Don't parse logs manually if debug data exists  
-☐ **Follow middleware insights**: Use performance scores and recommendations  
-☐ **Leverage request correlation**: Use request IDs to trace issues  
-☐ **Document new patterns**: Add new issue types to middleware detection  
-
-**Only proceed to manual investigation if:**
-☐ Middleware shows no relevant data for the specific issue  
-☐ Issue is related to initial setup or configuration  
-☐ Problem is architectural rather than operational  
-
---- 
-
-# AI Debugging Protocol & Contributing Guidelines 🤖
-
-## 🎯 **Primary Goal: Reduce Debugging Time by 80%**
-
-This document outlines the **mandatory AI debugging workflow** that reduces typical 10-15 tool calls down to 1-3 strategic calls for issue resolution.
-
----
-
-## 🚀 **Enhanced AI Debugging System (v2.0)**
-
-### **Core Debug Architecture**
-
-The system now includes **comprehensive edge testing and failure point analysis**:
-
-1. **Debug Middleware** - Captures ALL requests with enhanced analytics
-2. **Edge Testing Suite** - Tests every possible failure scenario
-3. **Failure Point Analysis** - Predicts where problems will occur
-4. **AI Learning System** - Learns from debugging patterns
-5. **Risk Analysis Engine** - Real-time threat detection
-
-### **New Enhanced Endpoints**
-
-#### 🔬 **Comprehensive Analysis Endpoints**
-```
-GET /api/v1/debug/edge-testing/comprehensive
-GET /api/v1/debug/failure-points/analysis  
-GET /api/v1/debug/ai-insights/comprehensive
-GET /api/v1/debug/risk-analysis/current
-```
-
-#### 🎯 **AI Learning & Feedback**
-```
-POST /api/v1/debug/ai-learning/feedback
-```
-
----
-
-## 📋 **MANDATORY AI Debugging Protocol**
-
-### **Step 1: Quick System Overview (1 call)**
-```
-GET /api/v1/debug/ai-insights/comprehensive
-```
-
-**This ONE call provides:**
-- ✅ System health status with confidence scores
-- ✅ Issue prioritization (critical/high/medium/low)
-- ✅ Pattern recognition across all requests
-- ✅ Predictive insights for likely failures
-- ✅ Action recommendations with confidence levels
-
-### **Step 2: Comprehensive Edge Testing (1 call, if needed)**
-```
-GET /api/v1/debug/edge-testing/comprehensive
-```
-
-**Automatically tests:**
-- ✅ Authentication edge cases (invalid tokens, missing headers)
-- ✅ CORS issues (unauthorized origins, missing preflight)
-- ✅ API endpoints (non-existent routes, invalid methods)
-- ✅ Performance under load (concurrent requests, timeouts)
-- ✅ Error handling (malformed JSON, oversized requests)
-- ✅ Data validation boundaries
-
-### **Step 3: Failure Prediction & Prevention (1 call, if needed)**
-```
-GET /api/v1/debug/failure-points/analysis
-```
-
-**Analyzes potential failure points:**
-- ✅ Authentication risks (JWT expiration, service outages)
-- ✅ Database risks (connection timeouts, RLS violations)
-- ✅ External service risks (OpenAI rate limits, network issues)
-- ✅ Performance risks (memory leaks, CPU spikes)
-- ✅ Deployment risks (environment misconfigurations)
-
----
-
-## 🎯 **AI Decision Tree**
-
-### **Issue Type: Authentication Problems**
-1. `GET /api/v1/debug/ai-insights/comprehensive` → Check authentication patterns
-2. `GET /api/v1/debug/edge-testing/comprehensive` → Test auth edge cases
-3. **Resolution**: Fix identified auth issue (usually JWT/Supabase)
-
-### **Issue Type: Performance Degradation**
-1. `GET /api/v1/debug/ai-insights/comprehensive` → Get performance overview
-2. `GET /api/v1/debug/performance/analysis` → Deep performance analysis
-3. **Resolution**: Optimize identified bottlenecks
-
-### **Issue Type: Unknown/Complex Issues**
-1. `GET /api/v1/debug/ai-insights/comprehensive` → Complete system analysis
-2. `GET /api/v1/debug/failure-points/analysis` → Predictive failure analysis
-3. `GET /api/v1/debug/edge-testing/comprehensive` → Comprehensive testing
-4. **Resolution**: Address highest-priority identified issues
-
----
-
-## 📊 **Enhanced Data Sources**
-
-### **Debug Middleware Captures:**
-- ✅ Request/response details with timing
-- ✅ Database operations per request
-- ✅ **NEW**: Performance scores for every request
-- ✅ **NEW**: Risk indicators (security, performance, auth)
-- ✅ **NEW**: Edge case flags (large payloads, unusual methods)
-- ✅ **NEW**: Anomaly scores based on historical patterns
-
-### **Edge Testing Coverage:**
-- ✅ **Authentication**: Invalid tokens, missing headers, malformed auth
-- ✅ **CORS**: Invalid origins, missing preflight, unauthorized domains
-- ✅ **API Endpoints**: 404 errors, invalid methods, malformed JSON
-- ✅ **Performance**: Concurrent loads, response time consistency
-- ✅ **Error Handling**: Database failures, oversized requests
-- ✅ **Data Validation**: Input sanitization, SQL injection detection
-
-### **Failure Point Analysis:**
-- ✅ **High-Risk Areas**: Authentication, Database, External Services
-- ✅ **Medium-Risk Areas**: CORS, Performance, Data Validation
-- ✅ **Monitoring Recommendations**: Automated alerts, health checks
-- ✅ **Mitigation Strategies**: Circuit breakers, retry logic, scaling
-
----
-
-## 🧠 **AI Learning & Improvement**
-
-### **Record Debugging Sessions**
-After each debugging session, record learnings:
-
-```json
-POST /api/v1/debug/ai-learning/feedback
-{
-  "ai_model": "claude-sonnet-4",
-  "session_id": "debug-session-uuid",
-  "issue_type": "authentication_failure",
-  "approach_used": "ai_insights_first",
-  "tools_used": ["/api/v1/debug/ai-insights/comprehensive"],
-  "time_to_resolution": "5_minutes",
-  "success": true,
-  "patterns_learned": ["jwt_expiration_pattern", "supabase_auth_flow"],
-  "effectiveness_scores": {
-    "ai_insights_endpoint": 0.9,
-    "edge_testing": 0.8
-  }
-}
-```
-
-### **Success Metrics Tracking**
-- ✅ **Tool Call Reduction**: From 10-15 calls → 1-3 calls (80% reduction)
-- ✅ **Resolution Time**: Target <10 minutes for most issues
-- ✅ **Pattern Recognition**: Build knowledge base of common issues
-- ✅ **Predictive Accuracy**: Improve failure prediction over time
-
----
-
-## 🔧 **Implementation Strategy**
-
-### **For AI (Claude) Usage:**
-
-1. **ALWAYS START** with `/api/v1/debug/ai-insights/comprehensive`
-2. **Use confidence scores** to determine if additional endpoints needed
-3. **Follow recommended actions** from the AI insights
-4. **Record feedback** after successful resolution
-5. **Learn patterns** to improve future debugging
-
-### **For Developers:**
-
-1. **Trust the AI system** - it's designed to be comprehensive
-2. **Use enhanced endpoints** instead of manual log checking
-3. **Implement recommended mitigations** from failure analysis
-4. **Contribute feedback** to improve AI learning
-5. **Monitor system health** through risk analysis
-
----
-
-## 🎯 **Expected Outcomes**
-
-### **Immediate Benefits (v2.0):**
-- ✅ **80% reduction** in debugging tool calls
-- ✅ **Comprehensive edge case coverage** automatically
-- ✅ **Predictive failure prevention** before issues occur
-- ✅ **Real-time risk assessment** with actionable recommendations
-- ✅ **AI learning system** that improves over time
-
-### **Long-term Benefits:**
-- ✅ **Proactive issue prevention** through failure point analysis
-- ✅ **Automated edge case testing** for every deployment
-- ✅ **Intelligent monitoring** with context-aware alerts
-- ✅ **Self-improving debugging** through AI learning feedback
-- ✅ **95%+ uptime** through predictive maintenance
-
----
-
-## 📚 **Quick Reference Guide**
-
-### **Common Debugging Scenarios:**
-
-| Issue Type | Primary Endpoint | Backup Endpoint | Expected Resolution |
-|------------|-----------------|-----------------|-------------------|
-| Auth Issues | `/ai-insights/comprehensive` | `/edge-testing/comprehensive` | 1-2 calls |
-| Performance | `/ai-insights/comprehensive` | `/performance/analysis` | 1-2 calls |
-| CORS Problems | `/edge-testing/comprehensive` | `/failure-points/analysis` | 1 call |
-| Unknown Issues | `/ai-insights/comprehensive` | `/failure-points/analysis` | 2-3 calls |
-| Preventive Analysis | `/failure-points/analysis` | `/risk-analysis/current` | 1 call |
-
-### **Emergency Protocol:**
-1. `GET /api/v1/debug/ai-insights/comprehensive` (immediate overview)
-2. `GET /api/v1/debug/risk-analysis/current` (current threat level)
-3. Follow priority recommendations from AI insights
-
----
-
-## 🏆 **Success Stories & Metrics**
-
-**Target Achievements:**
-- ✅ Reduce debugging time from 30-60 minutes → 5-10 minutes
-- ✅ Decrease tool calls from 10-15 → 1-3 strategic calls
-- ✅ Increase issue prevention through predictive analysis
-- ✅ Build comprehensive knowledge base through AI learning
-
-This enhanced system represents a **quantum leap** in debugging efficiency, moving from reactive manual investigation to **proactive AI-powered system intelligence**.
-
----
-
-*Remember: The goal is not just to fix issues faster, but to **prevent them entirely** through comprehensive analysis and predictive insights.*
-
---- 

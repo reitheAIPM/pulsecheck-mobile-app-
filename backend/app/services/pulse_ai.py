@@ -7,6 +7,12 @@ import time
 import re
 import hashlib
 import os
+from openai._exceptions import (
+    OpenAIError, APIError, APIConnectionError, APITimeoutError,
+    AuthenticationError, PermissionDeniedError, RateLimitError,
+    BadRequestError, InternalServerError, UnprocessableEntityError,
+    LengthFinishReasonError, ContentFilterFinishReasonError
+)
 
 from app.core.config import settings
 from app.models.journal import JournalEntryResponse
@@ -15,6 +21,9 @@ from app.models.ai_insights import (
     InsightType, InsightPriority
 )
 from .beta_optimization import BetaOptimizationService, AIContext
+from app.services.openai_observability import (
+    start_openai_request, end_openai_request, get_openai_usage_summary
+)
 
 logger = logging.getLogger(__name__)
 

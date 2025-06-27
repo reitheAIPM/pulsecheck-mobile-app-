@@ -28,19 +28,8 @@ from app.services.user_preferences_service import UserPreferencesService
 # Import authentication directly to avoid circular imports
 from fastapi import Request
 
-# Mock user authentication to avoid circular imports
-async def get_current_user_from_request(request: Request):
-    """Get current user from request headers"""
-    user_id = request.headers.get('X-User-Id')
-    if not user_id:
-        user_id = "user_reiale01gmailcom_1750733000000"  # Use consistent user ID for your email
-    
-    return {
-        "id": user_id,
-        "email": f"rei.ale01@gmail.com" if user_id == "user_reiale01gmailcom_1750733000000" else f"demo-{user_id.split('_')[-1] if '_' in user_id else 'default'}@pulsecheck.app",
-        "tech_role": "beta_tester",
-        "name": f"Rei (Beta User)" if user_id == "user_reiale01gmailcom_1750733000000" else f"Beta User {user_id.split('_')[-1] if '_' in user_id else 'Default'}"
-    }
+# STANDARDIZED: Use centralized authentication from core.security
+from app.core.security import get_current_user_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -190,8 +179,8 @@ async def generate_adaptive_response(
     Generate adaptive AI response based on user patterns
     """
     try:
-        # Get user from request headers
-        current_user = await get_current_user_from_request(req)
+        # Get user from standardized auth
+        current_user = await get_current_user_with_fallback(req)
         authenticated_user_id = current_user["id"]
         logger.info(f"Generating adaptive response for user {authenticated_user_id} with persona {request.persona}")
         
@@ -272,7 +261,7 @@ async def get_available_personas(
     """
     try:
         # Use authenticated user ID instead of parameter
-        current_user = await get_current_user_from_request(request)
+        current_user = await get_current_user_with_fallback(request)
         authenticated_user_id = current_user["id"]
         logger.info(f"Getting available personas for user {authenticated_user_id}")
         

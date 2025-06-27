@@ -77,41 +77,71 @@ except Exception as e:
 from app.core.monitoring import monitor, log_error, log_performance, check_health, ErrorSeverity, ErrorCategory
 from app.core.database import engine, Base
 
+# Import observability first to initialize early
+from app.core.observability import init_observability, observability
+from app.middleware.observability_middleware import ObservabilityMiddleware
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager"""
+    """Application lifespan manager with observability"""
     # Startup
-    logger.info("Starting PulseCheck application...")
+    logger.info("🚀 Starting PulseCheck API with AI-Optimized Observability")
     
-    # Create database tables
     try:
-        if engine is not None:
-            Base.metadata.create_all(bind=engine)
-            logger.info("Database tables created successfully")
-        else:
-            logger.warning("Database engine is None, skipping table creation")
+        # Initialize observability system
+        init_observability()
+        logger.info("✅ Observability system initialized")
+        
+        # Test database connection
+        logger.info("✅ Database connection module loaded")
+        
+        # Validate configuration
+        settings.validate_required_settings()
+        logger.info("✅ Configuration validated")
+        
+        # System health check
+        health = monitor.check_system_health()
+        logger.info(f"✅ System health: {health.overall_status}")
+        
+        # Create database tables
+        try:
+            if engine is not None:
+                Base.metadata.create_all(bind=engine)
+                logger.info("Database tables created successfully")
+            else:
+                logger.warning("Database engine is None, skipping table creation")
+        except Exception as e:
+            logger.error(f"Database initialization failed: {e}")
+            log_error(e, ErrorSeverity.CRITICAL, ErrorCategory.DATABASE, {"operation": "startup"})
+        
+        # Initial health check
+        try:
+            health = check_health()
+            logger.info(f"Initial health check: {health.overall_status}")
+        except Exception as e:
+            logger.error(f"Initial health check failed: {e}")
+        
+        yield
+        
     except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
-        log_error(e, ErrorSeverity.CRITICAL, ErrorCategory.DATABASE, {"operation": "startup"})
-    
-    # Initial health check
-    try:
-        health = check_health()
-        logger.info(f"Initial health check: {health.overall_status}")
-    except Exception as e:
-        logger.error(f"Initial health check failed: {e}")
-    
-    yield
+        logger.error(f"❌ Startup failed: {e}")
+        # Capture startup error for AI debugging
+        observability.capture_error(e, {
+            "startup_phase": "application_initialization",
+            "critical": True
+        }, severity="critical")
+        raise
     
     # Shutdown
-    logger.info("Shutting down PulseCheck application...")
+    logger.info("🔄 Shutting down PulseCheck API")
     
-    # Final health check
     try:
-        health = check_health()
-        logger.info(f"Final health check: {health.overall_status}")
+        # Generate final AI debugging summary
+        summary = observability.get_ai_debugging_summary()
+        logger.info(f"📊 Final system summary: {summary}")
+        
     except Exception as e:
-        logger.error(f"Final health check failed: {e}")
+        logger.error(f"Error during shutdown: {e}")
 
 app = FastAPI(
     title="PulseCheck API",
@@ -130,23 +160,31 @@ if limiter and config_loaded:
 else:
     logger.warning("Rate limiting disabled - limiter not available")
 
+# Add observability middleware first (processes all requests)
+app.add_middleware(ObservabilityMiddleware)
+
 # Custom CORS middleware for dynamic Vercel domains
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         origin = request.headers.get("origin", "")
         
-        # Define allowed origins - explicitly include Vercel domains
+        # Define allowed origins - PRODUCTION ONLY (remove localhost in production)
         allowed_origins = [
-            "http://localhost:3000",
-            "http://localhost:5173",
-            "http://localhost:5174",  # Add new Vite port
-            "http://localhost:19006",
             "https://pulse-check.vercel.app",
-            "https://pulsecheck-web.vercel.app",
+            "https://pulsecheck-web.vercel.app", 
             "https://pulsecheck-app.vercel.app",
             "https://pulsecheck-mobile.vercel.app",
             "https://pulsecheck-mobile-2objhn451-reitheaipms-projects.vercel.app"  # Current working deployment
         ]
+        
+        # Add localhost ONLY in development
+        if os.getenv("ENVIRONMENT", "production") == "development":
+            allowed_origins.extend([
+                "http://localhost:3000",
+                "http://localhost:5173", 
+                "http://localhost:5174",
+                "http://localhost:19006"
+            ])
         
         # Allow any Vercel preview domains
         if origin and (".vercel.app" in origin or "localhost" in origin):
@@ -328,42 +366,44 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         )
 
 @app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception):
-    """Handle general exceptions with monitoring"""
-    try:
-        # Log the exception
-        log_error(
-            exc,
-            ErrorSeverity.HIGH,
-            ErrorCategory.API_ENDPOINT,
-            {
-                "method": request.method,
-                "path": request.url.path,
-                "exception_type": type(exc).__name__
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Global exception handler with comprehensive AI debugging context
+    """
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    
+    # Capture with comprehensive context
+    error_context = observability.capture_error(exc, {
+        "handler": "global_exception_handler",
+        "endpoint": str(request.url.path),
+        "method": request.method,
+        "unhandled": True
+    }, severity="critical")
+    
+    # Return AI-friendly error response
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": True,
+            "message": "An unexpected error occurred",
+            "request_id": observability.get_current_request_id(),
+            "timestamp": error_context["timestamp"],
+            "ai_debugging": {
+                "error_captured": True,
+                "request_id": observability.get_current_request_id(),
+                "debugging_endpoint": f"/api/v1/debug/error/{observability.get_current_request_id()}",
+                "context_available": True
             },
-            endpoint=f"{request.method} {request.url.path}"
-        )
-        
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "Internal server error",
-                "message": "An unexpected error occurred. Please try again later.",
-                "timestamp": time.time()
+            "support_info": {
+                "message": "Please provide the request_id when contacting support",
+                "contact": "Include this error ID in your support request"
             }
-        )
-    except Exception as e:
-        logger.error(f"Error in general exception handler: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "Internal server error",
-                "message": "An unexpected error occurred while handling the request.",
-                "timestamp": time.time()
-            }
-        )
-
-
+        },
+        headers={
+            "X-Request-ID": observability.get_current_request_id() or "no-request-id",
+            "X-Error-Captured": "true"
+        }
+    )
 
 # Simple CORS test endpoint
 @app.get("/cors-test")
@@ -706,6 +746,57 @@ def register_routers():
             print(f"❌ Debug router traceback: {traceback.format_exc()}")
             sys.stdout.flush()
             # Continue without debug router rather than failing completely
+            pass
+
+        # OpenAI Debug router
+        print("🔄 Importing OpenAI debug router...")
+        sys.stdout.flush()
+        try:
+            from app.routers.openai_debug import router as openai_debug_router
+            print("✅ OpenAI debug router imported successfully")
+            sys.stdout.flush()
+            app.include_router(openai_debug_router, prefix="/api/v1", tags=["openai-debug"])
+            print("✅ OpenAI debug router registered")
+            sys.stdout.flush()
+        except Exception as openai_debug_error:
+            print(f"❌ OpenAI debug router import/registration failed: {openai_debug_error}")
+            print(f"❌ OpenAI debug router traceback: {traceback.format_exc()}")
+            sys.stdout.flush()
+            # Continue without OpenAI debug router rather than failing completely
+            pass
+
+        # Journal Debug router for critical bug investigation
+        print("🔄 Importing Journal debug router...")
+        sys.stdout.flush()
+        try:
+            from app.routers.debug_journal import router as debug_journal_router
+            print("✅ Journal debug router imported successfully")
+            sys.stdout.flush()
+            app.include_router(debug_journal_router, prefix="/api/v1", tags=["debug-journal"])
+            print("✅ Journal debug router registered")
+            sys.stdout.flush()
+        except Exception as journal_debug_error:
+            print(f"❌ Journal debug router import/registration failed: {journal_debug_error}")
+            print(f"❌ Journal debug router traceback: {traceback.format_exc()}")
+            sys.stdout.flush()
+            # Continue without journal debug router rather than failing completely
+            pass
+
+        # Journal Fix router for critical bug fix
+        print("🔄 Importing Journal fix router...")
+        sys.stdout.flush()
+        try:
+            from app.routers.journal_fix import router as journal_fix_router
+            print("✅ Journal fix router imported successfully")
+            sys.stdout.flush()
+            app.include_router(journal_fix_router, prefix="/api/v1", tags=["journal-fix"])
+            print("✅ Journal fix router registered")
+            sys.stdout.flush()
+        except Exception as journal_fix_error:
+            print(f"❌ Journal fix router import/registration failed: {journal_fix_error}")
+            print(f"❌ Journal fix router traceback: {traceback.format_exc()}")
+            sys.stdout.flush()
+            # Continue without journal fix router rather than failing completely
             pass
 
         # Admin router

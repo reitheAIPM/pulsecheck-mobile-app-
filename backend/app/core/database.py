@@ -25,8 +25,8 @@ class Database:
             
         try:
             self.client = create_client(
-                supabase_url=settings.supabase_url,
-                supabase_key=settings.supabase_anon_key
+                supabase_url=settings.SUPABASE_URL,
+                supabase_key=settings.SUPABASE_ANON_KEY
             )
             self._connected = True
             logger.info("✅ Connected to Supabase database")
@@ -57,17 +57,17 @@ def get_database_url() -> str:
     """Get PostgreSQL connection URL from Supabase URL"""
     try:
         # Convert Supabase URL to PostgreSQL URL
-        supabase_url = settings.supabase_url
+        supabase_url = settings.SUPABASE_URL
         if not supabase_url:
-            logger.warning("SUPABASE_URL not set, using default database URL")
-            return "sqlite:///./test.db"  # Fallback for development
+            logger.error("SUPABASE_URL not set - CRITICAL: No database configured!")
+            raise ValueError("SUPABASE_URL environment variable is required")
             
         # Extract the project reference from supabase URL
         # Format: https://[project-ref].supabase.co
         project_ref = supabase_url.replace('https://', '').replace('.supabase.co', '')
         
         # Use environment variable for DB password if available, otherwise use service key
-        db_password = os.environ.get('DB_PASSWORD', settings.supabase_service_key or 'password')
+        db_password = os.environ.get('DB_PASSWORD', settings.SUPABASE_SERVICE_ROLE_KEY or 'password')
         
         # Construct PostgreSQL URL
         # Format: postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
@@ -76,7 +76,7 @@ def get_database_url() -> str:
         return database_url
     except Exception as e:
         logger.error(f"Failed to construct database URL: {e}")
-        return "sqlite:///./fallback.db"  # Emergency fallback
+        raise ValueError(f"Database configuration failed: {e}")
 
 # Global database instance (lazy initialization)
 _db_instance = None
@@ -87,6 +87,26 @@ def get_database() -> Database:
     if _db_instance is None:
         _db_instance = Database()
     return _db_instance
+
+# Export a global supabase client for direct use
+supabase: Client = None
+
+def init_supabase() -> Client:
+    """Initialize and return the global supabase client"""
+    global supabase
+    if supabase is None:
+        db = get_database()
+        db.connect()
+        supabase = db.get_client()
+    return supabase
+
+# Initialize supabase on import
+try:
+    supabase = init_supabase()
+except Exception as e:
+    logger.warning(f"Failed to initialize supabase on import: {e}")
+    # Create a mock client to prevent import errors
+    supabase = None
 
 # SQLAlchemy session management
 engine = None

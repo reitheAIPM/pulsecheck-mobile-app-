@@ -301,8 +301,8 @@ class DebuggingService:
         start_time = time.time()
         
         try:
-            # Build full URL
-            base_url = f"http://localhost:{settings.port}" if hasattr(settings, 'port') else "http://localhost:8000"
+            # Build full URL - PRODUCTION ONLY (use Railway URL)
+            base_url = "https://pulsecheck-mobile-app-production.up.railway.app"
             full_url = f"{base_url}{endpoint}"
             
             # Add query params for endpoints that require them

@@ -1,8 +1,8 @@
 # AI Master Context - PulseCheck Project
 
-**Purpose**: Complete project summary and master context for AI development - definitive reference  
-**Last Updated**: January 29, 2025  
-**Status**: ✅ **PRODUCTION READY** - All core systems operational, focusing on UX improvements
+**Purpose**: Complete project summary and master context for **AI-ONLY** development - definitive reference  
+**Last Updated**: June 27, 2025  
+**Status**: ❌ **NOT PRODUCTION READY** - Failed beta launch, needs comprehensive bug fixes
 
 ---
 
@@ -14,20 +14,23 @@
 - **Target Market**: All wellness-seeking individuals (expanded from tech workers only)
 - **Unique Value**: "Therapy in disguise" with smart AI that learns and adapts
 
-### **Current Status: PRODUCTION READY**
-**✅ OPERATIONAL**: All core systems functioning correctly
-- Users can save journal entries successfully
-- AI features fully operational with 4-persona system
-- Premium features working with proper persona gating
-- Backend service running with all routers mounted
-- **Recent Achievement**: Complete premium features implementation and system stabilization
+### **Current Status: FAILED BETA LAUNCH**
+**❌ NOT PRODUCTION READY**: Critical issues affecting user experience
+- **Beta Launch**: Failed with 3-6 testers experiencing constant bugs
+- **User Experience**: Poor due to overlooked issues disrupting core functionality
+- **System Status**: Technical systems operational but user flows broken
+- **Immediate Priority**: Comprehensive bug fixes and user experience validation
+- **Reality Check**: Previous assessments were overly optimistic
 
-### **Technical Stack**
-- **Backend**: FastAPI + Supabase + Railway deployment
-- **Web Frontend**: React + Vite + Vercel (`spark-realm/`)
-- **Mobile App**: React Native + Expo (`PulseCheckMobile/`) 
-- **AI**: OpenAI GPT-4 with 4-persona system
-- **Database**: PostgreSQL with comprehensive schemas
+### **Technical Stack - PRODUCTION INFRASTRUCTURE**
+**🚨 CRITICAL**: This is a **PRODUCTION ENVIRONMENT** - not local development:
+
+- **Backend**: FastAPI + Railway deployment → `https://pulsecheck-mobile-app-production.up.railway.app`
+- **Web Frontend**: React + Vite + Vercel deployment (`spark-realm/`) → **LIVE PRODUCTION**
+- **Mobile App**: React Native + Expo (`PulseCheckMobile/`) → **FUTURE DEVELOPMENT**
+- **AI**: OpenAI GPT-4 production API with 4-persona system
+- **Database**: Supabase production instance → **LIVE DATA**
+- **Environment**: Windows PowerShell (always use `curl.exe` not `curl`)
 
 ---
 
@@ -111,34 +114,32 @@ def select_persona(user_context, entry_content, topic_flags, mood_score):
 ### **AI-Optimized Debugging Infrastructure**
 **Status**: ✅ **FULLY OPERATIONAL** - Proven effective in real-world deployment scenarios
 
-### **7 AI Debug Endpoints (All LIVE in Production)**
-1. **AI Self-Testing**: `POST /api/v1/journal/ai/self-test`
-   - 8+ automated test scenarios
-   - Performance benchmark validation
-   - Health score calculation (0-100%)
-   - Intelligent recommendations
+### **📋 COMPLETE DEBUGGING SYSTEM**
+**🔗 [AI-DEBUGGING-SYSTEM.md](AI-DEBUGGING-SYSTEM.md)** - **COMPREHENSIVE SYSTEM DOCUMENTATION**
 
-2. **AI Debug Summary**: `GET /api/v1/journal/ai/debug-summary`
-   - Error pattern frequency analysis
-   - Performance metrics and trends
-   - Recovery success rate tracking
-   - Predictive failure analysis
+Our production debugging system includes:
 
-3. **Topic Classification Testing**: `POST /api/v1/journal/ai/topic-classification`
-   - Real-time content analysis
-   - Topic confidence scoring
-   - Classification accuracy monitoring
+#### **5-Component Architecture**
+1. **Sentry Error Tracking**: Real-time error capture with AI context enhancement
+2. **Observability Middleware**: Request correlation and performance monitoring
+3. **OpenAI Observability**: AI-specific monitoring with cost tracking  
+4. **Debug Endpoints**: Production-safe investigation routes
+5. **False Positive Prevention**: Clear warnings and mock data elimination
 
-### **Frontend AI Error Handling**
+#### **Key Debug Endpoints**
+- `GET /api/v1/debug/summary` - Complete system health overview
+- `GET /api/v1/openai/debug/summary` - AI service status and monitoring
+- `GET /api/v1/debug/requests?filter_type=errors` - Production error analysis
+
+#### **Frontend AI Error Handling**
 - **ErrorBoundary Component**: 450+ lines with AI integration
-- **Error Handler**: 8 error categories with AI debugging hints
-- **System State Capture**: Complete error context for AI analysis
-- **Recovery Mechanisms**: Graceful fallbacks with retry logic
+- **Sentry Integration**: Request correlation and user journey tracking
+- **Performance Monitoring**: Network latency and render time analysis
 
-### **Backend AI Monitoring**
-- **400+ lines** of pattern recognition and error analysis
-- **AI Debugging Context**: Complete error context for AI analysis
-- **Performance Impact**: <5KB bundle size, <1ms runtime overhead
+#### **Backend AI Monitoring**  
+- **Comprehensive Observability**: Request correlation, error patterns, performance baselines
+- **OpenAI Cost Tracking**: Token usage monitoring with 2025 pricing
+- **Production Safety**: No localhost references, no mock data contamination
 
 ---
 
@@ -183,6 +184,13 @@ POST   /api/v1/adaptive-ai/analyze-patterns   # Analyze user patterns
 - **Row-Level Security**: Enabled with proper policies
 - **Authentication**: JWT Bearer tokens for all protected endpoints
 - **Real-time**: Supabase subscriptions for data sync
+
+### **Platform Documentation Integration (Enhanced AI Debugging)**
+- **Local Documentation**: Complete platform docs cloned to `platform-docs/`
+- **Railway Documentation**: Deployment & configuration best practices
+- **Supabase Documentation**: Database patterns, auth flows, RLS examples (25+ patterns)
+- **Vercel/Next.js Documentation**: Frontend deployment and optimization patterns
+- **Benefits**: Cross-reference our setup against official best practices, prevent RLS-type issues
 
 ---
 
@@ -282,11 +290,11 @@ Railway Production: https://pulsecheck-mobile-app-production.up.railway.app
 
 ### **Testing Endpoints**
 ```bash
-# Test health
-curl https://pulsecheck-mobile-app-production.up.railway.app/health
+# Test health (ALWAYS use curl.exe in PowerShell)
+curl.exe -s https://pulsecheck-mobile-app-production.up.railway.app/health
 
 # Test journal (currently working)
-curl https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/test
+curl.exe -s https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/test
 ```
 
 ### **Development Commands**
@@ -318,14 +326,21 @@ cd backend && python -c "from app.core.database import get_database; print('DB O
 
 ---
 
-## 📋 **AI ASSISTANT GUIDELINES**
+## 📋 **AI ASSISTANT GUIDELINES - AI-ONLY OPERATION**
+
+### **🚨 CRITICAL: AI-ONLY DEVELOPMENT CONSTRAINTS**
+- **NO HUMAN DEBUGGING**: AI must solve all issues independently
+- **COMPLETE CONTEXT REQUIRED**: Every error must be diagnosable from available information
+- **USER EXPERIENCE PRIORITY**: Bug-free operation is mandatory before any features
+- **REALISTIC ASSESSMENTS**: Distinguish between "working" vs "tested" vs "user-validated"
+- **PRODUCTION ENVIRONMENT**: All development affects live users
 
 ### **Critical Information to Remember**
 - **User's Vision**: "Therapy in disguise" through AI-powered journaling
-- **Stability First**: Follow CONTRIBUTING.md stability-first strategy
-- **AI Debugging System**: Revolutionary 7-endpoint debugging infrastructure
+- **Current Reality**: Failed beta launch due to overlooked bugs
+- **AI Debugging System**: Must enable autonomous problem-solving
 - **4-Persona AI System**: Pulse, Sage, Spark, Anchor with dynamic selection
-- **User Preferences**: Writing-focused UI, privacy transparency, incremental deployment
+- **User Preferences**: Bug-free experience, writing-focused UI, privacy transparency
 
 ### **Technical Context**
 - **Backend**: FastAPI + Supabase + Railway (production-ready)

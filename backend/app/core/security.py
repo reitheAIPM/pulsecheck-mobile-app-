@@ -269,7 +269,7 @@ async def get_current_user_with_fallback(
         pass
     
     # Development fallback - ONLY for development environment AND no credentials
-    if getattr(settings, 'environment', 'production') != 'production' and not credentials:
+    if settings.ENVIRONMENT == 'development' and not credentials:
         user_id = request.headers.get('X-User-Id', "user_reiale01gmailcom_1750733000000")
         
         return {
@@ -329,8 +329,8 @@ async def verify_admin_access_with_fallback(
         # Fall through to development fallback for other auth errors
         pass
     
-    # Development fallback - ONLY for development environment
-    if getattr(settings, 'environment', 'production') != 'production':
+    # Development fallback - ONLY for development environment  
+    if settings.ENVIRONMENT == 'development':
         logger.warning("Using development admin fallback")
         return {
             "id": "admin_dev",
