@@ -39,32 +39,27 @@ Click **"Add Variable"** and enter:
 After adding the environment variable, test these endpoints:
 
 ### 1. Check Environment Status
-```bash
-curl -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/database/environment"
+```powershell
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/database/environment"
 ```
 **Expected**: `SUPABASE_SERVICE_ROLE_KEY: "✅ Set"`
 
 ### 2. Comprehensive Database Test
-```bash
-curl -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/database/comprehensive-status"
+```powershell
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/database/comprehensive-status"
 ```
 **Expected**: `overall_status: "✅ HEALTHY"`
 
 ### 3. Test Auth Signup (Critical Test)
-```bash
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","password":"test123"}' \
-  "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/auth/signup"
+```powershell
+curl.exe -X POST -H "Content-Type: application/json" -d "{\"email\":\"test@test.com\",\"password\":\"test123\"}" "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/auth/signup"
 ```
 **Expected**: Response in under 5 seconds with user creation success
 
 ### 4. Test Journal Operations
-```bash
+```powershell
 # After getting auth token from signup, test journal entry creation
-curl -X POST -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{"content":"Test entry","mood_level":7}' \
-  "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/entries"
+curl.exe -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN" -d "{\"content\":\"Test entry\",\"mood_level\":7}" "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/entries"
 ```
 
 ---
@@ -96,8 +91,8 @@ curl -X POST -H "Content-Type: application/json" \
 2. **Check deployment logs** in Railway dashboard
 3. **Verify the key is correct** (starts with `eyJ`, very long string)
 4. **Test the monitoring endpoint**:
-   ```bash
-   curl -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/database/wait-for-fix"
+   ```powershell
+   curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/database/wait-for-fix"
    ```
 
 ### Common Issues:

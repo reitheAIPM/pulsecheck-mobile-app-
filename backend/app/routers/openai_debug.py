@@ -19,6 +19,7 @@ from app.services.pulse_ai import PulseAI
 from app.services.adaptive_ai_service import AdaptiveAIService
 from app.services.user_pattern_analyzer import UserPatternAnalyzer
 from app.core.observability import observability, capture_error
+from app.models.journal import JournalEntryResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["OpenAI Debugging"])
@@ -217,19 +218,32 @@ async def test_persona_functionality(request: Request):
                 # Test persona with a simple query
                 test_query = "Hello, can you briefly introduce yourself?"
                 
-                # This would use the persona's specific prompt and model
-                response = await adaptive_ai.process_user_input(
-                    user_input=test_query,
-                    persona_name=persona["name"],
-                    user_id="debug_test_user"
+                # Create a test journal entry for persona testing
+                test_entry = JournalEntryResponse(
+                    id="test-persona",
+                    user_id="debug_test_user",
+                    content=test_query,
+                    mood_level=5,
+                    energy_level=5,
+                    stress_level=5,
+                    created_at=datetime.now(),
+                    updated_at=datetime.now()
+                )
+                
+                # Test the persona with generate_adaptive_response
+                response = await adaptive_ai.generate_adaptive_response(
+                    user_id="debug_test_user",
+                    journal_entry=test_entry,
+                    journal_history=[],
+                    persona=persona["name"].lower()
                 )
                 
                 persona_test_results.append({
                     "persona_name": persona["name"],
                     "persona_description": persona["description"],
                     "status": "✅ WORKING",
-                    "test_response": response.get("response", "No response")[:100] + "..." if len(response.get("response", "")) > 100 else response.get("response", ""),
-                    "model_used": persona.get("model", "unknown"),
+                    "test_response": response.insight[:100] + "..." if len(response.insight) > 100 else response.insight,
+                    "model_used": persona.get("model", "gpt-3.5-turbo"),
                     "response_time": "< 10 seconds"
                 })
                 

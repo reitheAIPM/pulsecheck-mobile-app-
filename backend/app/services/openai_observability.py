@@ -272,9 +272,12 @@ class ObservableOpenAIClient:
     def chat_completions_create(self, **kwargs) -> Any:
         """Create chat completion with observability"""
         model = kwargs.get('model', 'unknown')
-        request_id = start_openai_request('chat_completion', model, **kwargs)
+        # Remove model from kwargs to avoid duplicate argument error
+        kwargs_without_model = {k: v for k, v in kwargs.items() if k != 'model'}
+        request_id = start_openai_request('chat_completion', model, **kwargs_without_model)
         
         try:
+            # Pass original kwargs to the actual API call
             response = self.client.chat.completions.create(**kwargs)
             end_openai_request(request_id, response=response)
             return response
@@ -285,9 +288,12 @@ class ObservableOpenAIClient:
     def embeddings_create(self, **kwargs) -> Any:
         """Create embeddings with observability"""
         model = kwargs.get('model', 'text-embedding-3-small')
-        request_id = start_openai_request('embeddings', model, **kwargs)
+        # Remove model from kwargs to avoid duplicate argument error
+        kwargs_without_model = {k: v for k, v in kwargs.items() if k != 'model'}
+        request_id = start_openai_request('embeddings', model, **kwargs_without_model)
         
         try:
+            # Pass original kwargs to the actual API call
             response = self.client.embeddings.create(**kwargs)
             end_openai_request(request_id, response=response)
             return response
