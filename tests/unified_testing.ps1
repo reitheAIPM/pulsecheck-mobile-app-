@@ -489,4 +489,4 @@ Write-Host "   Quick AI Check:       ./unified_testing.ps1 quick" -ForegroundCol
 Write-Host "   Full System Test:     ./unified_testing.ps1 full" -ForegroundColor Gray
 Write-Host "   All Tests (Default):  ./unified_testing.ps1" -ForegroundColor Gray
 
-Write-Host "`nTesting completed at $(Get-Date -Format 'MM/dd/yyyy HH:mm:ss')" -ForegroundColor Gray 
+Write-Host "`nTesting completed at $(Get-Date -Format 'MM/dd/yyyy HH:mm:ss')" -ForegroundColor Gray
