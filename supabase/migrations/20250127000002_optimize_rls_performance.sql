@@ -194,18 +194,18 @@ GRANT EXECUTE ON FUNCTION test_rls_query_performance(TEXT) TO authenticated;
 -- Based on Supabase performance recommendations
 
 -- Journal entries: user_id + created_at (for recent entries)
+-- Note: Removed WHERE clause with NOW() as it's not IMMUTABLE for index predicates
 CREATE INDEX IF NOT EXISTS idx_journal_entries_user_created_optimized 
-ON journal_entries(user_id, created_at DESC) 
-WHERE created_at > (NOW() - INTERVAL '90 days');
+ON journal_entries(user_id, created_at DESC);
 
 -- User preferences: user_id + updated_at (for preference sync)
 CREATE INDEX IF NOT EXISTS idx_user_ai_preferences_user_updated 
 ON user_ai_preferences(user_id, updated_at DESC);
 
 -- AI usage logs: user_id + created_at (for usage analytics)
+-- Note: Removed WHERE clause with NOW() as it's not IMMUTABLE for index predicates
 CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_user_created_optimized 
-ON ai_usage_logs(user_id, created_at DESC) 
-WHERE created_at > (NOW() - INTERVAL '30 days');
+ON ai_usage_logs(user_id, created_at DESC);
 
 -- 7. ADD FUNCTION TO GENERATE RLS DEBUGGING REPORT
 CREATE OR REPLACE FUNCTION generate_rls_debug_report()
