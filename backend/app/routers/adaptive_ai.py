@@ -251,96 +251,65 @@ async def generate_adaptive_response(
 @router.get("/personas", response_model=List[PersonaRecommendation])
 async def get_available_personas(
     request: Request,
-    user_id: str = None,
-    adaptive_ai_service = Depends(get_adaptive_ai_service)
+    user_id: str = None
 ):
     """
     Get available personas for user with recommendations
     """
-    try:
-        # Simplified version - just return the basic personas without complex user pattern analysis
-        logger.info("Getting available personas (simplified version)")
-        
-        # Get persona recommendations using the adaptive AI service with None patterns (fallback)
-        persona_list = adaptive_ai_service.get_available_personas(None)
-        
-        # Convert to PersonaRecommendation format
-        recommendations = []
-        for persona_info in persona_list:
-            recommendations.append(PersonaRecommendation(
-                persona_id=persona_info.get("id", persona_info.get("key", "unknown")),
-                persona_name=persona_info.get("name", "Unknown"),
-                description=persona_info.get("description", ""),
-                recommended=persona_info.get("recommended", False),
-                available=persona_info.get("available", True),
-                requires_premium=False,  # Default to free
-                times_used=0,
-                recommendation_score=0.8 if persona_info.get("recommended") else 0.5,
-                recommendation_reasons=persona_info.get("recommendation_reason", "").split(", ") if persona_info.get("recommendation_reason") else [],
-                last_used=None
-            ))
-        
-        logger.info(f"Returning {len(recommendations)} personas")
-        return recommendations
-        
-    except Exception as e:
-        # Simplified error handling
-        logger.error(f"Error getting personas: {str(e)}")
-        
-        # Return hardcoded fallback personas
-        fallback_personas = [
-            PersonaRecommendation(
-                persona_id="pulse",
-                persona_name="Pulse",
-                description="Your emotionally intelligent wellness companion",
-                recommended=True,
-                available=True,
-                requires_premium=False,
-                times_used=0,
-                recommendation_score=0.9,
-                recommendation_reasons=["Great for emotional support"],
-                last_used=None
-            ),
-            PersonaRecommendation(
-                persona_id="sage",
-                persona_name="Sage",
-                description="A wise mentor who provides strategic life guidance",
-                recommended=False,
-                available=True,
-                requires_premium=False,
-                times_used=0,
-                recommendation_score=0.7,
-                recommendation_reasons=["Good for life planning"],
-                last_used=None
-            ),
-            PersonaRecommendation(
-                persona_id="spark",
-                persona_name="Spark",
-                description="An energetic motivator who ignites creativity and action",
-                recommended=False,
-                available=True,
-                requires_premium=False,
-                times_used=0,
-                recommendation_score=0.6,
-                recommendation_reasons=["Perfect for motivation"],
-                last_used=None
-            ),
-            PersonaRecommendation(
-                persona_id="anchor",
-                persona_name="Anchor",
-                description="A steady presence who provides stability and grounding",
-                recommended=False,
-                available=True,
-                requires_premium=False,
-                times_used=0,
-                recommendation_score=0.7,
-                recommendation_reasons=["Great for stability"],
-                last_used=None
-            )
-        ]
-        
-        logger.info("Returning fallback personas due to error")
-        return fallback_personas
+    # TEMPORARY: Remove all dependencies to test if route works
+    logger.info("Getting personas - hardcoded version for testing")
+    
+    # Return hardcoded personas directly
+    return [
+        PersonaRecommendation(
+            persona_id="pulse",
+            persona_name="Pulse",
+            description="Your emotionally intelligent wellness companion",
+            recommended=True,
+            available=True,
+            requires_premium=False,
+            times_used=0,
+            recommendation_score=0.9,
+            recommendation_reasons=["Great for emotional support"],
+            last_used=None
+        ),
+        PersonaRecommendation(
+            persona_id="sage",
+            persona_name="Sage",
+            description="A wise mentor who provides strategic life guidance",
+            recommended=False,
+            available=True,
+            requires_premium=False,
+            times_used=0,
+            recommendation_score=0.7,
+            recommendation_reasons=["Good for life planning"],
+            last_used=None
+        ),
+        PersonaRecommendation(
+            persona_id="spark",
+            persona_name="Spark",
+            description="An energetic motivator who ignites creativity and action",
+            recommended=False,
+            available=True,
+            requires_premium=False,
+            times_used=0,
+            recommendation_score=0.6,
+            recommendation_reasons=["Perfect for motivation"],
+            last_used=None
+        ),
+        PersonaRecommendation(
+            persona_id="anchor",
+            persona_name="Anchor",
+            description="A steady presence who provides stability and grounding",
+            recommended=False,
+            available=True,
+            requires_premium=False,
+            times_used=0,
+            recommendation_score=0.7,
+            recommendation_reasons=["Great for stability"],
+            last_used=None
+        )
+    ]
 
 @router.get("/test-dependencies")
 async def test_dependencies():
