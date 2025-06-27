@@ -109,8 +109,7 @@ class OpenAIObservability:
         observability.end_request(
             request_id=request_id,
             status_code=500 if error else 200,
-            response_data={"openai_metrics": asdict(metrics)} if not error else None,
-            error_data=str(error) if error else None
+            duration_ms=duration_ms
         )
         
         # Clean up
