@@ -20,24 +20,29 @@ import asyncio
 
 logger = logging.getLogger(__name__)
 
-class ErrorSeverity(Enum):
+class ErrorSeverity(str, Enum):
     """Error severity levels"""
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+    MIGRATION_BLOCKING = "migration_blocking"  # NEW: Errors that block deployments
 
-class ErrorCategory(Enum):
+class ErrorCategory(str, Enum):
     """Error categories for classification"""
-    AI_SERVICE = "ai_service"
+    API_ENDPOINT = "api_endpoint"
     DATABASE = "database"
     AUTHENTICATION = "authentication"
-    API_ENDPOINT = "api_endpoint"
+    AI_SERVICE = "ai_service"
+    EXTERNAL_API = "external_api"
+    CONFIGURATION = "configuration"
+    MIGRATION = "migration"           # NEW: Database migration errors
+    SCHEMA_VALIDATION = "schema"      # NEW: Schema validation errors
+    DEPLOYMENT = "deployment"         # NEW: Deployment-related errors
     EXTERNAL_SERVICE = "external_service"
     DATA_VALIDATION = "data_validation"
     PERFORMANCE = "performance"
     SECURITY = "security"
-    CONFIGURATION = "configuration"
     NETWORK = "network"
     UNKNOWN = "unknown"
 
@@ -1231,4 +1236,99 @@ def standard_endpoint(operation_name: str):
 
 def monitor_only_endpoint(operation_name: str):
     """Decorator for endpoints that should only be monitored (no auto-recovery)"""
-    return ai_monitored_endpoint(operation_name, auto_recover=False, critical=False) 
+    return ai_monitored_endpoint(operation_name, auto_recover=False, critical=False)
+
+def log_migration_error(
+    error: Exception,
+    migration_file: str = None,
+    sql_statement: str = None,
+    sqlstate: str = None,
+    line_number: int = None,
+    context: Dict[str, Any] = None
+):
+    """
+    Log migration-specific errors with enhanced context
+    
+    Args:
+        error: The exception that occurred
+        migration_file: Name of the migration file that failed
+        sql_statement: The SQL statement that caused the error
+        sqlstate: PostgreSQL SQLSTATE error code
+        line_number: Line number where error occurred
+        context: Additional context information
+    """
+    enhanced_context = {
+        "migration_file": migration_file,
+        "sql_statement": sql_statement,
+        "sqlstate": sqlstate,
+        "line_number": line_number,
+        "error_type": "migration_failure",
+        "timestamp": datetime.now().isoformat(),
+        **(context or {})
+    }
+    
+    # Determine severity based on error type
+    severity = ErrorSeverity.MIGRATION_BLOCKING
+    if sqlstate:
+        if sqlstate == "42P17":  # IMMUTABLE function error
+            enhanced_context["fix_suggestion"] = "Remove volatile functions like NOW() from index predicates"
+        elif sqlstate == "42501":  # Permission denied
+            enhanced_context["fix_suggestion"] = "Check table ownership - may need ALTER TABLE ... OWNER TO postgres"
+        elif sqlstate == "42P01":  # Relation does not exist
+            enhanced_context["fix_suggestion"] = "Check migration dependencies and order"
+    
+    log_error(error, severity, ErrorCategory.MIGRATION, enhanced_context)
+
+def log_deployment_error(
+    error: Exception,
+    deployment_stage: str,
+    environment: str = "production",
+    context: Dict[str, Any] = None
+):
+    """
+    Log deployment-related errors with stage and environment context
+    
+    Args:
+        error: The exception that occurred
+        deployment_stage: Stage where deployment failed (e.g., "migration", "build", "startup")
+        environment: Deployment environment
+        context: Additional context information
+    """
+    enhanced_context = {
+        "deployment_stage": deployment_stage,
+        "environment": environment,
+        "error_type": "deployment_failure",
+        "timestamp": datetime.now().isoformat(),
+        **(context or {})
+    }
+    
+    log_error(error, ErrorSeverity.CRITICAL, ErrorCategory.DEPLOYMENT, enhanced_context)
+
+def log_schema_validation_warning(
+    validation_issue: str,
+    file_name: str = None,
+    recommendation: str = None,
+    context: Dict[str, Any] = None
+):
+    """
+    Log schema validation warnings for proactive issue detection
+    
+    Args:
+        validation_issue: Description of the validation issue
+        file_name: File where issue was detected
+        recommendation: Suggested fix
+        context: Additional context
+    """
+    enhanced_context = {
+        "validation_issue": validation_issue,
+        "file_name": file_name,
+        "recommendation": recommendation,
+        "error_type": "schema_validation",
+        "timestamp": datetime.now().isoformat(),
+        **(context or {})
+    }
+    
+    # Create a custom validation warning exception
+    validation_warning = Exception(f"Schema validation warning: {validation_issue}")
+    
+    log_error(validation_warning, ErrorSeverity.MEDIUM, ErrorCategory.SCHEMA_VALIDATION, enhanced_context) 

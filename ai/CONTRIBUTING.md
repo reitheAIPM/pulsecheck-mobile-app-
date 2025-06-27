@@ -724,13 +724,91 @@ npx supabase db push --include-all
 ```
 
 #### **Issue: "functions in index predicate must be marked IMMUTABLE"**
-**Cause:** PostgreSQL doesn't allow volatile functions in index predicates  
-**Solution:** Remove problematic indexes or use static timestamps instead of `NOW()`
+**Cause:** PostgreSQL doesn't allow volatile functions like `NOW()`, `CURRENT_TIMESTAMP` in index predicates  
+**Example Error:**
+```
+ERROR: functions in index predicate must be marked IMMUTABLE (SQLSTATE 42P17)
+At statement: CREATE INDEX WHERE created_at > (NOW() - INTERVAL '90 days')
+```
+
+**Solutions:**
+```sql
+-- ❌ WRONG - Volatile function in WHERE clause
+CREATE INDEX idx_recent_entries ON journal_entries(user_id, created_at DESC) 
+WHERE created_at > (NOW() - INTERVAL '90 days');
+
+-- ✅ CORRECT - Remove WHERE clause with volatile function
+CREATE INDEX idx_recent_entries ON journal_entries(user_id, created_at DESC);
+
+-- ✅ ALTERNATIVE - Use static timestamp (but requires updates)
+CREATE INDEX idx_recent_entries ON journal_entries(user_id, created_at DESC) 
+WHERE created_at > '2024-01-01'::timestamp;
+
+-- ✅ BEST - Create partial index with IMMUTABLE function
+CREATE INDEX idx_recent_entries ON journal_entries(user_id, created_at DESC) 
+WHERE created_at > (CURRENT_DATE - INTERVAL '90 days');
+```
+
+**Real-world Fix Example:**
+In our `20250127000002_optimize_rls_performance.sql`, we had to change:
+```sql
+-- Before (failed)
+CREATE INDEX WHERE created_at > (NOW() - INTERVAL '90 days')
+
+-- After (success)  
+CREATE INDEX ON journal_entries(user_id, created_at DESC);
+```
 
 #### **Issue: "migration history does not match local files"**
 **Solution:** Repair migration status
 ```powershell
 npx supabase migration repair --status applied MIGRATION_ID
+```
+
+#### **Issue: "permission denied for table"**
+**Cause:** Tables created via Dashboard owned by `supabase_admin`, not `postgres`
+**Solution:** Reassign ownership
+```sql
+ALTER TABLE table_name OWNER TO postgres;
+```
+
+### **🔍 MIGRATION DEBUGGING WORKFLOW**
+
+When migrations fail, follow this systematic approach:
+
+#### **1. Identify the Problem**
+```powershell
+# Check what migrations are pending
+npx supabase migration list
+
+# Dry run to see what would be applied
+npx supabase db push --dry-run
+
+# Check for specific errors
+npx supabase db push --include-all --debug
+```
+
+#### **2. Analyze Error Messages**
+- **SQLSTATE 42P17**: IMMUTABLE function error → Fix volatile functions in indexes
+- **SQLSTATE 42501**: Permission denied → Check table ownership  
+- **SQLSTATE 42P01**: Relation does not exist → Missing dependencies
+- **Migration ordering**: Files inserted before last migration → Use `--include-all`
+
+#### **3. Fix and Retry**
+```powershell
+# After fixing migration files
+git add supabase/migrations/
+git commit -m "FIX: [specific issue description]"
+npx supabase db push --include-all
+```
+
+#### **4. Verify Success**
+```powershell
+# Confirm migrations applied
+npx supabase migration list
+
+# Test database functionality  
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/database/comprehensive-status"
 ```
 
 ### **📋 MANUAL MIGRATION (Supabase Dashboard)**
@@ -835,4 +913,76 @@ curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/data
 "overall_status": "✅ HEALTHY"
 ```
 
----
+### **🔧 ENHANCED DEBUGGING ENDPOINTS**
+
+Our system now includes specialized migration and deployment validation:
+
+#### **Migration Validation (Proactive)**
+```powershell
+# Validate migration files before deployment
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/database/migration-validation"
+```
+
+**What it catches:**
+- ✅ PostgreSQL IMMUTABLE function violations (SQLSTATE 42P17)
+- ✅ Missing RLS policies on new tables
+- ✅ Syntax errors and missing semicolons
+- ✅ Volatile functions in index predicates
+
+**Example Output:**
+```json
+{
+  "overall_status": "❌ ISSUES_FOUND",
+  "issues_found": [
+    {
+      "type": "IMMUTABLE_VIOLATION",
+      "issue": "NOW() function used in index predicate", 
+      "sqlstate": "42P17",
+      "fix": "Remove WHERE clause or use CURRENT_DATE instead of NOW()"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "Fix IMMUTABLE function violations before deployment"
+    }
+  ]
+}
+```
+
+#### **Deployment Readiness Check**
+```powershell
+# Comprehensive pre-deployment validation
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/database/deployment-readiness"
+```
+
+**What it validates:**
+- ✅ Migration file analysis
+- ✅ Environment variables
+- ✅ Database connectivity
+- ✅ Schema integrity
+
+**Example Output:**
+```json
+{
+  "overall_status": "✅ DEPLOYMENT_READY",
+  "risk_level": "LOW", 
+  "deployment_confidence": "100.0%",
+  "checks_passed": 3,
+  "checks_total": 3
+}
+```
+
+#### **Monitoring Integration**
+
+Our enhanced monitoring system now captures:
+
+- **Migration Errors**: SQLSTATE codes, specific SQL statements, fix suggestions
+- **Deployment Failures**: Stage-specific context, environment details
+- **Schema Validation**: Proactive warnings before deployment
+
+**Sentry Error Categories:**
+- `MIGRATION`: Database migration failures
+- `SCHEMA_VALIDATION`: Schema validation warnings  
+- `DEPLOYMENT`: Deployment-related errors
+- `MIGRATION_BLOCKING`: Critical errors that prevent deployment
