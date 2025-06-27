@@ -10,8 +10,7 @@ import os
 from openai._exceptions import (
     OpenAIError, APIError, APIConnectionError, APITimeoutError,
     AuthenticationError, PermissionDeniedError, RateLimitError,
-    BadRequestError, InternalServerError, UnprocessableEntityError,
-    LengthFinishReasonError, ContentFilterFinishReasonError
+    BadRequestError, InternalServerError
 )
 
 from app.core.config import settings
