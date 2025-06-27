@@ -17,8 +17,7 @@ from openai import OpenAI
 from openai._exceptions import (
     OpenAIError, APIError, APIConnectionError, APITimeoutError,
     AuthenticationError, PermissionDeniedError, RateLimitError,
-    BadRequestError, InternalServerError, UnprocessableEntityError,
-    LengthFinishReasonError, ContentFilterFinishReasonError
+    BadRequestError, InternalServerError
 )
 
 from app.core.observability import observability, capture_error

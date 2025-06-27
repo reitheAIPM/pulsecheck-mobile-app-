@@ -157,12 +157,12 @@ if ($Mode -eq "security" -or $Mode -eq "both") {
         }
         
         # Check for missing gotrue pin with supabase
-        if ($content -match "supabase" -and $content -notmatch "gotrue") {
+        if ($content -match "supabase==" -and -not ($content -match "gotrue==")) {
             $conflicts += "Missing gotrue version pin (can cause proxy parameter error)"
         }
         
         # Check for missing email-validator with pydantic
-        if ($content -match "pydantic" -and $content -notmatch "email-validator") {
+        if ($content -match "pydantic==" -and -not ($content -match "email-validator==")) {
             $conflicts += "Missing email-validator (required by pydantic email validation)"
         }
         
