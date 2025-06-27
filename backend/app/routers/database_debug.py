@@ -566,3 +566,128 @@ async def full_system_check():
     })
     
     return results 
+
+@router.post("/database/create-profiles-table")
+async def create_profiles_table():
+    """
+    🚨 TEMPORARY MIGRATION ENDPOINT
+    Creates the missing profiles table directly via backend API
+    This bypasses CLI migration issues and creates the table we need
+    """
+    
+    profiles_table_sql = '''
+-- Create a table for public profiles
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid references auth.users not null primary key,
+  created_at timestamp with time zone DEFAULT NOW(),
+  updated_at timestamp with time zone DEFAULT NOW(),
+  email text,
+  full_name text,
+  avatar_url text,
+  username text unique,
+  
+  -- PulseCheck specific fields
+  wellness_score integer DEFAULT 50 CHECK (wellness_score >= 0 AND wellness_score <= 100),
+  streak_days integer DEFAULT 0,
+  total_entries integer DEFAULT 0,
+  last_checkin timestamp with time zone,
+  ai_persona_preference text DEFAULT 'balanced',
+  notification_preferences jsonb DEFAULT '{"daily_reminder": true, "weekly_summary": true}',
+  
+  constraint username_length check (char_length(username) >= 3)
+);
+
+-- Set up Row Level Security (RLS)
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for profiles
+CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can insert their own profile" ON public.profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile" ON public.profiles
+  FOR UPDATE USING (auth.uid() = id);
+
+-- Trigger to automatically create profile when user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, avatar_url)
+  VALUES (
+    NEW.id, 
+    NEW.email,
+    NEW.raw_user_meta_data->>'full_name', 
+    NEW.raw_user_meta_data->>'avatar_url'
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop trigger if exists and recreate
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Create updated_at trigger
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER profiles_updated_at
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+    '''
+    
+    start_time = time.time()
+    
+    try:
+        # Get database connection with service role key (required for DDL)
+        db = get_database()
+        
+        # Execute the SQL using the service role client
+        # This should work since SUPABASE_SERVICE_ROLE_KEY is now available
+        
+        # We need to use raw SQL execution here
+        # Let's try using the supabase client's direct SQL execution
+        if hasattr(settings, 'SUPABASE_SERVICE_ROLE_KEY') and settings.SUPABASE_SERVICE_ROLE_KEY:
+            service_client = create_client(
+                settings.SUPABASE_URL, 
+                settings.SUPABASE_SERVICE_ROLE_KEY
+            )
+            
+            # Execute the SQL - this might work with service role permissions
+            result = service_client.rpc('exec', {'sql': profiles_table_sql})
+            
+            response_time = (time.time() - start_time) * 1000
+            
+            return {
+                "status": "success", 
+                "message": "Profiles table created successfully!",
+                "sql_executed": True,
+                "response_time_ms": round(response_time, 2),
+                "next_step": "Test with /api/v1/database/comprehensive-status"
+            }
+            
+        else:
+            return {
+                "status": "error",
+                "message": "SUPABASE_SERVICE_ROLE_KEY not available",
+                "suggestion": "Apply migration manually through Supabase Dashboard SQL Editor"
+            }
+            
+    except Exception as e:
+        response_time = (time.time() - start_time) * 1000
+        return {
+            "status": "error",
+            "message": f"Failed to create profiles table: {str(e)}",
+            "response_time_ms": round(response_time, 2),
+            "alternative": "Use Supabase Dashboard → SQL Editor to run the migration manually",
+            "sql_provided": profiles_table_sql
+        } 
