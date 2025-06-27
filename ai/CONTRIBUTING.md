@@ -161,6 +161,33 @@ Why this matters:
 - Focus on code bugs, API connectivity, and service logic issues first
 - All critical integrations (OpenAI, Supabase, JWT) have proper credentials
 
+### **🎯 CRITICAL: AI PERSONA BEHAVIOR REQUIREMENTS**
+
+**❗ ESSENTIAL UNDERSTANDING**: AI personas must behave like **expert friends commenting on social media posts**.
+
+#### **Core Behavior Pattern**
+1. **Immediate Response**: Automatic AI response when journal entry is created
+2. **Proactive Follow-ups**: Additional personas comment 2-12 hours later based on patterns
+3. **Expert-Level Insights**: Like professionals commenting on Twitter with valuable tips
+4. **Pattern Recognition**: Identify recurring themes and provide actionable advice
+5. **Social Media Feel**: Multiple caring experts naturally checking in over time
+
+#### **Quality Standards for AI Development**
+- **Specific**: Reference actual content from user's entries
+- **Helpful**: Provide actionable tips or insights, not generic responses  
+- **Natural**: Feel like a caring friend, not a clinical bot
+- **Timely**: Respond when the insight would be most valuable
+- **Pattern-Aware**: Connect current entry to user's history and trends
+
+#### **Implementation Requirements**
+- **Proactive AI Service**: Must analyze recent entries for engagement opportunities
+- **Smart Timing**: Delays of 2-12 hours to feel natural, not immediate
+- **Persona Selection**: Different personas respond based on content (stress → Anchor, low mood → Spark)
+- **Pattern Detection**: System must identify recurring themes across multiple entries
+- **Multiple Perspectives**: Users should get responses from different personas over time
+
+**Reference**: See [USER-INSIGHTS.md](USER-INSIGHTS.md) for complete AI persona behavioral philosophy and examples.
+
 ### **⚠️ CRITICAL: PowerShell Command Limitations**
 **❗ MAJOR CONSTRAINT: Long commands cause terminal hangs/crashes**
 

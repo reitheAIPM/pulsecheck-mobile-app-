@@ -146,6 +146,44 @@ Every Pulse response follows this three-part structure:
 - **Mood Patterns**: Consistently low mood → motivational persona
 - **User Requests**: Direct requests for specific types of support
 
+### **🎯 CRITICAL: AI Persona Proactive Behavior Philosophy**
+
+**Core Vision**: AI personas should behave like **expert friends commenting on social media posts** - providing thoughtful, insightful responses that add real value.
+
+#### **Expected Behavior Pattern**
+1. **Immediate Response**: When user creates a journal entry, one AI persona responds automatically
+2. **Proactive Follow-ups**: 2-12 hours later, additional personas comment based on patterns they identify
+3. **Expert-Level Insights**: Like how professionals comment on Twitter with valuable insights and tips
+4. **Pattern Recognition**: AI identifies recurring themes and provides useful information/tips
+5. **Social Media Feel**: Multiple caring experts checking in naturally over time
+
+#### **Commenting Style Examples**
+**Good Examples** (like expert Twitter responses):
+- "I notice you mentioned work stress 3 times this week. Here's a technique that helps..."
+- "That deadline pressure sounds familiar. In my experience, breaking it into smaller chunks..."
+- "Your sleep pattern seems connected to your stress levels. Consider this approach..."
+
+**What AI Should Emulate**:
+- **Therapist commenting**: Professional insight with personal warmth
+- **Expert friend**: Knowledgeable but caring, not clinical
+- **Mentor figure**: Experienced guidance without being preachy
+- **Pattern spotter**: "I see this trend in your entries..."
+
+#### **Proactive Engagement Triggers**
+- **High Stress Follow-up**: Anchor persona checks in 4+ hours later with grounding techniques
+- **Low Mood Support**: Spark persona offers motivation 6+ hours later
+- **Work Pattern Recognition**: Sage persona provides strategic insights 8+ hours later
+- **Recurring Themes**: Any persona can comment when they spot helpful patterns
+
+#### **Quality Standards**
+- **Specific**: Reference actual content from user's entries
+- **Helpful**: Provide actionable tips or insights
+- **Natural**: Feel like a caring friend, not a bot
+- **Timely**: Respond when the insight would be most valuable
+- **Pattern-Aware**: Connect current entry to user's history
+
+This creates the intended "private social space" where users get multiple expert perspectives naturally over time, just like having knowledgeable friends who care about their wellbeing.
+
 ---
 
 ## 🎯 **USER EXPERIENCE INSIGHTS**
