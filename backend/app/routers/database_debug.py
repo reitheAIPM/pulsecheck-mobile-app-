@@ -309,4 +309,259 @@ async def wait_for_service_key():
         ],
         "when_added": "Database operations should work within 2-3 minutes of adding the key",
         "test_endpoint": "/api/v1/database/comprehensive-status"
-    } 
+    }
+
+@router.get("/full-system-check")
+async def full_system_check():
+    """
+    🎯 CONSOLIDATED SYSTEM VERIFICATION
+    Single endpoint that performs all critical checks for Railway deployment
+    
+    Replaces the need for multiple curl commands:
+    - Environment variable verification
+    - Database connection testing  
+    - Auth functionality validation
+    - Comprehensive status with recommendations
+    
+    Perfect for: Post-deployment verification, troubleshooting, monitoring
+    """
+    start_time = time.time()
+    results = {
+        "timestamp": time.time(),
+        "system_check": "FULL_VERIFICATION",
+        "checks_performed": []
+    }
+    
+    # 1. Environment Variables Check
+    try:
+        env_check = {
+            "check": "environment_variables",
+            "status": "checking..."
+        }
+        
+        env_vars = {
+            "SUPABASE_URL": "✅ Set" if settings.SUPABASE_URL else "❌ Missing",
+            "SUPABASE_ANON_KEY": "✅ Set" if settings.SUPABASE_ANON_KEY else "❌ Missing", 
+            "SUPABASE_SERVICE_ROLE_KEY": "✅ Set" if getattr(settings, 'SUPABASE_SERVICE_ROLE_KEY', None) else "❌ Missing",
+            "DB_PASSWORD": "✅ Set" if getattr(settings, 'DB_PASSWORD', None) else "❌ Missing",
+            "PORT": getattr(settings, 'PORT', '8000'),
+            "ENVIRONMENT": getattr(settings, 'ENVIRONMENT', 'production')
+        }
+        
+        missing_vars = [var for var, status in env_vars.items() if "❌" in status]
+        env_check.update({
+            "status": "✅ ALL_SET" if not missing_vars else f"⚠️  MISSING: {', '.join(missing_vars)}",
+            "variables": env_vars,
+            "missing_count": len(missing_vars)
+        })
+        
+    except Exception as e:
+        env_check = {
+            "check": "environment_variables", 
+            "status": f"❌ ERROR: {str(e)}"
+        }
+    
+    results["checks_performed"].append(env_check)
+    
+    # 2. Database Client Creation
+    try:
+        client_check = {
+            "check": "database_client_creation",
+            "status": "checking..."
+        }
+        
+        if hasattr(settings, 'SUPABASE_URL') and hasattr(settings, 'SUPABASE_ANON_KEY'):
+            client: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+            client_check.update({
+                "status": "✅ SUCCESS",
+                "client_type": type(client).__name__,
+                "url_configured": bool(settings.SUPABASE_URL),
+                "key_configured": bool(settings.SUPABASE_ANON_KEY)
+            })
+        else:
+            client_check.update({
+                "status": "❌ FAILED - Missing connection parameters",
+                "url_configured": bool(getattr(settings, 'SUPABASE_URL', None)),
+                "key_configured": bool(getattr(settings, 'SUPABASE_ANON_KEY', None))
+            })
+            
+    except Exception as e:
+        client_check = {
+            "check": "database_client_creation",
+            "status": f"❌ ERROR: {str(e)}"
+        }
+    
+    results["checks_performed"].append(client_check)
+    
+    # 3. Database Query Test (Quick)
+    try:
+        query_check = {
+            "check": "database_query_test",
+            "status": "checking..."
+        }
+        
+        if hasattr(settings, 'SUPABASE_URL') and hasattr(settings, 'SUPABASE_ANON_KEY'):
+            client: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+            
+            # Quick table check
+            query_start = time.time()
+            try:
+                response = client.table('profiles').select('id').limit(1).execute()
+                query_time = (time.time() - query_start) * 1000
+                
+                query_check.update({
+                    "status": "✅ SUCCESS",
+                    "query_time_ms": round(query_time, 2),
+                    "data_accessible": bool(response.data),
+                    "response_structure": "valid"
+                })
+                
+            except Exception as query_error:
+                query_time = (time.time() - query_start) * 1000
+                error_details = str(query_error)
+                
+                if "relation" in error_details and "does not exist" in error_details:
+                    query_check.update({
+                        "status": "⚠️  TABLE_MISSING",
+                        "message": "Database connected but profiles table not found",
+                        "query_time_ms": round(query_time, 2),
+                        "error_type": "missing_table",
+                        "recommendation": "Database schema may need initialization"
+                    })
+                else:
+                    query_check.update({
+                        "status": "❌ QUERY_FAILED",
+                        "error": error_details,
+                        "query_time_ms": round(query_time, 2)
+                    })
+        else:
+            query_check.update({
+                "status": "❌ SKIPPED - Missing connection parameters"
+            })
+            
+    except Exception as e:
+        query_check = {
+            "check": "database_query_test",
+            "status": f"❌ ERROR: {str(e)}"
+        }
+    
+    results["checks_performed"].append(query_check)
+    
+    # 4. Auth Methods Check
+    try:
+        auth_check = {
+            "check": "auth_methods_availability",
+            "status": "checking..."
+        }
+        
+        if hasattr(settings, 'SUPABASE_URL') and hasattr(settings, 'SUPABASE_ANON_KEY'):
+            client: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+            
+            # Check if auth methods are accessible
+            auth_methods = dir(client.auth)
+            auth_method_count = len([method for method in auth_methods if not method.startswith('_')])
+            
+            auth_check.update({
+                "status": "✅ AVAILABLE",
+                "methods_count": auth_method_count,
+                "client_configured": True,
+                "auth_accessible": bool(client.auth)
+            })
+        else:
+            auth_check.update({
+                "status": "❌ UNAVAILABLE - Missing connection parameters"
+            })
+            
+    except Exception as e:
+        auth_check = {
+            "check": "auth_methods_availability",
+            "status": f"❌ ERROR: {str(e)}"
+        }
+    
+    results["checks_performed"].append(auth_check)
+    
+    # 5. Overall Assessment & Recommendations
+    total_time = (time.time() - start_time) * 1000
+    
+    # Determine overall status
+    statuses = [check.get("status", "❌ UNKNOWN") for check in results["checks_performed"]]
+    success_count = len([s for s in statuses if "✅" in s])
+    warning_count = len([s for s in statuses if "⚠️" in s])
+    error_count = len([s for s in statuses if "❌" in s])
+    
+    if error_count == 0 and warning_count == 0:
+        overall_status = "✅ ALL_SYSTEMS_OPERATIONAL"
+    elif error_count == 0:
+        overall_status = "⚠️  PARTIAL_SUCCESS_WITH_WARNINGS"
+    elif success_count > error_count:
+        overall_status = "⚠️  MIXED_RESULTS"
+    else:
+        overall_status = "❌ CRITICAL_ISSUES_DETECTED"
+    
+    # Generate recommendations
+    recommendations = []
+    
+    # Check for missing environment variables
+    if env_check.get("missing_count", 0) > 0:
+        missing_vars = [var for var, status in env_check.get("variables", {}).items() if "❌" in status]
+        recommendations.append({
+            "priority": "HIGH",
+            "category": "Environment Configuration",
+            "action": f"Add missing environment variables to Railway: {', '.join(missing_vars)}",
+            "instructions": "Railway Dashboard → Project → Variables tab → Add missing variables"
+        })
+    
+    # Check for database issues
+    if "❌" in query_check.get("status", ""):
+        recommendations.append({
+            "priority": "HIGH", 
+            "category": "Database Connectivity",
+            "action": "Investigate database connection issues",
+            "details": query_check.get("error", "Unknown database error")
+        })
+    elif "⚠️" in query_check.get("status", ""):
+        recommendations.append({
+            "priority": "MEDIUM",
+            "category": "Database Schema", 
+            "action": "Database schema may need initialization or migration",
+            "details": "Tables may be missing or RLS policies blocking access"
+        })
+    
+    # Check for auth issues
+    if "❌" in auth_check.get("status", ""):
+        recommendations.append({
+            "priority": "MEDIUM",
+            "category": "Authentication Setup",
+            "action": "Verify Supabase Auth configuration",
+            "details": "Auth methods may not be properly accessible"
+        })
+    
+    if not recommendations:
+        recommendations.append({
+            "priority": "INFO",
+            "category": "System Status",
+            "action": "All systems operational - no action required",
+            "details": "System is ready for production use"
+        })
+    
+    results.update({
+        "overall_status": overall_status,
+        "check_summary": {
+            "total_checks": len(results["checks_performed"]),
+            "success_count": success_count,
+            "warning_count": warning_count, 
+            "error_count": error_count
+        },
+        "recommendations": recommendations,
+        "response_time_ms": round(total_time, 2),
+        "next_steps": [
+            "Fix any HIGH priority recommendations first",
+            "Monitor system after changes", 
+            "Re-run this check to verify fixes"
+        ] if recommendations and recommendations[0]["priority"] in ["HIGH", "MEDIUM"] else [
+            "System operational - continue with normal operations",
+            "Monitor periodically for any degradation"
+        ]
+    })
+    
+    return results 
