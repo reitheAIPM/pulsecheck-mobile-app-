@@ -23,6 +23,11 @@ class IssueType(Enum):
     ENDPOINT_404 = "endpoint_404"
     DEPLOYMENT_ERROR = "deployment_error"
     BUILD_ERROR = "build_error"
+    DEPENDENCY_CONFLICT = "dependency_conflict"
+    MISSING_DEPENDENCY = "missing_dependency"
+    VERSION_INCOMPATIBILITY = "version_incompatibility"
+    OPENAI_IMPORT_ERROR = "openai_import_error"
+    SUPABASE_PROXY_ERROR = "supabase_proxy_error"
 
 class IssueSeverity(Enum):
     CRITICAL = "critical"
@@ -106,6 +111,43 @@ class AIDebuggingService:
                     "Redeploy with correct settings"
                 ],
                 "files": ["Railway environment variables"]
+            },
+            "EMAIL_VALIDATOR": {
+                "patterns": ["email-validator is not installed", "pip install pydantic[email]"],
+                "fixes": [
+                    "Add email-validator==2.1.0 to requirements.txt",
+                    "git add backend/requirements.txt",
+                    "git commit -m 'Add missing email-validator dependency'",
+                    "git push"
+                ],
+                "files": ["backend/requirements.txt"]
+            },
+            "OPENAI_IMPORT": {
+                "patterns": ["cannot import name 'LengthFinishReasonError'", "cannot import name 'ContentFilterFinishReasonError'"],
+                "fixes": [
+                    "Remove non-existent OpenAI exceptions from imports",
+                    "Check OpenAI library version compatibility",
+                    "Update imports to match openai==1.3.7 API"
+                ],
+                "files": ["backend/app/services/pulse_ai.py"]
+            },
+            "SUPABASE_PROXY": {
+                "patterns": ["Client.__init__() got an unexpected keyword argument 'proxy'"],
+                "fixes": [
+                    "Pin gotrue==2.8.1 in requirements.txt",
+                    "Known issue with supabase==2.3.0 and gotrue>=2.9.0",
+                    "Reference: https://github.com/supabase/supabase-py/issues/949"
+                ],
+                "files": ["backend/requirements.txt"]
+            },
+            "DEPENDENCY_CONFLICTS": {
+                "patterns": ["httpx==0.25", "conflicts with supabase", "The conflict is caused by"],
+                "fixes": [
+                    "Downgrade httpx to compatible version: httpx==0.24.1",
+                    "Check supabase compatibility requirements",
+                    "Update requirements.txt and redeploy"
+                ],
+                "files": ["backend/requirements.txt"]
             }
         }
     
@@ -343,10 +385,104 @@ class AIDebuggingService:
     async def analyze_logs_for_issues(self, log_text: str) -> List[Issue]:
         """
         Analyze log text and detect common issues using AI patterns
+        Enhanced with dependency and deployment error detection
         """
         issues = []
         
-        # Check for import errors
+        # Check for email-validator dependency error
+        if "email-validator is not installed" in log_text or "pip install pydantic[email]" in log_text:
+            issue = Issue(
+                type=IssueType.MISSING_DEPENDENCY,
+                severity=IssueSeverity.CRITICAL,
+                title="Missing email-validator Dependency",
+                description="Pydantic models with email validation require email-validator package",
+                detected_at=datetime.now(),
+                auto_fix_available=True,
+                fix_commands=[
+                    "Add 'email-validator==2.1.0' to backend/requirements.txt",
+                    "git add backend/requirements.txt",
+                    "git commit -m '🔧 FIX: Add missing email-validator dependency'",
+                    "git push"
+                ],
+                verification_steps=[
+                    "railway logs",
+                    "Check for successful deployment without ImportError"
+                ],
+                related_files=["backend/requirements.txt"]
+            )
+            issues.append(issue)
+        
+        # Check for OpenAI import errors
+        if "cannot import name 'LengthFinishReasonError'" in log_text or "cannot import name 'ContentFilterFinishReasonError'" in log_text:
+            issue = Issue(
+                type=IssueType.OPENAI_IMPORT_ERROR,
+                severity=IssueSeverity.CRITICAL,
+                title="Non-existent OpenAI Exception Imports",
+                description="OpenAI library version 1.3.7 doesn't include LengthFinishReasonError or ContentFilterFinishReasonError",
+                detected_at=datetime.now(),
+                auto_fix_available=True,
+                fix_commands=[
+                    "Remove 'LengthFinishReasonError, ContentFilterFinishReasonError' from OpenAI imports",
+                    "Remove 'UnprocessableEntityError' if present",
+                    "git add backend/app/services/pulse_ai.py",
+                    "git commit -m '🔧 FIX: Remove non-existent OpenAI exceptions'",
+                    "git push"
+                ],
+                verification_steps=[
+                    "railway logs",
+                    "Check for successful import without OpenAI ImportError"
+                ],
+                related_files=["backend/app/services/pulse_ai.py"]
+            )
+            issues.append(issue)
+        
+        # Check for Supabase proxy parameter error
+        if "Client.__init__() got an unexpected keyword argument 'proxy'" in log_text:
+            issue = Issue(
+                type=IssueType.SUPABASE_PROXY_ERROR,
+                severity=IssueSeverity.CRITICAL,
+                title="Supabase Proxy Parameter Conflict",
+                description="Version conflict between supabase==2.3.0 and gotrue>=2.9.0",
+                detected_at=datetime.now(),
+                auto_fix_available=True,
+                fix_commands=[
+                    "Add 'gotrue==2.8.1' to backend/requirements.txt",
+                    "git add backend/requirements.txt",
+                    "git commit -m '🔧 FIX: Pin gotrue version to prevent proxy parameter error'",
+                    "git push"
+                ],
+                verification_steps=[
+                    "railway logs",
+                    "Check for successful Supabase client initialization"
+                ],
+                related_files=["backend/requirements.txt"]
+            )
+            issues.append(issue)
+        
+        # Check for dependency conflicts (httpx/supabase)
+        if "conflicts with supabase" in log_text and "httpx==0.25" in log_text:
+            issue = Issue(
+                type=IssueType.DEPENDENCY_CONFLICT,
+                severity=IssueSeverity.HIGH,
+                title="httpx Version Conflict with Supabase",
+                description="httpx 0.25.x is incompatible with supabase 2.3.0",
+                detected_at=datetime.now(),
+                auto_fix_available=True,
+                fix_commands=[
+                    "Change 'httpx==0.25.2' to 'httpx==0.24.1' in backend/requirements.txt",
+                    "git add backend/requirements.txt",
+                    "git commit -m '🔧 FIX: Downgrade httpx to resolve supabase conflict'",
+                    "git push"
+                ],
+                verification_steps=[
+                    "railway logs",
+                    "Check for successful build without dependency conflicts"
+                ],
+                related_files=["backend/requirements.txt"]
+            )
+            issues.append(issue)
+        
+        # Check for authentication import errors
         if "cannot import name" in log_text:
             if "get_current_user_from_token" in log_text:
                 issue = Issue(

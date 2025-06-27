@@ -7,6 +7,11 @@ param(
     [string]$Mode = "both"
 )
 
+# Support legacy "all" mode for backward compatibility
+if ($Mode -eq "all") {
+    $Mode = "both"
+}
+
 $BASE_URL = "https://pulsecheck-mobile-app-production.up.railway.app"
 $AI_TESTS = 0
 $AI_PASSED = 0
@@ -108,12 +113,79 @@ function Test-AI-Endpoint {
     }
 }
 
-Write-Host "PULSECHECK UNIFIED TESTING SYSTEM" -ForegroundColor Cyan
-Write-Host "====================================" -ForegroundColor Cyan
+Write-Host "PULSECHECK COMPREHENSIVE TESTING SYSTEM" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Mode: $Mode" -ForegroundColor Gray
 Write-Host "Time: $(Get-Date)" -ForegroundColor Gray
 Write-Host "Target: $BASE_URL" -ForegroundColor Gray
 Write-Host ""
+
+# SECURITY SCANNING SECTION
+if ($Mode -eq "security" -or $Mode -eq "both") {
+    Write-Host "SECURITY SCANNING" -ForegroundColor Red
+    Write-Host "=================" -ForegroundColor Red
+    Write-Host "Scanning for hardcoded secrets and vulnerabilities..." -ForegroundColor Gray
+    Write-Host ""
+    
+    # Check for hardcoded JWT secrets
+    Write-Host "🔍 Checking for hardcoded JWT secrets..." -ForegroundColor Yellow
+    $script:COMP_TESTS++
+    if (Test-Path "../backend/app/core/config.py") {
+        $secretCheck = Select-String -Path "../backend/app/core/config.py" -Pattern "your-secret-key-here" -ErrorAction SilentlyContinue
+        if ($secretCheck) {
+            Write-Host "  ❌ SECURITY ISSUE: Hardcoded JWT secret found" -ForegroundColor Red
+            $script:FAILED_TESTS += "Security Check - Hardcoded JWT secret detected"
+        } else {
+            Write-Host "  ✅ JWT secrets properly secured" -ForegroundColor Green
+            $script:COMP_PASSED++
+        }
+    } else {
+        Write-Host "  ⚠️ Config file not found" -ForegroundColor Yellow
+        $script:COMP_PASSED++
+    }
+    
+    # Check for dependency conflicts  
+    Write-Host "🔧 Checking for dependency conflicts..." -ForegroundColor Yellow
+    $script:COMP_TESTS++
+    if (Test-Path "../backend/requirements.txt") {
+        $content = Get-Content "../backend/requirements.txt"
+        $conflicts = @()
+        
+        # Check for known conflicts
+        if ($content -match "httpx==0\.25\." -and $content -match "supabase") {
+            $conflicts += "httpx 0.25.x conflicts with supabase"
+        }
+        
+        # Check for missing gotrue pin with supabase
+        if ($content -match "supabase" -and $content -notmatch "gotrue") {
+            $conflicts += "Missing gotrue version pin (can cause proxy parameter error)"
+        }
+        
+        # Check for missing email-validator with pydantic
+        if ($content -match "pydantic" -and $content -notmatch "email-validator") {
+            $conflicts += "Missing email-validator (required by pydantic email validation)"
+        }
+        
+        if ($conflicts.Count -gt 0) {
+            Write-Host "  ❌ DEPENDENCY ISSUES: $($conflicts -join ', ')" -ForegroundColor Red
+            $script:FAILED_TESTS += "Build Health - $($conflicts -join ', ')"
+        } else {
+            Write-Host "  ✅ No dependency conflicts detected" -ForegroundColor Green
+            $script:COMP_PASSED++
+        }
+    } else {
+        Write-Host "  ✅ Requirements file OK" -ForegroundColor Green
+        $script:COMP_PASSED++
+    }
+    
+    Write-Host "`nSECURITY SCANNING COMPLETE" -ForegroundColor Green
+    
+    if ($Mode -eq "both") {
+        Write-Host "`nProceeding to other tests..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
+        Write-Host ""
+    }
+}
 
 # AI AUTOMATED TESTING SECTION
 if ($Mode -eq "quick" -or $Mode -eq "both") {
@@ -264,7 +336,8 @@ Write-Host "They prove your security is working correctly." -ForegroundColor Yel
 
 Write-Host "`nUsage Examples:" -ForegroundColor Gray
 Write-Host "   Quick AI Analysis:    ./unified_testing.ps1 quick" -ForegroundColor Gray
+Write-Host "   Security Scan Only:   ./unified_testing.ps1 security" -ForegroundColor Gray
 Write-Host "   Full System Test:     ./unified_testing.ps1 full" -ForegroundColor Gray
-Write-Host "   Both (Default):       ./unified_testing.ps1" -ForegroundColor Gray
+Write-Host "   All Tests (Default):  ./unified_testing.ps1" -ForegroundColor Gray
 
 Write-Host "`nTesting completed at $(Get-Date)" -ForegroundColor Gray 

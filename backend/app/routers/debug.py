@@ -1965,6 +1965,138 @@ def _get_monitoring_recommendations(insights: dict) -> list:
     
     return recommendations if recommendations else ["Standard monitoring recommended"] 
 
+@router.post("/deployment/analyze-failure")
+@limiter.limit("10/minute")
+async def analyze_deployment_failure(request: Request, log_data: dict):
+    """
+    Analyze deployment failure logs and provide AI-powered diagnostic
+    
+    Expected input:
+    {
+        "logs": "error log text...",
+        "build_logs": "optional build log text...",
+        "platform": "railway" | "vercel",
+        "timestamp": "ISO timestamp"
+    }
+    
+    Returns:
+    - Detected issues with severity levels
+    - Auto-fix commands for each issue
+    - Prevention recommendations
+    - Related files to check
+    """
+    print("🔍 /api/v1/debug/deployment/analyze-failure endpoint hit")
+    sys.stdout.flush()
+    
+    try:
+        from ..services.ai_debugging_service import ai_debugger
+        
+        logs = log_data.get("logs", "")
+        build_logs = log_data.get("build_logs", "")
+        platform = log_data.get("platform", "unknown")
+        
+        # Combine logs for analysis
+        combined_logs = f"{logs}\n{build_logs}"
+        
+        # Analyze logs for issues
+        detected_issues = await ai_debugger.analyze_logs_for_issues(combined_logs)
+        
+        # Generate AI insights
+        analysis = {
+            "deployment_platform": platform,
+            "analysis_timestamp": datetime.now().isoformat(),
+            "issues_detected": len(detected_issues),
+            "critical_issues": len([i for i in detected_issues if i.severity.value == "critical"]),
+            "auto_fixable_issues": len([i for i in detected_issues if i.auto_fix_available]),
+            "issues": []
+        }
+        
+        # Process each detected issue
+        for issue in detected_issues:
+            issue_data = {
+                "type": issue.type.value,
+                "severity": issue.severity.value,
+                "title": issue.title,
+                "description": issue.description,
+                "detected_at": issue.detected_at.isoformat(),
+                "auto_fix_available": issue.auto_fix_available,
+                "fix_commands": issue.fix_commands,
+                "verification_steps": issue.verification_steps,
+                "related_files": issue.related_files
+            }
+            
+            # Generate fix documentation
+            issue_data["fix_documentation"] = ai_debugger.generate_fix_documentation(issue)
+            
+            analysis["issues"].append(issue_data)
+        
+        # Add deployment-specific recommendations
+        analysis["deployment_recommendations"] = _get_deployment_recommendations(detected_issues, platform)
+        analysis["prevention_strategy"] = _get_prevention_strategy(detected_issues)
+        
+        print(f"✅ Deployment failure analysis complete: {len(detected_issues)} issues found")
+        sys.stdout.flush()
+        
+        return {
+            "status": "success",
+            "analysis": analysis
+        }
+        
+    except Exception as e:
+        error_msg = f"❌ Error in deployment failure analysis: {str(e)}"
+        print(error_msg)
+        sys.stdout.flush()
+        logger.error(f"Deployment failure analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+def _get_deployment_recommendations(issues: list, platform: str) -> list:
+    """Get deployment-specific recommendations based on detected issues"""
+    recommendations = []
+    
+    if any(issue.type.value == "missing_dependency" for issue in issues):
+        recommendations.append("🔧 Dependency Management: Use exact version pinning in requirements.txt")
+        recommendations.append("📋 Testing: Run local pip install tests before deployment")
+    
+    if any(issue.type.value == "openai_import_error" for issue in issues):
+        recommendations.append("📚 Library Compatibility: Verify all imports match installed library versions")
+        recommendations.append("🔍 Documentation: Check library changelog for breaking changes")
+    
+    if any(issue.type.value == "supabase_proxy_error" for issue in issues):
+        recommendations.append("🔗 Version Pinning: Pin transitive dependencies (gotrue) to prevent conflicts")
+        recommendations.append("🚨 Monitoring: Set up alerts for dependency-related errors")
+    
+    if platform == "railway":
+        recommendations.append("🚂 Railway: Check environment variables are properly set")
+        recommendations.append("📊 Railway: Monitor build logs for early error detection")
+    elif platform == "vercel":
+        recommendations.append("▲ Vercel: Verify build output directory configuration")
+        recommendations.append("🌐 Vercel: Check edge function compatibility")
+    
+    return recommendations
+
+def _get_prevention_strategy(issues: list) -> dict:
+    """Generate prevention strategy based on detected issue types"""
+    strategy = {
+        "immediate_actions": [],
+        "monitoring_setup": [],
+        "development_practices": [],
+        "ci_cd_improvements": []
+    }
+    
+    if any(issue.type.value in ["missing_dependency", "dependency_conflict"] for issue in issues):
+        strategy["immediate_actions"].append("Add dependency conflict testing to unified_testing.ps1")
+        strategy["ci_cd_improvements"].append("Set up pre-deployment dependency validation")
+        strategy["development_practices"].append("Use virtual environments with exact version matching")
+    
+    if any(issue.type.value == "import_error" for issue in issues):
+        strategy["monitoring_setup"].append("Add import error detection to health checks")
+        strategy["development_practices"].append("Run import tests before committing code")
+    
+    strategy["monitoring_setup"].append("Set up deployment failure alerting")
+    strategy["ci_cd_improvements"].append("Add deployment rollback automation")
+    
+    return strategy
+
 @router.get("/configuration-audit")
 async def configuration_audit():
     """
