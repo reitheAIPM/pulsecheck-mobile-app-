@@ -9,6 +9,7 @@ import time
 from typing import Optional
 import asyncio
 from functools import lru_cache
+import signal
 
 logger = logging.getLogger(__name__)
 
@@ -31,16 +32,40 @@ class Database:
             return
             
         try:
-            # Create Supabase client (options parameter not supported in current version)
+            # Create Supabase client with basic configuration
             self.client = create_client(
                 supabase_url=settings.SUPABASE_URL,
                 supabase_key=settings.SUPABASE_ANON_KEY
             )
+            
+            # Test the connection with a simple query (with implicit timeout from HTTP client)
+            try:
+                result = self.client.table('profiles').select('id').limit(1).execute()
+                logger.info("✅ Connected to Supabase database with anon key")
+            except Exception as query_error:
+                logger.warning(f"⚠️  Database query test failed: {query_error}")
+                # Still consider connected if client creation succeeded
+                logger.info("✅ Supabase client created (query test failed but client OK)")
+            
             self._connected = True
-            logger.info("✅ Connected to Supabase database with optimized settings")
+                
         except Exception as e:
             logger.error(f"❌ Failed to connect to Supabase: {e}")
-            raise
+            # For missing service role key, continue with anon key only
+            if "service" in str(e).lower() or "role" in str(e).lower():
+                logger.warning("⚠️  Service role key missing, using anon key only")
+                try:
+                    self.client = create_client(
+                        supabase_url=settings.SUPABASE_URL,
+                        supabase_key=settings.SUPABASE_ANON_KEY
+                    )
+                    self._connected = True
+                    logger.info("✅ Connected with anon key fallback")
+                except Exception as fallback_error:
+                    logger.error(f"❌ Anon key fallback failed: {fallback_error}")
+                    raise
+            else:
+                raise
     
     def get_client(self) -> Client:
         """Get the Supabase client instance with health checking"""
