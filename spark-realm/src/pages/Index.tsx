@@ -21,6 +21,7 @@ const Index = () => {
   const [isLoadingEntries, setIsLoadingEntries] = useState(false);
   const [premiumEnabled, setPremiumEnabled] = useState(false);
   const [hasNotifications, setHasNotifications] = useState(false);
+  const [shouldReloadEntries, setShouldReloadEntries] = useState(false);
   
   // Get authenticated user ID
   const [userId, setUserId] = useState<string | null>(null);
@@ -41,8 +42,7 @@ const Index = () => {
     };
     getUserId();
   }, []);
-
-  // Check for celebration when component mounts
+  // Check for celebration when component mounts and reload entries
   useEffect(() => {
     if (searchParams.get('newEntry') === 'true') {
       toast({
@@ -50,10 +50,14 @@ const Index = () => {
         description: "Your journal entry has been saved successfully. Great job taking time for yourself!",
         duration: 4000,
       });
+      
       // Clean up the URL parameter
       setSearchParams({});
+      
+      // Trigger entry reload
+      setShouldReloadEntries(true);
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, apiStatus, userId]);
 
   useEffect(() => {
     // Test API connection on component mount
@@ -88,6 +92,32 @@ const Index = () => {
 
     testApiConnection();
   }, [userId]); // Add userId as dependency
+
+  // Effect to handle entry reloading when flag is set
+  useEffect(() => {
+    if (shouldReloadEntries && apiStatus === 'connected' && userId) {
+      const reloadEntries = async () => {
+        try {
+          console.log('🔄 Reloading entries after new entry creation');
+          let realEntries = await apiService.getJournalEntries();
+          
+          const transformedEntries = realEntries.map(entry => ({
+            id: entry.id,
+            content: entry.content,
+            mood: entry.mood_level,
+            timestamp: entry.created_at,
+          }));
+          setEntries(transformedEntries);
+          console.log('✅ Successfully reloaded', realEntries.length, 'journal entries after creation');
+        } catch (error) {
+          console.error('❌ Failed to reload entries after creation:', error);
+        }
+      };
+      
+      reloadEntries();
+      setShouldReloadEntries(false); // Reset the flag
+    }
+  }, [shouldReloadEntries, apiStatus, userId]);
 
   // Add effect to reload entries when returning to this page
   useEffect(() => {
