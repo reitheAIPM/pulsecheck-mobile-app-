@@ -31,16 +31,10 @@ class Database:
             return
             
         try:
-            # Create optimized Supabase client
+            # Create Supabase client (options parameter not supported in current version)
             self.client = create_client(
                 supabase_url=settings.SUPABASE_URL,
-                supabase_key=settings.SUPABASE_ANON_KEY,
-                options={
-                    "connection_timeout": 10,  # 10 second timeout
-                    "request_timeout": 30,     # 30 second request timeout
-                    "retry_attempts": 3,       # Retry failed requests 3 times
-                    "retry_delay": 1,          # 1 second delay between retries
-                }
+                supabase_key=settings.SUPABASE_ANON_KEY
             )
             self._connected = True
             logger.info("✅ Connected to Supabase database with optimized settings")

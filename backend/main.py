@@ -14,6 +14,7 @@ Last Updated: 2025-01-25 - Enhanced CORS handling for Vercel domains
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, Response
 import time
 import logging

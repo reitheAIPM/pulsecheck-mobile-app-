@@ -17,6 +17,7 @@ redis==5.0.1
 # Database
 supabase==2.3.0
 gotrue==2.8.1
+psycopg2-binary==2.9.9
 
 # AI/ML
 openai==1.3.7
