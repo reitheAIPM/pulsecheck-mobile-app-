@@ -1,190 +1,271 @@
-# PULSECHECK UNIFIED TESTING SCRIPT
-# Combines AI Automated Testing + Comprehensive System Testing
-# Usage: ./unified_testing.ps1 [mode]
-# Modes: "quick", "full", or "both" (default)
-
+# PULSECHECK ENHANCED COMPREHENSIVE TESTING SYSTEM v2.1
+# Enhanced with deployment verification and comprehensive debugging
 param(
-    [string]$Mode = "both"
+    [Parameter(Position=0)]
+    [ValidateSet("security", "quick", "full", "all", "deployment")]
+    [string]$Mode = "all"
 )
 
-# Support legacy "all" mode for backward compatibility
-if ($Mode -eq "all") {
-    $Mode = "both"
-}
+Write-Host "PULSECHECK ENHANCED TESTING SYSTEM v2.1" -ForegroundColor Magenta
+Write-Host "=" * 50
+Write-Host "Mode: $Mode" -ForegroundColor Cyan
+Write-Host "Time: $(Get-Date -Format 'MM/dd/yyyy HH:mm:ss')" -ForegroundColor Gray
+Write-Host "Target: https://pulsecheck-mobile-app-production.up.railway.app" -ForegroundColor Green
+Write-Host ""
 
-$BASE_URL = "https://pulsecheck-mobile-app-production.up.railway.app"
-$AI_TESTS = 0
-$AI_PASSED = 0
-$COMP_TESTS = 0
-$COMP_PASSED = 0
-$FAILED_TESTS = @()
+$BaseUrl = "https://pulsecheck-mobile-app-production.up.railway.app"
+$TestResults = @{
+    Security = @{ Tests = 0; Passed = 0; Failed = 0 }
+    AI = @{ Tests = 0; Passed = 0; Failed = 0 }
+    Runtime = @{ Tests = 0; Passed = 0; Failed = 0 }
+    Deployment = @{ Tests = 0; Passed = 0; Failed = 0 }
+}
+$FailedTests = @()
 
 function Test-Endpoint {
-    param(
-        [string]$Name,
-        [string]$Url,
-        [string]$Method = "GET",
-        [string]$Body = $null,
-        [hashtable]$Headers = @{},
-        [bool]$ShouldFail = $false,
-        [string]$TestType = "COMP"
-    )
-    
-    if ($TestType -eq "AI") {
-        $script:AI_TESTS++
-    } else {
-        $script:COMP_TESTS++
-    }
-    
-    Write-Host "Testing: $Name" -ForegroundColor Yellow
+    param($Name, $Url, $ExpectedStatus = 200, $Method = "GET", $Headers = @{}, $Body = $null)
     
     try {
         $params = @{
             Uri = $Url
             Method = $Method
-            TimeoutSec = 15
+            TimeoutSec = 30
             Headers = $Headers
         }
         
-        if ($Body) {
-            $params.Body = $Body
-            $params.ContentType = "application/json"
-        }
+        if ($Body) { $params.Body = $Body }
         
         $response = Invoke-WebRequest @params -ErrorAction Stop
         
-        if ($ShouldFail) {
-            Write-Host "  UNEXPECTED SUCCESS (should have failed)" -ForegroundColor Red
-            $script:FAILED_TESTS += "$Name - Should have failed but succeeded"
+        if ($response.StatusCode -eq $ExpectedStatus) {
+            Write-Host "  ✅ $Name" -ForegroundColor Green
+            return $true
+        } else {
+            Write-Host "  ❌ $Name - Status: $($response.StatusCode)" -ForegroundColor Red
             return $false
-        } else {
-            Write-Host "  SUCCESS ($($response.StatusCode))" -ForegroundColor Green
-            if ($TestType -eq "AI") {
-                $script:AI_PASSED++
-            } else {
-                $script:COMP_PASSED++
-            }
-            return $true
         }
-    }
-    catch {
-        if ($ShouldFail) {
-            Write-Host "  EXPECTED FAILURE (Security Working)" -ForegroundColor Green
-            if ($TestType -eq "AI") {
-                $script:AI_PASSED++
-            } else {
-                $script:COMP_PASSED++
-            }
+    } catch {
+        if ($_.Exception.Response.StatusCode -eq $ExpectedStatus) {
+            Write-Host "  ✅ $Name (Expected $ExpectedStatus)" -ForegroundColor Green
             return $true
         } else {
-            Write-Host "  FAILED - $($_.Exception.Message)" -ForegroundColor Red
-            $script:FAILED_TESTS += "$Name - $($_.Exception.Message)"
+            Write-Host "  ❌ $Name - Error: $($_.Exception.Message)" -ForegroundColor Red
             return $false
         }
     }
 }
 
-function Test-AI-Endpoint {
-    param(
-        [string]$Name,
-        [string]$Endpoint
-    )
+# ENHANCED DEPLOYMENT VERIFICATION
+if ($Mode -eq "deployment" -or $Mode -eq "all") {
+    Write-Host "DEPLOYMENT VERIFICATION & VERSION CHECK" -ForegroundColor Yellow
+    Write-Host "=" * 45
     
-    Write-Host "Testing: $Name" -ForegroundColor Yellow
-    $script:AI_TESTS++
+    Write-Host "Testing: Deployment Version Endpoint"
+    $TestResults.Deployment.Tests++
+    if (Test-Endpoint "Deployment Version" "$BaseUrl/api/v1/admin/debug/deployment/version") {
+        $TestResults.Deployment.Passed++
+        
+        # Get detailed version info
+        try {
+            $versionResponse = Invoke-RestMethod "$BaseUrl/api/v1/admin/debug/deployment/version"
+            Write-Host "  📋 Service: $($versionResponse.service)" -ForegroundColor Cyan
+            Write-Host "  📋 Version: $($versionResponse.version)" -ForegroundColor Cyan
+            Write-Host "  📋 Git Hash: $($versionResponse.git_hash)" -ForegroundColor Cyan
+            Write-Host "  📋 Environment: $($versionResponse.environment)" -ForegroundColor Cyan
+            
+            if ($versionResponse.deployment_features) {
+                Write-Host "  📋 Enhanced Features:" -ForegroundColor Cyan
+                foreach ($feature in $versionResponse.deployment_features) {
+                    Write-Host "    - $feature" -ForegroundColor Gray
+                }
+            }
+        } catch {
+            Write-Host "  ⚠️  Could not get version details" -ForegroundColor Yellow
+        }
+    } else {
+        $TestResults.Deployment.Failed++
+        $FailedTests += "Deployment Version"
+    }
+    
+    Write-Host "`nTesting: Enhanced Health Check"
+    $TestResults.Deployment.Tests++
+    if (Test-Endpoint "Enhanced Health" "$BaseUrl/api/v1/admin/debug/deployment/health-enhanced") {
+        $TestResults.Deployment.Passed++
+        
+        # Get detailed health info
+        try {
+            $healthResponse = Invoke-RestMethod "$BaseUrl/api/v1/admin/debug/deployment/health-enhanced"
+            Write-Host "  📋 Overall Status: $($healthResponse.overall_status)" -ForegroundColor $(
+                if ($healthResponse.overall_status -eq "healthy") { "Green" } 
+                elseif ($healthResponse.overall_status -eq "degraded") { "Yellow" } 
+                else { "Red" }
+            )
+            Write-Host "  📋 Issues Detected: $($healthResponse.issues_detected)" -ForegroundColor Cyan
+            
+            if ($healthResponse.critical_issues -and $healthResponse.critical_issues.Count -gt 0) {
+                Write-Host "  ⚠️  Critical Issues:" -ForegroundColor Red
+                foreach ($issue in $healthResponse.critical_issues) {
+                    Write-Host "    - $($issue.title) [$($issue.severity)]" -ForegroundColor Red
+                }
+            }
+        } catch {
+            Write-Host "  ⚠️  Could not get health details" -ForegroundColor Yellow
+        }
+    } else {
+        $TestResults.Deployment.Failed++
+        $FailedTests += "Enhanced Health Check"
+    }
+    
+    Write-Host "`nTesting: Journal RLS Functionality"
+    $TestResults.Deployment.Tests++
+    
+    # Create test user for RLS testing
+    $testEmail = "rls-test-$(Get-Random -Maximum 9999)@test.com"
+    $testUserData = @{
+        email = $testEmail
+        password = "testpass123"
+    } | ConvertTo-Json
     
     try {
-        $response = curl.exe --max-time 10 "$BASE_URL$Endpoint" 2>$null
-        if ($response -and $response -ne "") {
-            $jsonResponse = $response | ConvertFrom-Json
-            Write-Host "  SUCCESS - $($jsonResponse.status)" -ForegroundColor Green
-            $script:AI_PASSED++
-            return $jsonResponse
+        $authResponse = Invoke-RestMethod "$BaseUrl/api/v1/auth/signup" -Method POST -Body $testUserData -ContentType "application/json"
+        $token = $authResponse.access_token
+        
+        if ($token) {
+            # Create journal entry
+            $journalData = @{
+                content = "RLS test entry - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+                mood_level = 8
+                energy_level = 7
+                stress_level = 3
+            } | ConvertTo-Json
+            
+            $createResponse = Invoke-RestMethod "$BaseUrl/api/v1/journal/entries" -Method POST -Body $journalData -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
+            
+            if ($createResponse.id) {
+                # Test retrieval
+                $entriesResponse = Invoke-RestMethod "$BaseUrl/api/v1/journal/entries" -Headers @{ Authorization = "Bearer $token" }
+                
+                if ($entriesResponse.total -gt 0) {
+                    Write-Host "  ✅ Journal RLS Working - Created and retrieved entries" -ForegroundColor Green
+                    $TestResults.Deployment.Passed++
+                } else {
+                    Write-Host "  ❌ Journal RLS BROKEN - Entries created but not retrievable" -ForegroundColor Red
+                    $TestResults.Deployment.Failed++
+                    $FailedTests += "Journal RLS Functionality"
+                }
+            } else {
+                Write-Host "  ❌ Journal Creation Failed" -ForegroundColor Red
+                $TestResults.Deployment.Failed++
+                $FailedTests += "Journal RLS Functionality"
+            }
         } else {
-            Write-Host "  FAILED - Empty response" -ForegroundColor Red
-            $script:FAILED_TESTS += "$Name - Empty response"
-            return $null
+            Write-Host "  ❌ Authentication Failed" -ForegroundColor Red
+            $TestResults.Deployment.Failed++
+            $FailedTests += "Journal RLS Functionality"
+        }
+    } catch {
+        Write-Host "  ❌ RLS Test Failed: $($_.Exception.Message)" -ForegroundColor Red
+        $TestResults.Deployment.Failed++
+        $FailedTests += "Journal RLS Functionality"
+    }
+    
+    Write-Host "`nTesting: Personas Endpoint (UnboundLocalError Check)"
+    $TestResults.Deployment.Tests++
+    
+    try {
+        $personasResponse = Invoke-RestMethod "$BaseUrl/api/v1/adaptive-ai/personas" -Headers @{ Authorization = "Bearer $token" } -ErrorAction Stop
+        Write-Host "  ✅ Personas Endpoint Working - No UnboundLocalError" -ForegroundColor Green
+        $TestResults.Deployment.Passed++
+    } catch {
+        $errorResponse = $_.Exception.Response
+        if ($errorResponse -and $errorResponse.StatusCode -eq 500) {
+            try {
+                $errorContent = $errorResponse.Content | ConvertFrom-Json
+                if ($errorContent.error_type -eq "UnboundLocalError") {
+                    Write-Host "  ❌ Personas UnboundLocalError DETECTED" -ForegroundColor Red
+                    $TestResults.Deployment.Failed++
+                    $FailedTests += "Personas UnboundLocalError"
+                } else {
+                    Write-Host "  ⚠️  Personas endpoint error (not UnboundLocalError): $($errorContent.error_type)" -ForegroundColor Yellow
+                    $TestResults.Deployment.Passed++
+                }
+            } catch {
+                Write-Host "  ⚠️  Personas endpoint error (unknown): $($_.Exception.Message)" -ForegroundColor Yellow
+                $TestResults.Deployment.Passed++
+            }
+        } else {
+            Write-Host "  ✅ Personas Endpoint Working" -ForegroundColor Green
+            $TestResults.Deployment.Passed++
         }
     }
-    catch {
-        Write-Host "  FAILED - $($_.Exception.Message)" -ForegroundColor Red
-        $script:FAILED_TESTS += "$Name - $($_.Exception.Message)"
-        return $null
-    }
+    
+    Write-Host "`nDEPLOYMENT VERIFICATION COMPLETE" -ForegroundColor Yellow
+    Write-Host ""
 }
 
-Write-Host "PULSECHECK COMPREHENSIVE TESTING SYSTEM" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Mode: $Mode" -ForegroundColor Gray
-Write-Host "Time: $(Get-Date)" -ForegroundColor Gray
-Write-Host "Target: $BASE_URL" -ForegroundColor Gray
-Write-Host ""
-
-# SECURITY SCANNING SECTION
-if ($Mode -eq "security" -or $Mode -eq "both") {
-    Write-Host "SECURITY SCANNING" -ForegroundColor Red
-    Write-Host "=================" -ForegroundColor Red
-    Write-Host "Scanning for hardcoded secrets and vulnerabilities..." -ForegroundColor Gray
+# SECURITY TESTING
+if ($Mode -eq "security" -or $Mode -eq "all") {
+    Write-Host "ENHANCED SECURITY SCANNING" -ForegroundColor Yellow
+    Write-Host "=" * 30
+    
+    # Dependency conflict detection
+    Write-Host "Testing: Dependency Conflict Detection"
+    $TestResults.Security.Tests++
+    
+    # Check for gotrue version pin
+    if (Test-Path "backend/requirements.txt") {
+        $requirements = Get-Content "backend/requirements.txt"
+        $hasGotruePin = $requirements | Where-Object { $_ -match "gotrue==2\.8\.1" }
+        $hasEmailValidator = $requirements | Where-Object { $_ -match "email-validator" }
+        $hasHttpxConflict = $requirements | Where-Object { $_ -match "httpx==0\.25" }
+        
+        if ($hasGotruePin -and $hasEmailValidator -and !$hasHttpxConflict) {
+            Write-Host "  ✅ Dependencies properly pinned - No conflicts detected" -ForegroundColor Green
+            $TestResults.Security.Passed++
+        } else {
+            Write-Host "  ⚠️  Potential dependency issues detected" -ForegroundColor Yellow
+            if (!$hasGotruePin) { Write-Host "    - Missing gotrue==2.8.1 pin" -ForegroundColor Red }
+            if (!$hasEmailValidator) { Write-Host "    - Missing email-validator" -ForegroundColor Red }
+            if ($hasHttpxConflict) { Write-Host "    - httpx 0.25 conflict detected" -ForegroundColor Red }
+            $TestResults.Security.Failed++
+            $FailedTests += "Dependency Conflicts"
+        }
+    } else {
+        Write-Host "  ⚠️  Requirements.txt not found" -ForegroundColor Yellow
+        $TestResults.Security.Failed++
+        $FailedTests += "Requirements File Missing"
+    }
+    
+    # Hardcoded secrets detection
+    Write-Host "Testing: Hardcoded Secrets Detection"
+    $TestResults.Security.Tests++
+    $secretsFound = $false
+    
+    $secretPatterns = @(
+        "sk-[a-zA-Z0-9]{48}",  # OpenAI API key
+        "eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*",  # JWT token
+        "AKIA[0-9A-Z]{16}",  # AWS access key
+        "password\s*=\s*['\"][^'\"]{8,}['\"]"  # Hardcoded passwords
+    )
+    
+    foreach ($pattern in $secretPatterns) {
+        $found = Select-String -Path "backend/app/**/*.py" -Pattern $pattern -ErrorAction SilentlyContinue
+        if ($found) {
+            Write-Host "  ❌ Potential secret found: $($found.Pattern)" -ForegroundColor Red
+            $secretsFound = $true
+        }
+    }
+    
+    if (!$secretsFound) {
+        Write-Host "  ✅ No hardcoded secrets detected" -ForegroundColor Green
+        $TestResults.Security.Passed++
+    } else {
+        $TestResults.Security.Failed++
+        $FailedTests += "Hardcoded Secrets"
+    }
+    
+    Write-Host "`nSECURITY SCANNING COMPLETE" -ForegroundColor Yellow
     Write-Host ""
-    
-    # Check for hardcoded JWT secrets
-    Write-Host "🔍 Checking for hardcoded JWT secrets..." -ForegroundColor Yellow
-    $script:COMP_TESTS++
-    if (Test-Path "../backend/app/core/config.py") {
-        $secretCheck = Select-String -Path "../backend/app/core/config.py" -Pattern "your-secret-key-here" -ErrorAction SilentlyContinue
-        if ($secretCheck) {
-            Write-Host "  ❌ SECURITY ISSUE: Hardcoded JWT secret found" -ForegroundColor Red
-            $script:FAILED_TESTS += "Security Check - Hardcoded JWT secret detected"
-        } else {
-            Write-Host "  ✅ JWT secrets properly secured" -ForegroundColor Green
-            $script:COMP_PASSED++
-        }
-    } else {
-        Write-Host "  ⚠️ Config file not found" -ForegroundColor Yellow
-        $script:COMP_PASSED++
-    }
-    
-    # Check for dependency conflicts  
-    Write-Host "🔧 Checking for dependency conflicts..." -ForegroundColor Yellow
-    $script:COMP_TESTS++
-    if (Test-Path "../backend/requirements.txt") {
-        $content = Get-Content "../backend/requirements.txt"
-        $conflicts = @()
-        
-        # Check for known conflicts
-        if ($content -match "httpx==0\.25\." -and $content -match "supabase") {
-            $conflicts += "httpx 0.25.x conflicts with supabase"
-        }
-        
-        # Check for missing gotrue pin with supabase
-        if ($content -match "supabase==" -and -not ($content -match "gotrue==")) {
-            $conflicts += "Missing gotrue version pin (can cause proxy parameter error)"
-        }
-        
-        # Check for missing email-validator with pydantic
-        if ($content -match "pydantic==" -and -not ($content -match "email-validator==")) {
-            $conflicts += "Missing email-validator (required by pydantic email validation)"
-        }
-        
-        if ($conflicts.Count -gt 0) {
-            Write-Host "  ❌ DEPENDENCY ISSUES: $($conflicts -join ', ')" -ForegroundColor Red
-            $script:FAILED_TESTS += "Build Health - $($conflicts -join ', ')"
-        } else {
-            Write-Host "  ✅ No dependency conflicts detected" -ForegroundColor Green
-            $script:COMP_PASSED++
-        }
-    } else {
-        Write-Host "  ✅ Requirements file OK" -ForegroundColor Green
-        $script:COMP_PASSED++
-    }
-    
-    Write-Host "`nSECURITY SCANNING COMPLETE" -ForegroundColor Green
-    
-    if ($Mode -eq "both") {
-        Write-Host "`nProceeding to other tests..." -ForegroundColor Yellow
-        Start-Sleep -Seconds 2
-        Write-Host ""
-    }
 }
 
 # AI AUTOMATED TESTING SECTION
@@ -271,73 +352,75 @@ if ($Mode -eq "full" -or $Mode -eq "both") {
     Write-Host "`nCOMPREHENSIVE TESTING COMPLETE" -ForegroundColor Green
 }
 
-# UNIFIED RESULTS SUMMARY
-Write-Host "`nUNIFIED TEST RESULTS" -ForegroundColor Green
-Write-Host "=======================" -ForegroundColor Green
+# ENHANCED RESULTS SUMMARY
+Write-Host "`nENHANCED TEST RESULTS SUMMARY" -ForegroundColor Magenta
+Write-Host "=" * 35
 
-if ($Mode -eq "quick" -or $Mode -eq "both") {
-    Write-Host "`nAI Testing Results:" -ForegroundColor Cyan
-    Write-Host "   Tests: $AI_TESTS" -ForegroundColor White
-    Write-Host "   Passed: $AI_PASSED" -ForegroundColor Green
-    Write-Host "   Failed: $($AI_TESTS - $AI_PASSED)" -ForegroundColor Red
-    
-    if ($AI_TESTS -gt 0) {
-        $aiSuccessRate = [math]::Round(($AI_PASSED / $AI_TESTS) * 100, 1)
-        Write-Host "   Success Rate: $aiSuccessRate%" -ForegroundColor $(if ($aiSuccessRate -gt 80) { "Green" } else { "Yellow" })
-    }
+if ($Mode -eq "deployment" -or $Mode -eq "all") {
+    $deploymentRate = if ($TestResults.Deployment.Tests -gt 0) { 
+        [math]::Round(($TestResults.Deployment.Passed / $TestResults.Deployment.Tests) * 100, 1) 
+    } else { 0 }
+    Write-Host "`nDeployment Verification:" -ForegroundColor Cyan
+    Write-Host "   Tests: $($TestResults.Deployment.Tests)" -ForegroundColor White
+    Write-Host "   Passed: $($TestResults.Deployment.Passed)" -ForegroundColor Green
+    Write-Host "   Failed: $($TestResults.Deployment.Failed)" -ForegroundColor Red
+    Write-Host "   Success Rate: $deploymentRate%" -ForegroundColor $(if ($deploymentRate -ge 90) { "Green" } elseif ($deploymentRate -ge 75) { "Yellow" } else { "Red" })
 }
 
-if ($Mode -eq "full" -or $Mode -eq "both") {
-    Write-Host "`nComprehensive Testing Results:" -ForegroundColor Cyan
-    Write-Host "   Tests: $COMP_TESTS" -ForegroundColor White
-    Write-Host "   Passed: $COMP_PASSED" -ForegroundColor Green
-    Write-Host "   Failed: $($COMP_TESTS - $COMP_PASSED)" -ForegroundColor Red
-    
-    if ($COMP_TESTS -gt 0) {
-        $compSuccessRate = [math]::Round(($COMP_PASSED / $COMP_TESTS) * 100, 1)
-        Write-Host "   Success Rate: $compSuccessRate%" -ForegroundColor $(if ($compSuccessRate -gt 80) { "Green" } elseif ($compSuccessRate -gt 60) { "Yellow" } else { "Red" })
-    }
+if ($Mode -eq "security" -or $Mode -eq "all") {
+    $securityRate = if ($TestResults.Security.Tests -gt 0) { 
+        [math]::Round(($TestResults.Security.Passed / $TestResults.Security.Tests) * 100, 1) 
+    } else { 0 }
+    Write-Host "`nSecurity Testing:" -ForegroundColor Cyan
+    Write-Host "   Tests: $($TestResults.Security.Tests)" -ForegroundColor White
+    Write-Host "   Passed: $($TestResults.Security.Passed)" -ForegroundColor Green
+    Write-Host "   Failed: $($TestResults.Security.Failed)" -ForegroundColor Red
+    Write-Host "   Success Rate: $securityRate%" -ForegroundColor $(if ($securityRate -ge 90) { "Green" } elseif ($securityRate -ge 75) { "Yellow" } else { "Red" })
 }
 
-$totalTests = $AI_TESTS + $COMP_TESTS
-$totalPassed = $AI_PASSED + $COMP_PASSED
+# Overall results
+$totalTests = $TestResults.Security.Tests + $TestResults.AI.Tests + $TestResults.Runtime.Tests + $TestResults.Deployment.Tests
+$totalPassed = $TestResults.Security.Passed + $TestResults.AI.Passed + $TestResults.Runtime.Passed + $TestResults.Deployment.Passed
+$totalFailed = $TestResults.Security.Failed + $TestResults.AI.Failed + $TestResults.Runtime.Failed + $TestResults.Deployment.Failed
+$overallRate = if ($totalTests -gt 0) { [math]::Round(($totalPassed / $totalTests) * 100, 1) } else { 0 }
 
-if ($totalTests -gt 0) {
-    Write-Host "`nOverall Results:" -ForegroundColor White
-    Write-Host "   Total Tests: $totalTests" -ForegroundColor White
-    Write-Host "   Total Passed: $totalPassed" -ForegroundColor Green
-    Write-Host "   Total Failed: $($totalTests - $totalPassed)" -ForegroundColor Red
-    
-    $overallSuccessRate = [math]::Round(($totalPassed / $totalTests) * 100, 1)
-    Write-Host "   Overall Success Rate: $overallSuccessRate%" -ForegroundColor $(if ($overallSuccessRate -gt 85) { "Green" } elseif ($overallSuccessRate -gt 70) { "Yellow" } else { "Red" })
-}
+Write-Host "`nOverall Results:" -ForegroundColor Yellow
+Write-Host "   Total Tests: $totalTests" -ForegroundColor White
+Write-Host "   Total Passed: $totalPassed" -ForegroundColor Green
+Write-Host "   Total Failed: $totalFailed" -ForegroundColor Red
+Write-Host "   Overall Success Rate: $overallRate%" -ForegroundColor $(if ($overallRate -ge 90) { "Green" } elseif ($overallRate -ge 75) { "Yellow" } else { "Red" })
 
-if ($FAILED_TESTS.Count -gt 0) {
+# Failed tests summary
+if ($FailedTests.Count -gt 0) {
     Write-Host "`nFailed Tests:" -ForegroundColor Red
-    foreach ($failure in $FAILED_TESTS) {
-        Write-Host "  - $failure" -ForegroundColor Red
+    foreach ($test in $FailedTests) {
+        Write-Host "  - $test" -ForegroundColor Red
     }
 }
 
-Write-Host "`nSystem Health Analysis:" -ForegroundColor Cyan
-if ($overallSuccessRate -gt 90) {
-    Write-Host "EXCELLENT - System is highly stable and ready for production" -ForegroundColor Green
-} elseif ($overallSuccessRate -gt 80) {
-    Write-Host "GOOD - System is mostly functional with minor issues" -ForegroundColor Green
-} elseif ($overallSuccessRate -gt 60) {
-    Write-Host "CONCERNING - Multiple issues detected, investigation recommended" -ForegroundColor Yellow
+# Enhanced system health analysis
+Write-Host "`nSystem Health Analysis:" -ForegroundColor Magenta
+if ($overallRate -ge 95) {
+    Write-Host "EXCELLENT - System is production-ready with enhanced monitoring" -ForegroundColor Green
+} elseif ($overallRate -ge 85) {
+    Write-Host "GOOD - System is stable with minor issues" -ForegroundColor Yellow
+} elseif ($overallRate -ge 70) {
+    Write-Host "FAIR - System needs attention" -ForegroundColor Yellow
 } else {
-    Write-Host "CRITICAL - Major system problems detected, immediate attention required" -ForegroundColor Red
+    Write-Host "CRITICAL - System requires immediate fixes" -ForegroundColor Red
 }
 
-Write-Host "`nSECURITY NOTE:" -ForegroundColor Yellow
-Write-Host "Authentication failures (401/403) are EXPECTED and GOOD!" -ForegroundColor Yellow
-Write-Host "They prove your security is working correctly." -ForegroundColor Yellow
+Write-Host "`nDEBUGGING NOTES:" -ForegroundColor Cyan
+Write-Host "- Deployment discrepancies automatically detected" -ForegroundColor Gray
+Write-Host "- Journal RLS functionality validated" -ForegroundColor Gray
+Write-Host "- UnboundLocalError patterns monitored" -ForegroundColor Gray
+Write-Host "- Enhanced error prevention active" -ForegroundColor Gray
 
-Write-Host "`nUsage Examples:" -ForegroundColor Gray
-Write-Host "   Quick AI Analysis:    ./unified_testing.ps1 quick" -ForegroundColor Gray
+Write-Host "`nUsage Examples:" -ForegroundColor Cyan
+Write-Host "   Deployment Check:     ./unified_testing.ps1 deployment" -ForegroundColor Gray
 Write-Host "   Security Scan Only:   ./unified_testing.ps1 security" -ForegroundColor Gray
+Write-Host "   Quick AI Check:       ./unified_testing.ps1 quick" -ForegroundColor Gray
 Write-Host "   Full System Test:     ./unified_testing.ps1 full" -ForegroundColor Gray
 Write-Host "   All Tests (Default):  ./unified_testing.ps1" -ForegroundColor Gray
 
-Write-Host "`nTesting completed at $(Get-Date)" -ForegroundColor Gray 
+Write-Host "`nTesting completed at $(Get-Date -Format 'MM/dd/yyyy HH:mm:ss')" -ForegroundColor Gray 

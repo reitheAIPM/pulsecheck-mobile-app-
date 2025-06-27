@@ -2,11 +2,14 @@
 """
 Admin Analytics Router - Final Fixed Version
 Provides comprehensive analytics and monitoring endpoints for PulseCheck
+Enhanced with deployment tracking and version verification
 """
 
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from typing import Optional
 from datetime import date, datetime, timedelta, timezone
+import os
+import subprocess
 from app.core.database import get_database, Database
 from app.services.cost_optimization import CostOptimizationService
 
@@ -17,6 +20,123 @@ from app.core.security import verify_admin, limiter
 
 # Cost optimization service instance
 cost_optimizer = CostOptimizationService()
+
+@router.get("/debug/deployment/version")
+async def get_deployment_version():
+    """
+    Get current deployment version and git information for deployment verification
+    """
+    try:
+        # Try to get git commit hash
+        git_hash = "unknown"
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"], 
+                capture_output=True, 
+                text=True, 
+                timeout=5
+            )
+            if result.returncode == 0:
+                git_hash = result.stdout.strip()[:8]  # Short hash
+        except Exception:
+            # Fallback methods
+            try:
+                if os.path.exists(".git/HEAD"):
+                    with open(".git/HEAD", "r") as f:
+                        ref = f.read().strip()
+                        if ref.startswith("ref: "):
+                            ref_path = ref[5:]
+                            if os.path.exists(f".git/{ref_path}"):
+                                with open(f".git/{ref_path}", "r") as ref_file:
+                                    git_hash = ref_file.read().strip()[:8]
+            except Exception:
+                pass
+        
+        # Get deployment timestamp (Railway sets this)
+        deployed_at = os.environ.get("RAILWAY_DEPLOYMENT_ID", datetime.now().isoformat())
+        
+        # Version information
+        version_info = {
+            "service": "PulseCheck Backend API",
+            "version": "2.1.0-enhanced-debugging",
+            "git_hash": git_hash,
+            "deployed_at": deployed_at,
+            "environment": os.environ.get("ENVIRONMENT", "production"),
+            "railway_service": os.environ.get("RAILWAY_SERVICE_NAME", "backend"),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "deployment_features": [
+                "Enhanced AI debugging system",
+                "Deployment discrepancy detection", 
+                "RLS policy monitoring",
+                "UnboundLocalError prevention",
+                "Journal functionality validation",
+                "Comprehensive error patterns"
+            ]
+        }
+        
+        return version_info
+        
+    except Exception as e:
+        return {
+            "service": "PulseCheck Backend API",
+            "version": "2.1.0-enhanced-debugging",
+            "git_hash": "error",
+            "deployed_at": "unknown",
+            "error": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+@router.get("/debug/deployment/health-enhanced")
+async def get_enhanced_deployment_health():
+    """
+    Enhanced health check with deployment-specific validation
+    """
+    try:
+        from app.services.ai_debugging_service import AIDebuggingService
+        
+        # Run enhanced health check
+        debug_service = AIDebuggingService()
+        health = await debug_service.run_full_health_check()
+        
+        # Convert to serializable format
+        health_data = {
+            "overall_status": "healthy" if len(health.issues) == 0 else "degraded" if len(health.issues) < 3 else "critical",
+            "component_status": {
+                "frontend": health.frontend_status,
+                "backend": health.backend_status,
+                "database": health.database_status,
+                "auth": health.auth_status,
+                "cors": health.cors_status,
+                "deployment": health.deployment_status
+            },
+            "issues_detected": len(health.issues),
+            "deployment_verification": {
+                "version_endpoint_available": True,
+                "last_check": health.last_check.isoformat(),
+                "deployment_discrepancies": len([i for i in health.issues if i.type.value == "deployment_discrepancy"])
+            },
+            "critical_issues": [
+                {
+                    "type": issue.type.value,
+                    "title": issue.title,
+                    "severity": issue.severity.value,
+                    "auto_fix_available": issue.auto_fix_available
+                }
+                for issue in health.issues 
+                if issue.severity.value in ["critical", "high"]
+            ]
+        }
+        
+        return health_data
+        
+    except Exception as e:
+        return {
+            "overall_status": "error",
+            "component_status": {},
+            "issues_detected": 1,
+            "error": f"Health check failed: {str(e)}",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
 
 @router.get("/beta-metrics/daily")
 async def get_daily_beta_metrics(

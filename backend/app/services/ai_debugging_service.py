@@ -1,12 +1,15 @@
 """
 AI-Powered Debugging Service
 Automatically diagnoses and provides fixes for common deployment issues
+Enhanced with deployment discrepancy detection and comprehensive error patterns
 """
 
 import asyncio
 import requests
 import json
 import logging
+import os
+import hashlib
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
@@ -28,6 +31,13 @@ class IssueType(Enum):
     VERSION_INCOMPATIBILITY = "version_incompatibility"
     OPENAI_IMPORT_ERROR = "openai_import_error"
     SUPABASE_PROXY_ERROR = "supabase_proxy_error"
+    DEPLOYMENT_DISCREPANCY = "deployment_discrepancy"
+    RLS_POLICY_ERROR = "rls_policy_error"
+    JOURNAL_RETRIEVAL_ERROR = "journal_retrieval_error"
+    UNBOUND_LOCAL_ERROR = "unbound_local_error"
+    AUTHENTICATION_FLOW_ERROR = "authentication_flow_error"
+    JWT_TOKEN_ERROR = "jwt_token_error"
+    SUPABASE_CLIENT_ERROR = "supabase_client_error"
 
 class IssueSeverity(Enum):
     CRITICAL = "critical"
@@ -47,6 +57,17 @@ class Issue:
     verification_steps: List[str]
     related_files: List[str]
     environment: str = "production"
+    error_context: Dict[str, Any] = None
+    prevention_tips: List[str] = None
+
+@dataclass
+class DeploymentStatus:
+    git_commit_hash: str
+    deployed_version: str
+    deployment_timestamp: datetime
+    version_match: bool
+    discrepancy_detected: bool
+    discrepancy_details: Dict[str, Any] = None
 
 @dataclass
 class SystemHealth:
@@ -58,59 +79,71 @@ class SystemHealth:
     deployment_status: str
     last_check: datetime
     issues: List[Issue]
+    deployment_info: DeploymentStatus = None
 
 class AIDebuggingService:
     """
-    Automated debugging service that can:
-    1. Continuously monitor system health
-    2. Detect common issues automatically
-    3. Provide AI-generated fixes
-    4. Execute safe auto-fixes
-    5. Update documentation with lessons learned
+    Enhanced automated debugging service that can:
+    1. Detect deployment discrepancies (code vs deployed version)
+    2. Monitor RLS policy issues and authentication flows
+    3. Catch UnboundLocalError patterns
+    4. Detect journal retrieval failures
+    5. Provide comprehensive fixes for all encountered issues
+    6. Generate prevention strategies
     """
     
     def __init__(self):
-        self.frontend_url = "https://pulsecheck-mobile-2objhn451-reitheaipms-projects.vercel.app"
+        self.frontend_url = "https://pulsecheck-mobile-app.vercel.app"
         self.backend_url = "https://pulsecheck-mobile-app-production.up.railway.app"
         self.supabase_url = "https://qwpwlubxhtuzvmvajjjr.supabase.co"
         
-        # Common issue patterns and their fixes
+        # Enhanced issue patterns with all discovered problems
         self.issue_patterns = {
-            "CORS": {
-                "patterns": ["CORS", "Cross-Origin", "Origin not allowed", "preflight"],
+            "DEPLOYMENT_DISCREPANCY": {
+                "patterns": ["version mismatch", "deployment out of sync", "code not deployed", "stale deployment"],
                 "fixes": [
-                    "Add the specific domain to CORS allowed origins",
-                    "Update backend CORS middleware",
-                    "Redeploy backend with git push"
+                    "Force empty commit to trigger redeploy: git commit --allow-empty -m 'Force redeploy'",
+                    "Push to main branch: git push origin main",
+                    "Wait 3-5 minutes for Railway to complete deployment",
+                    "Verify deployment with: curl {backend_url}/api/v1/debug/deployment/version"
                 ],
-                "files": ["backend/main.py"]
+                "files": [".git/", "railway.toml"],
+                "prevention": [
+                    "Always verify deployment after git push",
+                    "Check Railway dashboard for deployment status",
+                    "Add deployment version endpoint to verify code sync"
+                ]
             },
-            "AUTH_IMPORT": {
-                "patterns": ["cannot import name", "get_current_user_from_token", "Authentication failed"],
+            "JOURNAL_RLS_ERROR": {
+                "patterns": ["entries: Array(0), total: 0", "RLS policy", "row-level security", "journal entries empty"],
                 "fixes": [
-                    "Check import statements in routers",
-                    "Use get_current_user_secure from core.security",
-                    "Fix circular import issues"
+                    "Ensure JWT token is passed to Supabase client in journal retrieval",
+                    "Create authenticated client: client = create_client(url, key); client.postgrest.auth(jwt_token)",
+                    "Use auth_header = request.headers.get('Authorization') to extract token",
+                    "Replace service role client with authenticated client for RLS-protected queries"
                 ],
-                "files": ["backend/app/routers/*.py"]
+                "files": ["backend/app/routers/journal.py"],
+                "prevention": [
+                    "Always use authenticated Supabase client for user data queries",
+                    "Test journal creation AND retrieval in development",
+                    "Add automated tests for RLS policy compliance"
+                ]
             },
-            "DEPLOYMENT_404": {
-                "patterns": ["DEPLOYMENT_NOT_FOUND", "404", "X-Vercel-Error"],
+            "UNBOUND_LOCAL_ERROR": {
+                "patterns": ["UnboundLocalError", "cannot access local variable", "where it is not associated with a value"],
                 "fixes": [
-                    "Check Vercel configuration",
-                    "Verify output directory setting",
-                    "Rebuild and redeploy frontend"
+                    "Add try/except block around variable usage:",
+                    "try:",
+                    "    user_id_for_error = authenticated_user_id",
+                    "except NameError:",
+                    "    user_id_for_error = 'unknown'"
                 ],
-                "files": ["vercel.json", "spark-realm/vercel.json"]
-            },
-            "ENV_VARS": {
-                "patterns": ["environment", "production", "development"],
-                "fixes": [
-                    "Set ENVIRONMENT=production in Railway",
-                    "Check all required environment variables",
-                    "Redeploy with correct settings"
-                ],
-                "files": ["Railway environment variables"]
+                "files": ["backend/app/routers/adaptive_ai.py", "backend/app/routers/*.py"],
+                "prevention": [
+                    "Initialize variables before conditional assignment",
+                    "Use try/except for variables that might not be defined",
+                    "Test error handling paths in development"
+                ]
             },
             "EMAIL_VALIDATOR": {
                 "patterns": ["email-validator is not installed", "pip install pydantic[email]"],
@@ -120,16 +153,25 @@ class AIDebuggingService:
                     "git commit -m 'Add missing email-validator dependency'",
                     "git push"
                 ],
-                "files": ["backend/requirements.txt"]
+                "files": ["backend/requirements.txt"],
+                "prevention": [
+                    "Pin all dependency versions in requirements.txt",
+                    "Test Pydantic models with email validation locally"
+                ]
             },
             "OPENAI_IMPORT": {
                 "patterns": ["cannot import name 'LengthFinishReasonError'", "cannot import name 'ContentFilterFinishReasonError'"],
                 "fixes": [
                     "Remove non-existent OpenAI exceptions from imports",
                     "Check OpenAI library version compatibility",
-                    "Update imports to match openai==1.3.7 API"
+                    "Update imports to match openai==1.3.7 API",
+                    "Remove: LengthFinishReasonError, ContentFilterFinishReasonError, UnprocessableEntityError"
                 ],
-                "files": ["backend/app/services/pulse_ai.py"]
+                "files": ["backend/app/services/pulse_ai.py", "backend/app/services/openai_observability.py"],
+                "prevention": [
+                    "Check OpenAI documentation for available exceptions",
+                    "Pin OpenAI version and test imports locally"
+                ]
             },
             "SUPABASE_PROXY": {
                 "patterns": ["Client.__init__() got an unexpected keyword argument 'proxy'"],
@@ -138,7 +180,39 @@ class AIDebuggingService:
                     "Known issue with supabase==2.3.0 and gotrue>=2.9.0",
                     "Reference: https://github.com/supabase/supabase-py/issues/949"
                 ],
-                "files": ["backend/requirements.txt"]
+                "files": ["backend/requirements.txt"],
+                "prevention": [
+                    "Pin transitive dependencies that cause conflicts",
+                    "Monitor supabase-py GitHub issues for compatibility updates"
+                ]
+            },
+            "JWT_TOKEN_FLOW": {
+                "patterns": ["Authentication required", "401", "403", "JWT", "Authorization header"],
+                "fixes": [
+                    "Extract JWT from Authorization header: jwt_token = auth_header.split(' ')[1]",
+                    "Pass JWT to Supabase client: client.postgrest.auth(jwt_token)",
+                    "Use get_current_user_with_fallback for authentication",
+                    "Ensure frontend sends Authorization: Bearer <token>"
+                ],
+                "files": ["backend/app/routers/*.py", "frontend authentication"],
+                "prevention": [
+                    "Test authentication flow end-to-end",
+                    "Add debugging logs for token extraction",
+                    "Validate JWT format before using"
+                ]
+            },
+            "CORS": {
+                "patterns": ["CORS", "Cross-Origin", "Origin not allowed", "preflight"],
+                "fixes": [
+                    "Add the specific domain to CORS allowed origins",
+                    "Update backend CORS middleware",
+                    "Redeploy backend with git push"
+                ],
+                "files": ["backend/main.py"],
+                "prevention": [
+                    "Always include production domains in CORS configuration",
+                    "Test CORS with actual deployed URLs"
+                ]
             },
             "DEPENDENCY_CONFLICTS": {
                 "patterns": ["httpx==0.25", "conflicts with supabase", "The conflict is caused by"],
@@ -147,15 +221,19 @@ class AIDebuggingService:
                     "Check supabase compatibility requirements",
                     "Update requirements.txt and redeploy"
                 ],
-                "files": ["backend/requirements.txt"]
+                "files": ["backend/requirements.txt"],
+                "prevention": [
+                    "Use dependency scanning tools",
+                    "Test dependency upgrades in development first"
+                ]
             }
         }
     
     async def run_full_health_check(self) -> SystemHealth:
         """
-        Run comprehensive system health check
+        Run comprehensive system health check with deployment verification
         """
-        logger.info("🔍 Starting AI-powered system health check...")
+        logger.info("🔍 Starting enhanced AI-powered system health check...")
         
         # Test all components in parallel
         tasks = [
@@ -164,7 +242,9 @@ class AIDebuggingService:
             self._check_database_health(),
             self._check_auth_health(),
             self._check_cors_health(),
-            self._check_deployment_health()
+            self._check_deployment_discrepancy(),
+            self._check_journal_functionality(),
+            self._check_personas_endpoint()
         ]
         
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -175,11 +255,18 @@ class AIDebuggingService:
         auth_status, auth_issues = results[3] if not isinstance(results[3], Exception) else ("error", [])
         cors_status, cors_issues = results[4] if not isinstance(results[4], Exception) else ("error", [])
         deployment_status, deployment_issues = results[5] if not isinstance(results[5], Exception) else ("error", [])
+        journal_status, journal_issues = results[6] if not isinstance(results[6], Exception) else ("error", [])
+        personas_status, personas_issues = results[7] if not isinstance(results[7], Exception) else ("error", [])
         
         # Combine all issues
         all_issues = []
-        for issue_list in [frontend_issues, backend_issues, database_issues, auth_issues, cors_issues, deployment_issues]:
-            all_issues.extend(issue_list)
+        for issue_list in [frontend_issues, backend_issues, database_issues, 
+                          auth_issues, cors_issues, deployment_issues, journal_issues, personas_issues]:
+            if isinstance(issue_list, list):
+                all_issues.extend(issue_list)
+        
+        # Get deployment info
+        deployment_info = await self._get_deployment_status()
         
         health = SystemHealth(
             frontend_status=frontend_status,
@@ -189,12 +276,271 @@ class AIDebuggingService:
             cors_status=cors_status,
             deployment_status=deployment_status,
             last_check=datetime.now(),
-            issues=all_issues
+            issues=all_issues,
+            deployment_info=deployment_info
         )
         
-        logger.info(f"🎯 Health check complete. Found {len(all_issues)} issues")
+        logger.info(f"🎯 Enhanced health check complete. Found {len(all_issues)} issues")
         return health
     
+    async def _check_deployment_discrepancy(self) -> Tuple[str, List[Issue]]:
+        """
+        Check if deployed code matches current git commit
+        """
+        try:
+            # Try to get deployment version from backend
+            response = requests.get(f"{self.backend_url}/api/v1/debug/deployment/version", timeout=10)
+            
+            if response.status_code == 404:
+                # Version endpoint doesn't exist - likely deployment discrepancy
+                issue = Issue(
+                    type=IssueType.DEPLOYMENT_DISCREPANCY,
+                    severity=IssueSeverity.CRITICAL,
+                    title="Deployment Version Endpoint Missing",
+                    description="Backend missing version endpoint - indicates stale deployment",
+                    detected_at=datetime.now(),
+                    auto_fix_available=True,
+                    fix_commands=[
+                        "git commit --allow-empty -m 'Force Railway redeploy - add version endpoint'",
+                        "git push origin main",
+                        "Wait 3-5 minutes for deployment to complete",
+                        "Verify with: curl {}/api/v1/debug/deployment/version".format(self.backend_url)
+                    ],
+                    verification_steps=[
+                        "Check Railway dashboard for deployment status",
+                        "Verify endpoint responds with current git hash"
+                    ],
+                    related_files=["backend/app/routers/admin.py", ".git/"],
+                    prevention_tips=[
+                        "Always verify deployment after pushing code",
+                        "Add deployment timestamps to health endpoints",
+                        "Monitor Railway deployment logs"
+                    ]
+                )
+                return "error", [issue]
+            
+            elif response.status_code == 200:
+                version_data = response.json()
+                # Could check against current git hash if available
+                return "healthy", []
+            
+            else:
+                return "degraded", []
+                
+        except Exception as e:
+            issue = Issue(
+                type=IssueType.DEPLOYMENT_DISCREPANCY,
+                severity=IssueSeverity.HIGH,
+                title="Cannot Verify Deployment Status",
+                description=f"Unable to check deployment version: {str(e)}",
+                detected_at=datetime.now(),
+                auto_fix_available=True,
+                fix_commands=[
+                    "Check Railway deployment status",
+                    "Force redeploy if needed: git commit --allow-empty -m 'Force redeploy'; git push"
+                ],
+                verification_steps=["railway status", "railway logs"],
+                related_files=["railway.toml"]
+            )
+            return "error", [issue]
+    
+    async def _check_journal_functionality(self) -> Tuple[str, List[Issue]]:
+        """
+        Test journal creation and retrieval to detect RLS issues
+        """
+        try:
+            # Create test user and journal entry
+            test_user_data = {
+                "email": f"debug-test-{datetime.now().strftime('%Y%m%d%H%M%S')}@test.com",
+                "password": "testpass123"
+            }
+            
+            # Test signup
+            signup_response = requests.post(
+                f"{self.backend_url}/api/v1/auth/signup",
+                json=test_user_data,
+                timeout=10
+            )
+            
+            if signup_response.status_code != 200:
+                return "degraded", []
+            
+            auth_data = signup_response.json()
+            token = auth_data.get("access_token")
+            
+            if not token:
+                return "degraded", []
+            
+            # Test journal creation
+            journal_data = {
+                "content": "Debug test entry for RLS verification",
+                "mood_level": 7,
+                "energy_level": 7,
+                "stress_level": 3
+            }
+            
+            create_response = requests.post(
+                f"{self.backend_url}/api/v1/journal/entries",
+                json=journal_data,
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            
+            if create_response.status_code != 200:
+                return "degraded", []
+            
+            # Test journal retrieval (THE CRITICAL TEST)
+            list_response = requests.get(
+                f"{self.backend_url}/api/v1/journal/entries",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            
+            if list_response.status_code == 200:
+                entries_data = list_response.json()
+                if entries_data.get("total", 0) == 0:
+                    # RLS ISSUE DETECTED!
+                    issue = Issue(
+                        type=IssueType.RLS_POLICY_ERROR,
+                        severity=IssueSeverity.CRITICAL,
+                        title="Journal RLS Policy Blocking Retrieval",
+                        description="Journal entries created but not retrievable - RLS authentication issue",
+                        detected_at=datetime.now(),
+                        auto_fix_available=True,
+                        fix_commands=[
+                            "Fix journal.py to use authenticated Supabase client:",
+                            "1. Extract JWT: jwt_token = request.headers.get('Authorization').split(' ')[1]",
+                            "2. Create auth client: client = create_client(url, key); client.postgrest.auth(jwt_token)",
+                            "3. Use auth client for queries instead of service role client",
+                            "4. Apply same fix to all user data endpoints"
+                        ],
+                        verification_steps=[
+                            "Create journal entry via frontend",
+                            "Verify entry appears in journal list",
+                            "Check that total count > 0"
+                        ],
+                        related_files=["backend/app/routers/journal.py"],
+                        prevention_tips=[
+                            "Always test journal creation AND retrieval together",
+                            "Use authenticated client for all user-specific queries",
+                            "Add automated tests for RLS policy compliance"
+                        ]
+                    )
+                    return "error", [issue]
+                else:
+                    return "healthy", []
+            else:
+                return "degraded", []
+                
+        except Exception as e:
+            return "unknown", []
+    
+    async def _check_personas_endpoint(self) -> Tuple[str, List[Issue]]:
+        """
+        Test personas endpoint for UnboundLocalError
+        """
+        try:
+            # Create test auth
+            test_user_data = {
+                "email": f"personas-test-{datetime.now().strftime('%Y%m%d%H%M%S')}@test.com",
+                "password": "testpass123"
+            }
+            
+            signup_response = requests.post(
+                f"{self.backend_url}/api/v1/auth/signup",
+                json=test_user_data,
+                timeout=10
+            )
+            
+            if signup_response.status_code != 200:
+                return "degraded", []
+            
+            auth_data = signup_response.json()
+            token = auth_data.get("access_token")
+            user_id = auth_data.get("user", {}).get("id")
+            
+            if not token or not user_id:
+                return "degraded", []
+            
+            # Test personas endpoint
+            personas_response = requests.get(
+                f"{self.backend_url}/api/v1/adaptive-ai/personas",
+                headers={"Authorization": f"Bearer {token}"},
+                params={"user_id": user_id},
+                timeout=10
+            )
+            
+            if personas_response.status_code == 500:
+                error_data = personas_response.json()
+                if error_data.get("error_type") == "UnboundLocalError":
+                    issue = Issue(
+                        type=IssueType.UNBOUND_LOCAL_ERROR,
+                        severity=IssueSeverity.CRITICAL,
+                        title="UnboundLocalError in Personas Endpoint",
+                        description="Variable 'authenticated_user_id' used before assignment in error handling",
+                        detected_at=datetime.now(),
+                        auto_fix_available=True,
+                        fix_commands=[
+                            "Add try/except block in adaptive_ai.py error handling:",
+                            "try:",
+                            "    user_id_for_error = authenticated_user_id",
+                            "except NameError:",
+                            "    user_id_for_error = 'unknown'"
+                        ],
+                        verification_steps=[
+                            "Test personas endpoint with authentication",
+                            "Verify no UnboundLocalError in response"
+                        ],
+                        related_files=["backend/app/routers/adaptive_ai.py"],
+                        prevention_tips=[
+                            "Initialize variables before conditional assignment",
+                            "Use try/except for variables that might not be defined",
+                            "Test error handling paths in development"
+                        ]
+                    )
+                    return "error", [issue]
+            elif personas_response.status_code == 200:
+                return "healthy", []
+            else:
+                return "degraded", []
+                
+        except Exception as e:
+            return "unknown", []
+
+    async def _get_deployment_status(self) -> DeploymentStatus:
+        """
+        Get current deployment status and version information
+        """
+        try:
+            response = requests.get(f"{self.backend_url}/api/v1/debug/deployment/version", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                return DeploymentStatus(
+                    git_commit_hash=data.get("git_hash", "unknown"),
+                    deployed_version=data.get("version", "unknown"),
+                    deployment_timestamp=datetime.fromisoformat(data.get("deployed_at", datetime.now().isoformat())),
+                    version_match=data.get("version_match", False),
+                    discrepancy_detected=False
+                )
+            else:
+                return DeploymentStatus(
+                    git_commit_hash="unknown",
+                    deployed_version="unknown",
+                    deployment_timestamp=datetime.now(),
+                    version_match=False,
+                    discrepancy_detected=True,
+                    discrepancy_details={"error": "Version endpoint not available"}
+                )
+        except Exception as e:
+            return DeploymentStatus(
+                git_commit_hash="unknown",
+                deployed_version="unknown", 
+                deployment_timestamp=datetime.now(),
+                version_match=False,
+                discrepancy_detected=True,
+                discrepancy_details={"error": str(e)}
+            )
+
     async def _check_frontend_health(self) -> Tuple[str, List[Issue]]:
         """Check frontend deployment health"""
         try:
@@ -376,11 +722,6 @@ class AIDebuggingService:
                 return "error", [issue]
         except Exception as e:
             return "unknown", []
-    
-    async def _check_deployment_health(self) -> Tuple[str, List[Issue]]:
-        """Check deployment configuration"""
-        # This would check Railway and Vercel deployment status
-        return "healthy", []  # Simplified for now
     
     async def analyze_logs_for_issues(self, log_text: str) -> List[Issue]:
         """
