@@ -109,12 +109,14 @@ async def create_journal_entry(
     request: Request,
     entry: JournalEntryCreate,
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user_with_fallback)
+    current_user: dict = Depends(get_current_user_with_fallback),
+    adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
 ):
     """
-    Create a new journal entry
+    Create a new journal entry with automatic AI persona response
     
     This is the core MVP endpoint - where users submit their daily wellness check-ins
+    Now includes automatic AI persona commenting for better user engagement
     """
     try:
         # Input validation and sanitization
@@ -165,10 +167,63 @@ async def create_journal_entry(
         
         # Convert to response model (map database column names to model field names)
         created_entry = result.data[0]
+        journal_entry_response = JournalEntryResponse(**created_entry)
         
-        # No column mapping needed - database uses mood_level, energy_level, stress_level
+        # 🔥 NEW: Automatically generate AI persona response after journal creation
+        try:
+            logger.info(f"Generating automatic AI persona response for entry {journal_entry_response.id}")
+            
+            # Get user's journal history for context (last 10 entries)
+            history_result = client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(10).execute()
+            journal_history = [JournalEntryResponse(**entry) for entry in history_result.data] if history_result.data else []
+            
+            # Generate adaptive AI response with automatic persona selection
+            ai_response = await adaptive_ai.generate_adaptive_response(
+                user_id=current_user["id"],
+                journal_entry=journal_entry_response,
+                journal_history=journal_history,
+                persona="auto"  # Let the system choose the best persona
+            )
+            
+            # Store AI response in database for retrieval
+            # Using correct ai_insights table schema: id, journal_entry_id, user_id, ai_response, persona_used, topic_flags, confidence_score, created_at
+            ai_insight_data = {
+                "id": str(uuid.uuid4()),
+                "journal_entry_id": journal_entry_response.id,
+                "user_id": current_user["id"],
+                "ai_response": ai_response.insight,
+                "persona_used": ai_response.persona_used,
+                "topic_flags": ai_response.topic_flags,
+                "confidence_score": ai_response.confidence_score,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            # Insert AI response into ai_insights table
+            ai_result = client.table("ai_insights").insert(ai_insight_data).execute()
+            
+            if ai_result.data:
+                logger.info(f"✅ Automatic AI response generated for entry {journal_entry_response.id} using {ai_response.persona_used} persona")
+                
+                # Update the journal entry response to include AI insights
+                journal_entry_response.ai_insights = {
+                    "insight": ai_response.insight,
+                    "persona_used": ai_response.persona_used,
+                    "confidence_score": ai_response.confidence_score,
+                    "suggested_action": ai_response.suggested_action,
+                    "follow_up_question": ai_response.follow_up_question,
+                    "topic_flags": ai_response.topic_flags,
+                    "adaptation_level": ai_response.adaptation_level
+                }
+                journal_entry_response.ai_generated_at = datetime.now(timezone.utc)
+            else:
+                logger.warning(f"Failed to store AI response for entry {journal_entry_response.id}")
+                
+        except Exception as ai_error:
+            # Don't fail the journal creation if AI response fails
+            logger.error(f"Failed to generate automatic AI response for entry {journal_entry_response.id}: {ai_error}")
+            # Continue without AI response - user can still manually request it later
         
-        return JournalEntryResponse(**created_entry)
+        return journal_entry_response
         
     except Exception as e:
         # Log the exception for debugging
@@ -182,6 +237,46 @@ async def create_journal_entry(
             )
         
         raise HTTPException(status_code=500, detail=f"Error creating journal entry: {str(e)}")
+
+@router.get("/entries/{entry_id}/ai-insights")
+@limiter.limit("30/minute")  # Rate limit AI insights requests
+async def get_ai_insights_for_entry(
+    request: Request,  # Required for rate limiter
+    entry_id: str,
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user_with_fallback)
+):
+    """
+    Get AI persona insights for a journal entry
+    
+    Returns the automatic AI persona response that was generated when the entry was created
+    """
+    try:
+        # Get the database client
+        client = db.get_client()
+        
+        # Get AI insights for this entry
+        result = client.table("ai_insights").select("*").eq("journal_entry_id", entry_id).eq("user_id", current_user["id"]).order("created_at", desc=True).limit(1).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="No AI insights found for this journal entry")
+        
+        ai_insight = result.data[0]
+        
+        return {
+            "id": ai_insight["id"],
+            "journal_entry_id": ai_insight["journal_entry_id"],
+            "ai_response": ai_insight["ai_response"],
+            "persona_used": ai_insight["persona_used"],
+            "topic_flags": ai_insight["topic_flags"],
+            "confidence_score": ai_insight["confidence_score"],
+            "created_at": ai_insight["created_at"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving AI insights: {str(e)}")
 
 @router.get("/entries/{entry_id}/pulse", response_model=PulseResponse)
 @limiter.limit("10/minute")  # Rate limit AI requests
