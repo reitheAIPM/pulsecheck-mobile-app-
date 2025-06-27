@@ -342,6 +342,58 @@ async def get_available_personas(
         logger.info("Returning fallback personas due to error")
         return fallback_personas
 
+@router.get("/test-dependencies")
+async def test_dependencies():
+    """
+    Test endpoint to verify dependencies are working
+    """
+    try:
+        logger.info("Testing dependencies...")
+        
+        # Test basic functionality without any dependencies
+        return {
+            "status": "ok",
+            "message": "Basic endpoint working",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Test endpoint error: {str(e)}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "type": type(e).__name__
+        }
+
+@router.get("/test-ai-service")
+async def test_ai_service(adaptive_ai_service = Depends(get_adaptive_ai_service)):
+    """
+    Test endpoint to verify AI service dependency
+    """
+    try:
+        logger.info("Testing AI service dependency...")
+        
+        # Check if service is initialized
+        service_info = {
+            "service_type": type(adaptive_ai_service).__name__,
+            "has_personas": hasattr(adaptive_ai_service, 'personas'),
+            "persona_count": len(adaptive_ai_service.personas) if hasattr(adaptive_ai_service, 'personas') else 0,
+            "personas_available": list(adaptive_ai_service.personas.keys()) if hasattr(adaptive_ai_service, 'personas') else []
+        }
+        
+        return {
+            "status": "ok",
+            "service_info": service_info,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"AI service test error: {str(e)}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        }
+
 @router.get("/patterns/{user_id}", response_model=UserPatternSummary)
 async def get_user_patterns(
     user_id: str,
