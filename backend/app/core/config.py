@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     
     # JWT Configuration
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -52,13 +52,28 @@ class Settings(BaseSettings):
     RATE_LIMIT_PERIOD: int = 60  # seconds
     
     # CORS Configuration - PRODUCTION READY
-    ALLOWED_ORIGINS: list = [
+    # Environment variable should be a JSON array string, fallback to hardcoded list
+    _ALLOWED_ORIGINS_DEFAULT = [
+        "https://pulsecheck-mobile-app.vercel.app",
         "https://pulsecheck-mobile-2objhn451-reitheaipms-projects.vercel.app",
         "https://pulse-check.vercel.app",
         "https://pulsecheck-web.vercel.app",
         "https://pulsecheck-app.vercel.app",
         "https://pulsecheck-mobile.vercel.app"
     ]
+    
+    @property
+    def ALLOWED_ORIGINS(self) -> List[str]:
+        """Get allowed origins from environment or use defaults"""
+        env_origins = os.getenv("ALLOWED_ORIGINS")
+        if env_origins:
+            try:
+                import json
+                return json.loads(env_origins)
+            except (json.JSONDecodeError, TypeError):
+                # If JSON parsing fails, treat as comma-separated string
+                return [origin.strip() for origin in env_origins.split(",") if origin.strip()]
+        return self._ALLOWED_ORIGINS_DEFAULT
     
     # Server Configuration
     host: str = "0.0.0.0"
@@ -82,8 +97,8 @@ class Settings(BaseSettings):
     
     @property
     def allowed_origins_list(self) -> List[str]:
-        """Convert comma-separated origins string to list"""
-        return [origin.strip() for origin in self.ALLOWED_ORIGINS]
+        """Get allowed origins list (alias for ALLOWED_ORIGINS property)"""
+        return self.ALLOWED_ORIGINS
     
     def validate_required_settings(self):
         """Validate that required settings are configured"""
@@ -95,9 +110,12 @@ class Settings(BaseSettings):
         if not self.SUPABASE_ANON_KEY:
             missing_settings.append("SUPABASE_ANON_KEY")
         
-        # JWT secret is critical for production
-        if self.ENVIRONMENT == "production" and not self.supabase_jwt_secret:
-            missing_settings.append("SUPABASE_JWT_SECRET")
+        # JWT secrets are critical for production
+        if self.ENVIRONMENT == "production":
+            if not self.supabase_jwt_secret:
+                missing_settings.append("SUPABASE_JWT_SECRET")
+            if not self.SECRET_KEY:
+                missing_settings.append("SECRET_KEY")
         
         if missing_settings:
             raise ValueError(f"Missing required environment variables: {', '.join(missing_settings)}")
