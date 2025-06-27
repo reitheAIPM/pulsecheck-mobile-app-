@@ -25,6 +25,7 @@ from typing import Dict, Any
 from datetime import datetime
 import sys
 import traceback
+import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -75,7 +76,7 @@ except Exception as e:
     adaptive_ai_router = APIRouter()
 
 from app.core.monitoring import monitor, log_error, log_performance, check_health, ErrorSeverity, ErrorCategory
-from app.core.database import engine, Base
+from app.core.database import engine, Base, get_database
 
 # Import observability first to initialize early
 from app.core.observability import init_observability, observability
@@ -121,6 +122,14 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Initial health check failed: {e}")
         
+        # Pre-warm database connections
+        try:
+            db = get_database()
+            await asyncio.to_thread(db.get_client().table('profiles').select("count", count="exact").execute)
+            logger.info("✅ Database connection pool warmed up")
+        except Exception as e:
+            logger.warning(f"⚠️  Database warmup failed: {e}")
+        
         yield
         
     except Exception as e:
@@ -147,7 +156,11 @@ app = FastAPI(
     title="PulseCheck API",
     description="AI-powered wellness journal for tech workers",
     version="2.1.2",
-    lifespan=lifespan
+    lifespan=lifespan,
+    # Performance optimizations
+    docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
+    redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None,
+    openapi_url="/openapi.json" if os.getenv("ENVIRONMENT") != "production" else None,
 )
 
 # Setup rate limiting if available
@@ -160,75 +173,28 @@ if limiter and config_loaded:
 else:
     logger.warning("Rate limiting disabled - limiter not available")
 
-# Add observability middleware first (processes all requests)
+# Performance middleware (order matters!)
+# 1. GZip compression for response optimization
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# 2. CORS middleware with optimized settings
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://pulsecheck-mobile-app.vercel.app",
+        "https://pulsecheck-mobile-2objhn451-reitheaipms-projects.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:19006",  # Expo dev
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    # Performance optimization
+    max_age=3600,  # Cache preflight requests for 1 hour
+)
+
+# 3. Custom observability middleware for performance monitoring
 app.add_middleware(ObservabilityMiddleware)
-
-# Custom CORS middleware for dynamic Vercel domains
-class CustomCORSMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        origin = request.headers.get("origin", "")
-        
-        # Define allowed origins - PRODUCTION ONLY (remove localhost in production)
-        allowed_origins = [
-            "https://pulse-check.vercel.app",
-            "https://pulsecheck-web.vercel.app", 
-            "https://pulsecheck-app.vercel.app",
-            "https://pulsecheck-mobile.vercel.app",
-            "https://pulsecheck-mobile-2objhn451-reitheaipms-projects.vercel.app"  # Current working deployment
-        ]
-        
-        # Add localhost ONLY in development
-        if os.getenv("ENVIRONMENT", "production") == "development":
-            allowed_origins.extend([
-                "http://localhost:3000",
-                "http://localhost:5173", 
-                "http://localhost:5174",
-                "http://localhost:19006"
-            ])
-        
-        # Allow any Vercel preview domains
-        if origin and (".vercel.app" in origin or "localhost" in origin):
-            allowed_origins.append(origin)
-        
-        # Set the actual origin or * if not found
-        actual_origin = origin if origin in allowed_origins else "*"
-        
-        # Handle ALL OPTIONS requests - critical for Railway health checks
-        if request.method == "OPTIONS":
-            # Always return 200 OK for OPTIONS requests
-            response = Response(
-                status_code=200,
-                content="OK",
-                media_type="text/plain"
-            )
-            
-            # Use wildcard for Railway health checks (no origin header)
-            cors_origin = actual_origin if origin else "*"
-            
-            response.headers["Access-Control-Allow-Origin"] = cors_origin
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept, X-User-Id"
-            response.headers["Access-Control-Expose-Headers"] = "Content-Type, Content-Length"
-            response.headers["Access-Control-Max-Age"] = "86400"
-            response.headers["Content-Length"] = "2"
-            
-            # Log successful OPTIONS handling
-            logger.info(f"✅ CORS OPTIONS request handled successfully - Origin: {origin or 'none'} - Path: {request.url.path}")
-            return response
-        
-        # Process the request
-        response = await call_next(request)
-        
-        # Add CORS headers to all responses
-        response.headers["Access-Control-Allow-Origin"] = actual_origin
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, X-User-Id"
-        response.headers["Access-Control-Expose-Headers"] = "Content-Type, Content-Length"
-        
-        return response
-
-# Add custom CORS middleware - this handles all CORS logic
-app.add_middleware(CustomCORSMiddleware)
 
 # Add debug middleware for comprehensive monitoring
 try:

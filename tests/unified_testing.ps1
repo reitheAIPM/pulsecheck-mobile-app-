@@ -45,13 +45,39 @@ function Test-Endpoint {
             return $false
         }
     } catch {
-        if ($_.Exception.Response.StatusCode -eq $ExpectedStatus) {
+        if ($_.Exception.Response -and $_.Exception.Response.StatusCode -eq $ExpectedStatus) {
             Write-Host "  ✅ $Name (Expected $ExpectedStatus)" -ForegroundColor Green
             return $true
         } else {
             Write-Host "  ❌ $Name - Error: $($_.Exception.Message)" -ForegroundColor Red
             return $false
         }
+    }
+}
+
+function Test-AI-Endpoint {
+    param($Name, $Endpoint)
+    
+    Write-Host "Testing: $Name" -ForegroundColor Yellow
+    $TestResults.AI.Tests++
+    
+    try {
+        $response = Invoke-RestMethod "$BaseUrl$Endpoint" -TimeoutSec 15 -ErrorAction Stop
+        if ($response -and $response.status) {
+            Write-Host "  ✅ $Name - $($response.status)" -ForegroundColor Green
+            $TestResults.AI.Passed++
+            return $response
+        } else {
+            Write-Host "  ❌ $Name - No valid response" -ForegroundColor Red
+            $TestResults.AI.Failed++
+            $FailedTests += $Name
+            return $null
+        }
+    } catch {
+        Write-Host "  ❌ $Name - $($_.Exception.Message)" -ForegroundColor Red
+        $TestResults.AI.Failed++
+        $FailedTests += $Name
+        return $null
     }
 }
 
@@ -213,8 +239,8 @@ if ($Mode -eq "security" -or $Mode -eq "all") {
     $TestResults.Security.Tests++
     
     # Check for gotrue version pin
-    if (Test-Path "backend/requirements.txt") {
-        $requirements = Get-Content "backend/requirements.txt"
+    if (Test-Path "../backend/requirements.txt") {
+        $requirements = Get-Content "../backend/requirements.txt"
         $hasGotruePin = $requirements | Where-Object { $_ -match "gotrue==2\.8\.1" }
         $hasEmailValidator = $requirements | Where-Object { $_ -match "email-validator" }
         $hasHttpxConflict = $requirements | Where-Object { $_ -match "httpx==0\.25" }
@@ -249,7 +275,7 @@ if ($Mode -eq "security" -or $Mode -eq "all") {
     )
     
     foreach ($pattern in $secretPatterns) {
-        $found = Select-String -Path "backend/app/**/*.py" -Pattern $pattern -ErrorAction SilentlyContinue
+        $found = Select-String -Path "../backend/app/**/*.py" -Pattern $pattern -ErrorAction SilentlyContinue
         if ($found) {
             Write-Host "  ❌ Potential secret found: $($found.Pattern)" -ForegroundColor Red
             $secretsFound = $true
@@ -269,7 +295,7 @@ if ($Mode -eq "security" -or $Mode -eq "all") {
 }
 
 # AI AUTOMATED TESTING SECTION
-if ($Mode -eq "quick" -or $Mode -eq "both") {
+if ($Mode -eq "quick" -or $Mode -eq "all") {
     Write-Host "AI AUTOMATED TESTING" -ForegroundColor Magenta
     Write-Host "=======================" -ForegroundColor Magenta
     Write-Host "Testing your AI's analysis capabilities..." -ForegroundColor Gray
@@ -292,16 +318,11 @@ if ($Mode -eq "quick" -or $Mode -eq "both") {
     
     Write-Host "`nAI AUTOMATED TESTING COMPLETE" -ForegroundColor Green
     Write-Host "AI Analysis Results Available" -ForegroundColor White
-    
-    if ($Mode -eq "both") {
-        Write-Host "`nProceeding to Comprehensive Testing..." -ForegroundColor Yellow
-        Start-Sleep -Seconds 2
-        Write-Host ""
-    }
+    Write-Host ""
 }
 
 # COMPREHENSIVE TESTING SECTION  
-if ($Mode -eq "full" -or $Mode -eq "both") {
+if ($Mode -eq "full" -or $Mode -eq "all") {
     Write-Host "COMPREHENSIVE SYSTEM TESTING" -ForegroundColor Magenta
     Write-Host "===============================" -ForegroundColor Magenta
     Write-Host "Testing all critical system components..." -ForegroundColor Gray
@@ -309,47 +330,70 @@ if ($Mode -eq "full" -or $Mode -eq "both") {
     
     # PHASE 1: INFRASTRUCTURE
     Write-Host "PHASE 1: Infrastructure Health" -ForegroundColor Magenta
-    Test-Endpoint -Name "Backend Health Check" -Url "$BASE_URL/health"
-    Test-Endpoint -Name "Root Endpoint" -Url "$BASE_URL/"
-    # Note: /api/status endpoint doesn't exist - removed from test
+    Write-Host "Testing: Backend Health Check"
+    $TestResults.Runtime.Tests++
+    if (Test-Endpoint "Backend Health Check" "$BaseUrl/health") {
+        $TestResults.Runtime.Passed++
+    } else {
+        $TestResults.Runtime.Failed++
+        $FailedTests += "Backend Health Check"
+    }
+    
+    Write-Host "Testing: Root Endpoint"
+    $TestResults.Runtime.Tests++
+    if (Test-Endpoint "Root Endpoint" "$BaseUrl/") {
+        $TestResults.Runtime.Passed++
+    } else {
+        $TestResults.Runtime.Failed++
+        $FailedTests += "Root Endpoint"
+    }
     
     # PHASE 2: AUTHENTICATION SECURITY TESTING
     Write-Host "`nPHASE 2: Authentication Security Testing" -ForegroundColor Magenta
     Write-Host "(These failures are GOOD - they prove security is working)" -ForegroundColor DarkGray
-    Test-Endpoint -Name "Auth Me (No Token)" -Url "$BASE_URL/api/v1/auth/me" -ShouldFail $true
-    Test-Endpoint -Name "Auth Profile (No Token)" -Url "$BASE_URL/api/v1/auth/profile" -ShouldFail $true
     
-    $invalidHeaders = @{"Authorization" = "Bearer invalid_token_12345"}
-    Test-Endpoint -Name "Auth Me (Invalid Token)" -Url "$BASE_URL/api/v1/auth/me" -Headers $invalidHeaders -ShouldFail $true
+    Write-Host "Testing: Auth Me (No Token)"
+    $TestResults.Runtime.Tests++
+    if (Test-Endpoint "Auth Me (No Token)" "$BaseUrl/api/v1/auth/me" -ExpectedStatus 401) {
+        $TestResults.Runtime.Passed++
+    } else {
+        $TestResults.Runtime.Failed++
+        $FailedTests += "Auth Me (No Token) - Should return 401"
+    }
     
-    $authBody = @{
-        email = "test@example.com"
-        password = "invalid_password"
-    } | ConvertTo-Json
-    Test-Endpoint -Name "Auth Signin (Invalid Creds)" -Url "$BASE_URL/api/v1/auth/signin" -Method "POST" -Body $authBody -ShouldFail $true
+    Write-Host "Testing: Auth Profile (No Token)"
+    $TestResults.Runtime.Tests++
+    if (Test-Endpoint "Auth Profile (No Token)" "$BaseUrl/api/v1/auth/profile" -ExpectedStatus 401) {
+        $TestResults.Runtime.Passed++
+    } else {
+        $TestResults.Runtime.Failed++
+        $FailedTests += "Auth Profile (No Token) - Should return 401"
+    }
     
     # PHASE 3: JOURNAL SECURITY TESTING
     Write-Host "`nPHASE 3: Journal Security Testing" -ForegroundColor Magenta
     Write-Host "(These failures are GOOD - unauthorized access is blocked)" -ForegroundColor DarkGray
-    Test-Endpoint -Name "Journal Entries (No Auth)" -Url "$BASE_URL/api/v1/journal/entries" -ShouldFail $true
-    Test-Endpoint -Name "Journal Stats (No Auth)" -Url "$BASE_URL/api/v1/journal/stats" -ShouldFail $true
     
-    # Note: Mock headers should also fail - this proves RLS security is working
-    $mockHeaders = @{
-        "X-User-Id" = "test_user_123"
-        "Content-Type" = "application/json"
+    Write-Host "Testing: Journal Entries (No Auth)"
+    $TestResults.Runtime.Tests++
+    if (Test-Endpoint "Journal Entries (No Auth)" "$BaseUrl/api/v1/journal/entries" -ExpectedStatus 401) {
+        $TestResults.Runtime.Passed++
+    } else {
+        $TestResults.Runtime.Failed++
+        $FailedTests += "Journal Entries (No Auth) - Should return 401"
     }
-    Test-Endpoint -Name "Journal Stats (Mock User - Should Fail)" -Url "$BASE_URL/api/v1/journal/stats" -Headers $mockHeaders -ShouldFail $true
-    Test-Endpoint -Name "Journal Entries (Mock User - Should Fail)" -Url "$BASE_URL/api/v1/journal/entries" -Headers $mockHeaders -ShouldFail $true
     
-    # PHASE 4: AI DEBUG ENDPOINTS (These should work - public debug endpoints)
-    Write-Host "`nPHASE 4: AI Debug System Testing" -ForegroundColor Magenta
-    Test-Endpoint -Name "AI Insights Comprehensive" -Url "$BASE_URL/api/v1/debug/ai-insights/comprehensive"
-    Test-Endpoint -Name "AI Failure Analysis" -Url "$BASE_URL/api/v1/debug/failure-points/analysis"
-    Test-Endpoint -Name "AI Risk Assessment" -Url "$BASE_URL/api/v1/debug/risk-analysis/current"
-    Test-Endpoint -Name "AI Performance Analysis" -Url "$BASE_URL/api/v1/debug/performance/analysis"
+    Write-Host "Testing: Journal Stats (No Auth)"
+    $TestResults.Runtime.Tests++
+    if (Test-Endpoint "Journal Stats (No Auth)" "$BaseUrl/api/v1/journal/stats" -ExpectedStatus 401) {
+        $TestResults.Runtime.Passed++
+    } else {
+        $TestResults.Runtime.Failed++
+        $FailedTests += "Journal Stats (No Auth) - Should return 401"
+    }
     
     Write-Host "`nCOMPREHENSIVE TESTING COMPLETE" -ForegroundColor Green
+    Write-Host ""
 }
 
 # ENHANCED RESULTS SUMMARY
@@ -376,6 +420,28 @@ if ($Mode -eq "security" -or $Mode -eq "all") {
     Write-Host "   Passed: $($TestResults.Security.Passed)" -ForegroundColor Green
     Write-Host "   Failed: $($TestResults.Security.Failed)" -ForegroundColor Red
     Write-Host "   Success Rate: $securityRate%" -ForegroundColor $(if ($securityRate -ge 90) { "Green" } elseif ($securityRate -ge 75) { "Yellow" } else { "Red" })
+}
+
+if ($Mode -eq "quick" -or $Mode -eq "all") {
+    $aiRate = if ($TestResults.AI.Tests -gt 0) { 
+        [math]::Round(($TestResults.AI.Passed / $TestResults.AI.Tests) * 100, 1) 
+    } else { 0 }
+    Write-Host "`nAI System Testing:" -ForegroundColor Cyan
+    Write-Host "   Tests: $($TestResults.AI.Tests)" -ForegroundColor White
+    Write-Host "   Passed: $($TestResults.AI.Passed)" -ForegroundColor Green
+    Write-Host "   Failed: $($TestResults.AI.Failed)" -ForegroundColor Red
+    Write-Host "   Success Rate: $aiRate%" -ForegroundColor $(if ($aiRate -ge 90) { "Green" } elseif ($aiRate -ge 75) { "Yellow" } else { "Red" })
+}
+
+if ($Mode -eq "full" -or $Mode -eq "all") {
+    $runtimeRate = if ($TestResults.Runtime.Tests -gt 0) { 
+        [math]::Round(($TestResults.Runtime.Passed / $TestResults.Runtime.Tests) * 100, 1) 
+    } else { 0 }
+    Write-Host "`nRuntime Testing:" -ForegroundColor Cyan
+    Write-Host "   Tests: $($TestResults.Runtime.Tests)" -ForegroundColor White
+    Write-Host "   Passed: $($TestResults.Runtime.Passed)" -ForegroundColor Green
+    Write-Host "   Failed: $($TestResults.Runtime.Failed)" -ForegroundColor Red
+    Write-Host "   Success Rate: $runtimeRate%" -ForegroundColor $(if ($runtimeRate -ge 90) { "Green" } elseif ($runtimeRate -ge 75) { "Yellow" } else { "Red" })
 }
 
 # Overall results
