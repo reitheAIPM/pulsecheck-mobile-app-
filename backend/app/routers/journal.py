@@ -362,7 +362,24 @@ async def get_journal_entries(
     Get paginated list of user's journal entries
     """
     try:
-        client = db.get_client()
+        # Get JWT token from request headers for RLS authentication (same as creation)
+        auth_header = request.headers.get('Authorization')
+        jwt_token = None
+        if auth_header and auth_header.startswith('Bearer '):
+            jwt_token = auth_header.split(' ')[1]
+        
+        # Use authenticated client for RLS (same as creation)
+        if jwt_token:
+            from supabase import create_client
+            import os
+            client = create_client(
+                os.getenv("SUPABASE_URL"),
+                os.getenv("SUPABASE_ANON_KEY")
+            )
+            client.postgrest.auth(jwt_token)
+        else:
+            # Fallback to service role client
+            client = db.get_client()
         
         # Validate parameters
         if page < 1:
@@ -436,8 +453,27 @@ async def get_journal_stats(
     Get user's journal statistics and wellness trends
     """
     try:
+        # Get JWT token from request headers for RLS authentication (same as creation)
+        auth_header = request.headers.get('Authorization')
+        jwt_token = None
+        if auth_header and auth_header.startswith('Bearer '):
+            jwt_token = auth_header.split(' ')[1]
+        
+        # Use authenticated client for RLS (same as creation)
+        if jwt_token:
+            from supabase import create_client
+            import os
+            client = create_client(
+                os.getenv("SUPABASE_URL"),
+                os.getenv("SUPABASE_ANON_KEY")
+            )
+            client.postgrest.auth(jwt_token)
+        else:
+            # Fallback to service role client
+            client = db.get_client()
+        
         # Get all user entries for stats calculation
-        result = db.get_client().table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).execute()
+        result = client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).execute()
         
         entries = result.data if result.data else []
         
@@ -492,7 +528,25 @@ async def get_journal_entry(
 ):
     """Get a single journal entry by ID"""
     try:
-        client = db.get_client()
+        # Get JWT token from request headers for RLS authentication (same as creation)
+        auth_header = request.headers.get('Authorization')
+        jwt_token = None
+        if auth_header and auth_header.startswith('Bearer '):
+            jwt_token = auth_header.split(' ')[1]
+        
+        # Use authenticated client for RLS (same as creation)
+        if jwt_token:
+            from supabase import create_client
+            import os
+            client = create_client(
+                os.getenv("SUPABASE_URL"),
+                os.getenv("SUPABASE_ANON_KEY")
+            )
+            client.postgrest.auth(jwt_token)
+        else:
+            # Fallback to service role client
+            client = db.get_client()
+            
         result = client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
         
         if not result.data:

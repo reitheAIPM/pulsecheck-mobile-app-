@@ -279,19 +279,36 @@ async def get_available_personas(
                 user_patterns = await pattern_analyzer.analyze_user_patterns(authenticated_user_id, journal_entries)
                 current_entry = journal_entries[0]  # Most recent entry
         
-        # Get persona recommendations using the new persona service
-        recommendations = persona_service.recommend_personas(
-            user_id=authenticated_user_id,
-            user_patterns=user_patterns,
-            current_entry=current_entry
-        )
+        # Get persona recommendations using the adaptive AI service
+        persona_list = adaptive_ai_service.get_available_personas(user_patterns)
+        
+        # Convert to PersonaRecommendation format
+        recommendations = []
+        for persona_info in persona_list:
+            recommendations.append(PersonaRecommendation(
+                persona_id=persona_info.get("id", persona_info.get("key", "unknown")),
+                persona_name=persona_info.get("name", "Unknown"),
+                description=persona_info.get("description", ""),
+                recommended=persona_info.get("recommended", False),
+                available=persona_info.get("available", True),
+                requires_premium=False,  # Default to free
+                times_used=0,
+                recommendation_score=0.8 if persona_info.get("recommended") else 0.5,
+                recommendation_reasons=persona_info.get("recommendation_reason", "").split(", ") if persona_info.get("recommendation_reason") else [],
+                last_used=None
+            ))
         
         return recommendations
         
     except Exception as e:
-        # AI-optimized error context for debugging
+        # AI-optimized error context for debugging (handle case where authenticated_user_id might not be set)
+        try:
+            user_id_for_error = authenticated_user_id
+        except NameError:
+            user_id_for_error = "unknown"
+            
         error_context = {
-            "user_id": authenticated_user_id,
+            "user_id": user_id_for_error,
             "operation": "get_personas",
             "error_type": type(e).__name__,
             "error_message": str(e),
