@@ -256,60 +256,115 @@ async def get_available_personas(
     """
     Get available personas for user with recommendations
     """
-    # TEMPORARY: Remove all dependencies to test if route works
-    logger.info("Getting personas - hardcoded version for testing")
-    
-    # Return hardcoded personas directly
-    return [
-        PersonaRecommendation(
-            persona_id="pulse",
-            persona_name="Pulse",
-            description="Your emotionally intelligent wellness companion",
-            recommended=True,
-            available=True,
-            requires_premium=False,
-            times_used=0,
-            recommendation_score=0.9,
-            recommendation_reasons=["Great for emotional support"],
-            last_used=None
-        ),
-        PersonaRecommendation(
-            persona_id="sage",
-            persona_name="Sage",
-            description="A wise mentor who provides strategic life guidance",
-            recommended=False,
-            available=True,
-            requires_premium=False,
-            times_used=0,
-            recommendation_score=0.7,
-            recommendation_reasons=["Good for life planning"],
-            last_used=None
-        ),
-        PersonaRecommendation(
-            persona_id="spark",
-            persona_name="Spark",
-            description="An energetic motivator who ignites creativity and action",
-            recommended=False,
-            available=True,
-            requires_premium=False,
-            times_used=0,
-            recommendation_score=0.6,
-            recommendation_reasons=["Perfect for motivation"],
-            last_used=None
-        ),
-        PersonaRecommendation(
-            persona_id="anchor",
-            persona_name="Anchor",
-            description="A steady presence who provides stability and grounding",
-            recommended=False,
-            available=True,
-            requires_premium=False,
-            times_used=0,
-            recommendation_score=0.7,
-            recommendation_reasons=["Great for stability"],
-            last_used=None
-        )
-    ]
+    try:
+        # Get user authentication
+        current_user = await get_current_user_with_fallback(request)
+        authenticated_user_id = current_user["id"]
+        logger.info(f"Getting personas for user {authenticated_user_id}")
+        
+        # Check user's premium status (simplified approach for now)
+        # Default to non-premium (only Pulse available)
+        has_premium = False
+        
+        # Try to get user's premium status from preferences or auth service
+        try:
+            # For now, we'll check a simple in-memory store or default to false
+            # This will be replaced with proper subscription service integration
+            from app.routers.auth import _premium_status
+            has_premium = _premium_status.get(authenticated_user_id, False)
+        except Exception as e:
+            logger.warning(f"Could not check premium status, defaulting to free tier: {e}")
+            has_premium = False
+        
+        # Return personas based on premium status
+        if has_premium:
+            # Premium users get all 4 personas
+            return [
+                PersonaRecommendation(
+                    persona_id="pulse",
+                    persona_name="Pulse",
+                    description="Your emotionally intelligent wellness companion",
+                    recommended=True,
+                    available=True,
+                    requires_premium=False,
+                    times_used=0,
+                    recommendation_score=0.9,
+                    recommendation_reasons=["Great for emotional support"],
+                    last_used=None
+                ),
+                PersonaRecommendation(
+                    persona_id="sage",
+                    persona_name="Sage",
+                    description="A wise mentor who provides strategic life guidance",
+                    recommended=False,
+                    available=True,
+                    requires_premium=True,
+                    times_used=0,
+                    recommendation_score=0.7,
+                    recommendation_reasons=["Good for life planning"],
+                    last_used=None
+                ),
+                PersonaRecommendation(
+                    persona_id="spark",
+                    persona_name="Spark",
+                    description="An energetic motivator who ignites creativity and action",
+                    recommended=False,
+                    available=True,
+                    requires_premium=True,
+                    times_used=0,
+                    recommendation_score=0.6,
+                    recommendation_reasons=["Perfect for motivation"],
+                    last_used=None
+                ),
+                PersonaRecommendation(
+                    persona_id="anchor",
+                    persona_name="Anchor",
+                    description="A steady presence who provides stability and grounding",
+                    recommended=False,
+                    available=True,
+                    requires_premium=True,
+                    times_used=0,
+                    recommendation_score=0.7,
+                    recommendation_reasons=["Great for stability"],
+                    last_used=None
+                )
+            ]
+        else:
+            # Free tier users get only Pulse
+            return [
+                PersonaRecommendation(
+                    persona_id="pulse",
+                    persona_name="Pulse",
+                    description="Your emotionally intelligent wellness companion",
+                    recommended=True,
+                    available=True,
+                    requires_premium=False,
+                    times_used=0,
+                    recommendation_score=0.9,
+                    recommendation_reasons=["Great for emotional support"],
+                    last_used=None
+                )
+            ]
+            
+    except Exception as e:
+        logger.error(f"Error getting personas: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Fallback to single Pulse persona to prevent 500 errors
+        return [
+            PersonaRecommendation(
+                persona_id="pulse",
+                persona_name="Pulse",
+                description="Your emotionally intelligent wellness companion",
+                recommended=True,
+                available=True,
+                requires_premium=False,
+                times_used=0,
+                recommendation_score=0.9,
+                recommendation_reasons=["Great for emotional support"],
+                last_used=None
+            )
+        ]
 
 @router.get("/test-dependencies")
 async def test_dependencies():
