@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from ..core.database import get_database, Database
 from ..services.advanced_scheduler_service import AdvancedSchedulerService
 from ..services.adaptive_ai_service import AdaptiveAIService
-from ..core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 

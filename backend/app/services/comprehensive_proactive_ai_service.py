@@ -24,7 +24,6 @@ import hashlib
 from ..core.database import Database, get_database
 from ..models.journal import JournalEntryResponse
 from ..services.adaptive_ai_service import AdaptiveAIService
-from .user_preferences_service import UserPreferencesService
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +89,6 @@ class ComprehensiveProactiveAIService:
     def __init__(self, db: Database, adaptive_ai: AdaptiveAIService):
         self.db = db
         self.adaptive_ai = adaptive_ai
-        self.user_preferences = UserPreferencesService(db)
         
         # Timing configurations
         self.timing_configs = {
