@@ -27,6 +27,9 @@ from datetime import datetime
 import sys
 import traceback
 import asyncio
+from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.datastructures import MutableHeaders
+import re
 
 # Load environment variables
 load_dotenv()
@@ -179,21 +182,72 @@ else:
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # 2. CORS middleware with optimized settings
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://pulsecheck-mobile-app.vercel.app",
-        "https://pulsecheck-mobile-2objhn451-reitheaipms-projects.vercel.app",
-        "https://pulsecheck-mobile-39l5vrdmt-reitheaipms-projects.vercel.app",  # Add the new URL
-        "http://localhost:3000",
-        "http://localhost:19006",  # Expo dev
-    ],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-    # Performance optimization
-    max_age=3600,  # Cache preflight requests for 1 hour
-)
+# Custom CORS configuration to handle Vercel preview deployments
+class DynamicCORSMiddleware:
+    def __init__(self, app: ASGIApp):
+        self.app = app
+        # Define allowed origin patterns
+        self.allowed_patterns = [
+            re.compile(r"^https://pulsecheck-mobile-app\.vercel\.app$"),
+            re.compile(r"^https://pulsecheck-mobile-[a-z0-9]+-reitheaipms-projects\.vercel\.app$"),
+            re.compile(r"^https://[a-z0-9-]+-reitheaipms-projects\.vercel\.app$"),
+            re.compile(r"^http://localhost:\d+$"),
+        ]
+        self.exact_origins = {
+            "https://pulsecheck-mobile-app.vercel.app",
+            "https://pulse-check.vercel.app",
+            "https://pulsecheck-web.vercel.app",
+            "https://pulsecheck-app.vercel.app",
+            "https://pulsecheck-mobile.vercel.app",
+        }
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            headers = MutableHeaders(scope=scope)
+            origin = headers.get("origin", "")
+            
+            # Check if origin is allowed
+            is_allowed = origin in self.exact_origins or any(
+                pattern.match(origin) for pattern in self.allowed_patterns
+            )
+            
+            async def send_wrapper(message):
+                if message["type"] == "http.response.start" and is_allowed:
+                    headers = MutableHeaders(scope=message)
+                    headers["Access-Control-Allow-Origin"] = origin
+                    headers["Access-Control-Allow-Credentials"] = "true"
+                    headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+                    headers["Access-Control-Allow-Headers"] = "*"
+                    headers["Access-Control-Max-Age"] = "3600"
+                await send(message)
+            
+            # Handle preflight requests
+            if scope["method"] == "OPTIONS" and is_allowed:
+                response_headers = [
+                    (b"access-control-allow-origin", origin.encode()),
+                    (b"access-control-allow-credentials", b"true"),
+                    (b"access-control-allow-methods", b"GET, POST, PUT, DELETE, OPTIONS"),
+                    (b"access-control-allow-headers", b"*"),
+                    (b"access-control-max-age", b"3600"),
+                    (b"content-length", b"0"),
+                ]
+                await send({
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": response_headers,
+                })
+                await send({
+                    "type": "http.response.body",
+                    "body": b"",
+                })
+                return
+            
+            await self.app(scope, receive, send_wrapper)
+        else:
+            await self.app(scope, receive, send)
+
+# Apply custom CORS middleware
+app.add_middleware(DynamicCORSMiddleware)
 
 # 3. Custom observability middleware for performance monitoring
 app.add_middleware(ObservabilityMiddleware)

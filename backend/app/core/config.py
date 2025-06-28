@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     
     # CORS Configuration - PRODUCTION READY
     # Environment variable should be a JSON array string, fallback to hardcoded list
+    # Note: The main.py file now includes dynamic CORS handling for Vercel preview deployments
     _ALLOWED_ORIGINS_DEFAULT = [
         "https://pulsecheck-mobile-app.vercel.app",
         "https://pulsecheck-mobile-2objhn451-reitheaipms-projects.vercel.app",
@@ -60,7 +61,8 @@ class Settings(BaseSettings):
         "https://pulse-check.vercel.app",
         "https://pulsecheck-web.vercel.app",
         "https://pulsecheck-app.vercel.app",
-        "https://pulsecheck-mobile.vercel.app"
+        "https://pulsecheck-mobile.vercel.app",
+        # Note: Vercel preview deployments are handled dynamically in main.py
     ]
     
     @property

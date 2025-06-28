@@ -416,9 +416,6 @@ const JournalEntry = () => {
               <p className="text-sm text-muted-foreground">
                 {wordCount} words
               </p>
-              <p className="text-xs text-muted-foreground">
-                {content.trim().length >= 10 ? '✓ Ready to save' : 'Keep writing...'}
-              </p>
             </div>
           </div>
         </div>
@@ -538,6 +535,13 @@ const JournalEntry = () => {
                   )}
                 </div>
               </div>
+
+              {/* Minimum character warning - only shows when needed */}
+              {content.trim().length > 0 && content.trim().length < 10 && (
+                <div className="text-sm text-red-500 mt-2">
+                  Please write at least 10 characters to save your entry ({content.trim().length}/10)
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

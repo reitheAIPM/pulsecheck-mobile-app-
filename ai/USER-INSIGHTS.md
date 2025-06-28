@@ -148,41 +148,123 @@ Every Pulse response follows this three-part structure:
 
 ### **🎯 CRITICAL: AI Persona Proactive Behavior Philosophy**
 
-**Core Vision**: AI personas should behave like **expert friends commenting on social media posts** - providing thoughtful, insightful responses that add real value.
+**Core Vision**: AI personas should behave like **caring friends commenting on social media posts** - providing thoughtful, natural responses that add real value and create genuine engagement.
 
-#### **Expected Behavior Pattern**
+### **Expected Behavior Pattern**
 1. **Immediate Response**: When user creates a journal entry, one AI persona responds automatically
-2. **Proactive Follow-ups**: 2-12 hours later, additional personas comment based on patterns they identify
-3. **Expert-Level Insights**: Like how professionals comment on Twitter with valuable insights and tips
+2. **Proactive Follow-ups**: 5 minutes to 12 hours later, additional personas comment based on patterns and user engagement
+3. **Collaborative Team Approach**: Multiple personas work together, complementing each other's insights
 4. **Pattern Recognition**: AI identifies recurring themes and provides useful information/tips
-5. **Social Media Feel**: Multiple caring experts checking in naturally over time
+5. **Social Media Feel**: Multiple caring friends naturally checking in over time
 
-#### **Commenting Style Examples**
-**Good Examples** (like expert Twitter responses):
-- "I notice you mentioned work stress 3 times this week. Here's a technique that helps..."
-- "That deadline pressure sounds familiar. In my experience, breaking it into smaller chunks..."
-- "Your sleep pattern seems connected to your stress levels. Consider this approach..."
+### **Sophisticated Timing Logic**
+- **Initial comments**: 5 minutes to 1 hour after journal entry (vs previous 2-12 hours)
+- **User engagement-based timing**: Immediate responses (1-2 mins) for actively engaging users
+- **Bombardment prevention**: 30 minutes minimum between any responses
+- **Daily limits**: 2-10 responses based on free/premium + AI interaction settings
+- **Active user detection**: Only users with journal entries OR AI interactions in last 7 days
 
-**What AI Should Emulate**:
-- **Therapist commenting**: Professional insight with personal warmth
-- **Expert friend**: Knowledgeable but caring, not clinical
-- **Mentor figure**: Experienced guidance without being preachy
-- **Pattern spotter**: "I see this trend in your entries..."
+### **Collaborative Personas (No Expertise Areas)**
+**Personas work as a team, not specialists:**
+- **Pulse**: Emotionally intelligent wellness companion
+- **Sage**: Big-picture thinking and strategic insights  
+- **Spark**: Motivational energy and positive reinforcement
+- **Anchor**: Grounding presence and practical support
 
-#### **Proactive Engagement Triggers**
-- **High Stress Follow-up**: Anchor persona checks in 4+ hours later with grounding techniques
-- **Low Mood Support**: Spark persona offers motivation 6+ hours later
-- **Work Pattern Recognition**: Sage persona provides strategic insights 8+ hours later
-- **Recurring Themes**: Any persona can comment when they spot helpful patterns
+**Key Principle**: Any persona can comment on any topic, but with their unique personality and perspective. They work together like a team of friends providing different viewpoints.
 
-#### **Quality Standards**
+### **Commenting Style Examples**
+
+**Good Examples** (like caring friends on social media):
+- "Hey, I've noticed you've been dealing with work stress this week. Have you tried taking short breaks between tasks? Sometimes just 5 minutes of deep breathing helps me reset."
+- "That's a really thoughtful reflection on your relationship. It sounds like you're growing and learning from this experience."
+- "I love how you're being honest about feeling overwhelmed. That takes courage. What's one small thing you could do today to give yourself a break?"
+- "You've been journaling consistently this week - that's amazing! I can see how much you're growing through this practice."
+
+**Bad Examples** (avoid these):
+- ❌ "I notice you mentioned work stress" (too robotic)
+- ❌ "Based on your entry, you should..." (too clinical)
+- ❌ "Here are 5 tips for stress management..." (too generic)
+- ❌ "Your stress level is 8/10, consider..." (too analytical)
+
+### **Quality Standards for AI Development**
+- **Natural**: Feel like a caring friend, not a clinical bot
 - **Specific**: Reference actual content from user's entries
-- **Helpful**: Provide actionable tips or insights
-- **Natural**: Feel like a caring friend, not a bot
+- **Helpful**: Provide actionable insights, not generic responses
 - **Timely**: Respond when the insight would be most valuable
-- **Pattern-Aware**: Connect current entry to user's history
+- **Pattern-aware**: Recognize recurring themes across entries
+- **Collaborative**: Build on other personas' responses when appropriate
 
-This creates the intended "private social space" where users get multiple expert perspectives naturally over time, just like having knowledgeable friends who care about their wellbeing.
+### **User Engagement Tracking**
+**Success Metrics:**
+- **Daily/weekly journaling**: Consistent journaling habits
+- **AI interactions**: Users replying to or reacting to AI responses
+- **App engagement**: Regular app usage and feature adoption
+- **User retention**: Long-term engagement with the platform
+
+**Engagement Levels:**
+- **Minimal**: 1-2 AI responses per day
+- **Moderate**: 3-5 AI responses per day (default)
+- **High**: 6-10 AI responses per day (premium feature)
+
+### **Technical Implementation Requirements**
+
+#### **Advanced Scheduler System**
+- **Main cycle**: Every 5 minutes for all active users
+- **Immediate cycle**: Every 1 minute for high-engagement users
+- **Analytics cycle**: Every 15 minutes for performance monitoring
+- **Daily cleanup**: Automated maintenance at 2 AM
+- **Auto-start**: Scheduler starts automatically in production
+
+#### **Comprehensive Proactive AI Service**
+- **User activity detection**: Journal entries OR AI interactions in last 7 days
+- **Pattern recognition**: Identifies related entries based on keywords and topics
+- **Bombardment prevention**: Prevents overwhelming users with too many responses
+- **Performance analytics**: Real-time monitoring and optimization
+- **Error handling**: Graceful recovery from failures
+
+#### **API Endpoints**
+- `POST /api/v1/scheduler/start` - Start the scheduler
+- `GET /api/v1/scheduler/status` - Real-time status and metrics
+- `GET /api/v1/scheduler/health` - Health monitoring
+- `GET /api/v1/scheduler/analytics` - Performance analytics
+- `POST /api/v1/scheduler/manual-cycle` - Manual cycle triggers
+
+### **User Experience Transformation**
+
+**Before Implementation:**
+- Only automatic AI response when creating new journal entries
+- No follow-up engagement
+- Single perspective per entry
+- Users had to be actively using the app for AI interaction
+
+**After Implementation:**
+- ✅ Immediate automatic response on new entries (maintained)
+- ✅ Proactive follow-ups 5 minutes to 12 hours later
+- ✅ Multiple AI personas commenting like friends checking in
+- ✅ Pattern recognition across entry history
+- ✅ Smart timing delays for natural conversation flow
+- ✅ Collaborative personas responding based on content
+- ✅ AI engagement even when users are offline
+- ✅ User-specific limits and preferences
+
+### **Railway Deployment Considerations**
+- **Capacity**: Designed to handle 100+ users efficiently
+- **Resource optimization**: Background tasks don't block main application
+- **Error recovery**: Automatic restart and monitoring
+- **Performance**: Real-time analytics and optimization
+- **Scalability**: Modular design for easy expansion
+
+### **Future Enhancement Opportunities**
+- **A/B testing**: Experiment with different engagement strategies
+- **Machine learning**: Optimize timing and content based on user responses
+- **Personalization**: Adapt persona behavior based on user preferences
+- **Integration**: Connect with external wellness apps and services
+- **Analytics**: Advanced user behavior analysis and insights
+
+---
+
+**This comprehensive proactive AI system transforms the app from simple reactive responses to a sophisticated "AI friends checking in" experience that adapts to user behavior and creates genuine, ongoing engagement.**
 
 ---
 
