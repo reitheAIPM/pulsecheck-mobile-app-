@@ -809,6 +809,23 @@ def register_routers():
         print("✅ Admin router registered")
         sys.stdout.flush()
 
+        # Advanced Scheduler router for comprehensive proactive AI
+        print("🔄 Importing advanced scheduler router...")
+        sys.stdout.flush()
+        try:
+            from app.routers.advanced_scheduler import router as advanced_scheduler_router
+            print("✅ Advanced scheduler router imported successfully")
+            sys.stdout.flush()
+            app.include_router(advanced_scheduler_router, prefix="/api/v1/scheduler", tags=["scheduler"])
+            print("✅ Advanced scheduler router registered")
+            sys.stdout.flush()
+        except Exception as scheduler_error:
+            print(f"❌ Advanced scheduler router import/registration failed: {scheduler_error}")
+            print(f"❌ Advanced scheduler router traceback: {traceback.format_exc()}")
+            sys.stdout.flush()
+            # Continue without advanced scheduler router rather than failing completely
+            pass
+
         print("🎉 All routers registered successfully!")
         sys.stdout.flush()
 

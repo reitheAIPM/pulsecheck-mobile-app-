@@ -2,11 +2,12 @@
 Proactive AI Service
 
 Enables AI personas to proactively engage with users by:
-- Commenting on recent entries after some time has passed
+- Commenting on recent entries after some time has passed (5 minutes to 12 hours)
 - Following up on recurring topics or patterns
 - Checking in when stress/mood patterns are detected
 - Creating a social media-like experience with multiple AI friends
 
+Each persona has their own personality but no expertise areas - they can all comment on anything.
 This creates the intended "multiple comments like getting responses from different friends" experience.
 """
 
@@ -31,6 +32,34 @@ class ProactiveAIService:
         self.adaptive_ai = adaptive_ai
         self.user_preferences = UserPreferencesService(db)
     
+    async def get_user_ai_timing_settings(self, user_id: str) -> Dict[str, float]:
+        """Get user's AI interaction timing preferences (in hours)"""
+        try:
+            # For now, return default settings. Later this can be user-configurable
+            return {
+                "quick_checkin_min": 5/60,      # 5 minutes
+                "quick_checkin_max": 0.5,       # 30 minutes
+                "thoughtful_followup_min": 1,   # 1 hour
+                "thoughtful_followup_max": 4,   # 4 hours
+                "pattern_recognition_min": 4,   # 4 hours
+                "pattern_recognition_max": 12,  # 12 hours
+                "second_perspective_min": 4,    # 4 hours (reduced from 12)
+                "second_perspective_max": 12    # 12 hours
+            }
+        except Exception as e:
+            logger.error(f"Error getting user AI timing settings: {e}")
+            # Return conservative defaults
+            return {
+                "quick_checkin_min": 0.5,       # 30 minutes
+                "quick_checkin_max": 2,         # 2 hours
+                "thoughtful_followup_min": 2,   # 2 hours
+                "thoughtful_followup_max": 6,   # 6 hours
+                "pattern_recognition_min": 6,   # 6 hours
+                "pattern_recognition_max": 12,  # 12 hours
+                "second_perspective_min": 8,    # 8 hours
+                "second_perspective_max": 12    # 12 hours
+            }
+    
     async def check_for_proactive_opportunities(self, user_id: str) -> List[Dict[str, Any]]:
         """
         Check for opportunities for proactive AI engagement
@@ -45,6 +74,9 @@ class ProactiveAIService:
         opportunities = []
         
         try:
+            # Get user's AI timing preferences
+            timing_settings = await self.get_user_ai_timing_settings(user_id)
+            
             # Get user's recent journal entries (last 7 days)
             client = self.db.get_client()
             cutoff_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
@@ -61,7 +93,7 @@ class ProactiveAIService:
             
             # Analyze each entry for proactive opportunities
             for entry in entries:
-                entry_opportunities = await self._analyze_entry_for_opportunities(entry, ai_responses, entries)
+                entry_opportunities = await self._analyze_entry_for_opportunities(entry, ai_responses, entries, timing_settings)
                 opportunities.extend(entry_opportunities)
             
             # Sort by priority (highest first)
@@ -94,7 +126,7 @@ class ProactiveAIService:
             logger.error(f"Error getting existing AI responses: {e}")
             return {}
     
-    async def _analyze_entry_for_opportunities(self, entry: JournalEntryResponse, existing_responses: Dict, all_entries: List[JournalEntryResponse]) -> List[Dict[str, Any]]:
+    async def _analyze_entry_for_opportunities(self, entry: JournalEntryResponse, existing_responses: Dict, all_entries: List[JournalEntryResponse], timing_settings: Dict[str, float]) -> List[Dict[str, Any]]:
         """Analyze a single entry for proactive engagement opportunities"""
         opportunities = []
         entry_responses = existing_responses.get(entry.id, [])
@@ -103,109 +135,109 @@ class ProactiveAIService:
         entry_time = datetime.fromisoformat(entry.created_at.replace('Z', '+00:00'))
         hours_since_entry = (datetime.now(timezone.utc) - entry_time).total_seconds() / 3600
         
-        # Skip very recent entries (less than 2 hours old)
-        if hours_since_entry < 2:
+        # Skip very recent entries (less than 5 minutes old)
+        if hours_since_entry < timing_settings["quick_checkin_min"]:
             return opportunities
         
-        # Skip entries that already have multiple responses
-        if len(entry_responses) >= 2:
+        # Skip entries that already have multiple responses (max 3 total responses)
+        if len(entry_responses) >= 3:
             return opportunities
         
-        # Opportunity 1: Follow-up on high stress entries
-        if entry.stress_level and entry.stress_level >= 7 and hours_since_entry >= 4:
-            if not any(r["persona_used"] == "anchor" for r in entry_responses):
-                opportunities.append({
-                    "entry_id": entry.id,
-                    "reason": "high_stress_followup",
-                    "persona": "anchor",
-                    "priority": 8,
-                    "delay_hours": 4,
-                    "message_context": f"Following up on high stress (level {entry.stress_level})"
-                })
+        # Get personas that haven't responded yet
+        used_personas = {r["persona_used"] for r in entry_responses}
+        available_personas = ["pulse", "sage", "spark", "anchor"] - used_personas
         
-        # Opportunity 2: Motivational check-in for low mood
-        if entry.mood_level and entry.mood_level <= 4 and hours_since_entry >= 6:
-            if not any(r["persona_used"] == "spark" for r in entry_responses):
-                opportunities.append({
-                    "entry_id": entry.id,
-                    "reason": "low_mood_motivation",
-                    "persona": "spark",
-                    "priority": 7,
-                    "delay_hours": 6,
-                    "message_context": f"Motivational check-in for low mood (level {entry.mood_level})"
-                })
+        if not available_personas:
+            return opportunities
         
-        # Opportunity 3: Strategic follow-up on work challenges
+        # Opportunity 1: Quick check-in for high stress (any persona can respond)
+        if entry.stress_level and entry.stress_level >= 7 and hours_since_entry >= timing_settings["quick_checkin_min"]:
+            persona = list(available_personas)[0]  # Pick first available persona
+            opportunities.append({
+                "entry_id": entry.id,
+                "reason": "high_stress_checkin",
+                "persona": persona,
+                "priority": 8,
+                "delay_hours": timing_settings["quick_checkin_min"],
+                "message_context": f"You've been dealing with a lot of stress lately"
+            })
+        
+        # Opportunity 2: Motivational check-in for low mood (any persona can motivate)
+        if entry.mood_level and entry.mood_level <= 4 and hours_since_entry >= timing_settings["thoughtful_followup_min"]:
+            persona = list(available_personas)[0]
+            opportunities.append({
+                "entry_id": entry.id,
+                "reason": "low_mood_checkin",
+                "persona": persona,
+                "priority": 7,
+                "delay_hours": timing_settings["thoughtful_followup_min"],
+                "message_context": f"That sounds tough - how are you feeling now?"
+            })
+        
+        # Opportunity 3: Follow-up on work challenges (any persona can give work advice)
         work_keywords = ["work", "project", "deadline", "meeting", "boss", "team", "career"]
-        if any(keyword in entry.content.lower() for keyword in work_keywords) and hours_since_entry >= 8:
-            if not any(r["persona_used"] == "sage" for r in entry_responses):
-                opportunities.append({
-                    "entry_id": entry.id,
-                    "reason": "work_strategy_followup",
-                    "persona": "sage",
-                    "priority": 6,
-                    "delay_hours": 8,
-                    "message_context": "Strategic follow-up on work challenges"
-                })
+        if any(keyword in entry.content.lower() for keyword in work_keywords) and hours_since_entry >= timing_settings["thoughtful_followup_max"]:
+            persona = list(available_personas)[0]
+            opportunities.append({
+                "entry_id": entry.id,
+                "reason": "work_followup",
+                "persona": persona,
+                "priority": 6,
+                "delay_hours": timing_settings["thoughtful_followup_max"],
+                "message_context": "Those work challenges sound brutal"
+            })
         
         # Opportunity 4: Pattern recognition across multiple entries
         if len(all_entries) >= 3:
-            pattern_opportunity = await self._detect_pattern_opportunities(entry, all_entries, entry_responses)
+            pattern_opportunity = await self._detect_pattern_opportunities(entry, all_entries, entry_responses, timing_settings, available_personas)
             if pattern_opportunity:
                 opportunities.append(pattern_opportunity)
         
-        # Opportunity 5: Second persona perspective (if only one response exists)
-        if len(entry_responses) == 1 and hours_since_entry >= 12:
-            used_persona = entry_responses[0]["persona_used"]
-            
-            # Suggest a complementary persona
-            complementary_personas = {
-                "pulse": "sage",    # Emotional support → Strategic guidance
-                "sage": "anchor",   # Strategic guidance → Emotional stability
-                "spark": "pulse",   # Motivation → Emotional support
-                "anchor": "spark"   # Stability → Motivation
-            }
-            
-            complement_persona = complementary_personas.get(used_persona, "pulse")
+        # Opportunity 5: Additional perspective (if only one response exists)
+        if len(entry_responses) == 1 and hours_since_entry >= timing_settings["second_perspective_min"]:
+            persona = list(available_personas)[0]
             opportunities.append({
                 "entry_id": entry.id,
-                "reason": "second_perspective",
-                "persona": complement_persona,
+                "reason": "additional_perspective",
+                "persona": persona,
                 "priority": 5,
-                "delay_hours": 12,
-                "message_context": f"Second perspective after {used_persona} responded"
+                "delay_hours": timing_settings["second_perspective_min"],
+                "message_context": f"Been thinking about what you shared"
             })
         
         return opportunities
     
-    async def _detect_pattern_opportunities(self, entry: JournalEntryResponse, all_entries: List[JournalEntryResponse], entry_responses: List[Dict]) -> Optional[Dict[str, Any]]:
+    async def _detect_pattern_opportunities(self, entry: JournalEntryResponse, all_entries: List[JournalEntryResponse], entry_responses: List[Dict], timing_settings: Dict[str, float], available_personas: set) -> Optional[Dict[str, Any]]:
         """Detect patterns across multiple entries that warrant proactive engagement"""
+        
+        if not available_personas:
+            return None
+        
+        persona = list(available_personas)[0]
         
         # Pattern 1: Recurring stress mentions
         stress_entries = [e for e in all_entries if e.stress_level and e.stress_level >= 6]
         if len(stress_entries) >= 3 and entry.id == stress_entries[0].id:  # Most recent high stress
-            if not any(r["persona_used"] == "anchor" for r in entry_responses):
-                return {
-                    "entry_id": entry.id,
-                    "reason": "recurring_stress_pattern",
-                    "persona": "anchor",
-                    "priority": 9,
-                    "delay_hours": 6,
-                    "message_context": f"Pattern detected: {len(stress_entries)} high-stress entries recently"
-                }
+            return {
+                "entry_id": entry.id,
+                "reason": "recurring_stress_pattern",
+                "persona": persona,
+                "priority": 9,
+                "delay_hours": timing_settings["pattern_recognition_min"],
+                "message_context": f"You've been dealing with stress a lot lately"
+            }
         
         # Pattern 2: Consistent low energy
         low_energy_entries = [e for e in all_entries if e.energy_level and e.energy_level <= 4]
         if len(low_energy_entries) >= 3 and entry.id == low_energy_entries[0].id:
-            if not any(r["persona_used"] == "spark" for r in entry_responses):
-                return {
-                    "entry_id": entry.id,
-                    "reason": "low_energy_pattern",
-                    "persona": "spark",
-                    "priority": 8,
-                    "delay_hours": 4,
-                    "message_context": f"Pattern detected: {len(low_energy_entries)} low-energy entries recently"
-                }
+            return {
+                "entry_id": entry.id,
+                "reason": "low_energy_pattern",
+                "persona": persona,
+                "priority": 8,
+                "delay_hours": timing_settings["pattern_recognition_min"],
+                "message_context": f"Your energy has been pretty low recently"
+            }
         
         return None
     
@@ -231,15 +263,16 @@ class ProactiveAIService:
             history_result = client.table("journal_entries").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(10).execute()
             journal_history = [JournalEntryResponse(**e) for e in history_result.data] if history_result.data else []
             
-            # Generate proactive AI response with special context
+            # Generate proactive AI response with human-like context
             proactive_prompt_context = f"""
-This is a proactive follow-up comment, not an immediate response to a new entry.
-Reason for engagement: {reason}
+This is a proactive follow-up comment, like a friend checking in after some time has passed.
 Context: {context}
 Time since original entry: {opportunity.get('delay_hours', 0)} hours
 
-Respond as if you're a caring friend checking in after some time has passed.
-Be natural and conversational, acknowledging that you're following up.
+Respond naturally and conversationally, like a caring friend would.
+Don't say "I notice you mentioned" - instead be more casual like "Ugh, that work stress again?" or "How are you feeling about that now?"
+Reference their specific situation and show you remember what they shared.
+Be supportive in your unique way as the {persona} persona.
 """
             
             # Generate adaptive AI response
