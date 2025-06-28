@@ -184,6 +184,7 @@ app.add_middleware(
     allow_origins=[
         "https://pulsecheck-mobile-app.vercel.app",
         "https://pulsecheck-mobile-2objhn451-reitheaipms-projects.vercel.app",
+        "https://pulsecheck-mobile-39l5vrdmt-reitheaipms-projects.vercel.app",  # Add the new URL
         "http://localhost:3000",
         "http://localhost:19006",  # Expo dev
     ],

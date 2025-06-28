@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     _ALLOWED_ORIGINS_DEFAULT = [
         "https://pulsecheck-mobile-app.vercel.app",
         "https://pulsecheck-mobile-2objhn451-reitheaipms-projects.vercel.app",
+        "https://pulsecheck-mobile-39l5vrdmt-reitheaipms-projects.vercel.app",
         "https://pulse-check.vercel.app",
         "https://pulsecheck-web.vercel.app",
         "https://pulsecheck-app.vercel.app",
