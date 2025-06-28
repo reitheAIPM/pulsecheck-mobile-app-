@@ -440,7 +440,21 @@ const JournalEntry = () => {
                     Nothing is off-limits. Write freely about your thoughts, feelings, experiences, dreams, or anything that matters to you right now.
                   </p>
                 </div>
-                <div className="flex items-center gap-3 ml-4">
+              </div>
+
+              {/* Large, Prominent Text Area */}
+              <div className="relative">
+                <Textarea
+                  id="journal-content"
+                  placeholder="Start writing here... Let your thoughts flow freely. This is your private space to explore your inner world, process your experiences, and capture what matters to you. Take your time - there's no rush."
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  className="min-h-[400px] border-0 bg-transparent text-foreground placeholder:text-muted-foreground resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0"
+                  style={{ fontSize: "16px", lineHeight: "1.4" }}
+                />
+                
+                {/* Move Voice Input and Add Image buttons here */}
+                <div className="flex items-center gap-3 mt-4">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -465,18 +479,6 @@ const JournalEntry = () => {
                     Add Image
                   </Button>
                 </div>
-              </div>
-
-              {/* Large, Prominent Text Area */}
-              <div className="relative">
-                <Textarea
-                  id="journal-content"
-                  placeholder="Start writing here... Let your thoughts flow freely. This is your private space to explore your inner world, process your experiences, and capture what matters to you. Take your time - there's no rush."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[400px] border-0 bg-transparent text-foreground placeholder:text-muted-foreground resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0"
-                  style={{ fontSize: "19px", lineHeight: "1.6" }}
-                />
                 
                 {/* Writing Encouragement */}
                 {content.length > 0 && content.length < 50 && (
