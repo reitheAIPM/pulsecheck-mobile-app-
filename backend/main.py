@@ -39,6 +39,14 @@ print("🚀 PulseCheck v2.0.0 with Enhanced Debug Logging - STARTING UP!")
 print("🚀 This should appear in Railway logs immediately!")
 sys.stdout.flush()
 
+# Import DNS helper for Railway
+try:
+    from app.core.dns_helper import configure_dns
+    print("🔧 Configuring DNS for Railway environment...")
+    configure_dns()
+except Exception as e:
+    print(f"⚠️ DNS helper not available: {e}")
+
 # Configure logging early
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
