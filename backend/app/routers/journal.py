@@ -173,8 +173,11 @@ async def create_journal_entry(
         try:
             logger.info(f"Generating automatic AI persona response for entry {journal_entry_response.id}")
             
-            # Get user's journal history for context (last 10 entries)
-            history_result = client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(10).execute()
+            # Use service role client for AI operations to bypass RLS
+            service_client = db.get_service_client()
+            
+            # Get user's journal history for context (last 10 entries) using service role
+            history_result = service_client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(10).execute()
             journal_history = [JournalEntryResponse(**entry) for entry in history_result.data] if history_result.data else []
             
             # Generate adaptive AI response with automatic persona selection
@@ -185,7 +188,7 @@ async def create_journal_entry(
                 persona="auto"  # Let the system choose the best persona
             )
             
-            # Store AI response in database for retrieval
+            # Store AI response in database for retrieval using service role client
             # Using correct ai_insights table schema: id, journal_entry_id, user_id, ai_response, persona_used, topic_flags, confidence_score, created_at
             ai_insight_data = {
                 "id": str(uuid.uuid4()),
@@ -198,8 +201,8 @@ async def create_journal_entry(
                 "created_at": datetime.now(timezone.utc).isoformat()
             }
             
-            # Insert AI response into ai_insights table
-            ai_result = client.table("ai_insights").insert(ai_insight_data).execute()
+            # Insert AI response into ai_insights table using service role
+            ai_result = service_client.table("ai_insights").insert(ai_insight_data).execute()
             
             if ai_result.data:
                 logger.info(f"✅ Automatic AI response generated for entry {journal_entry_response.id} using {ai_response.persona_used} persona")
