@@ -2408,3 +2408,84 @@ async def test_service_role_access(
 async def simple_test(request: Request):
     """Simple test endpoint to verify routing works"""
     return {"status": "success", "message": "Debug router is working"}
+
+@router.post("/force-ai-analysis/{user_email}")
+@limiter.limit("5/minute")
+async def force_ai_analysis(
+    request: Request,
+    user_email: str,
+    db: Database = Depends(get_database)
+):
+    """Force AI analysis for a specific user's latest journal entry"""
+    try:
+        from ..services.adaptive_ai_service import AdaptiveAIService
+        from ..services.user_preferences_service import UserPreferencesService
+        
+        # Get service role client for AI operations
+        service_client = db.get_service_client()
+        
+        # Find user by email
+        user_result = service_client.table("profiles").select("*").eq("email", user_email).execute()
+        if not user_result.data:
+            return {"error": f"User not found with email: {user_email}"}
+        
+        user_id = user_result.data[0]["id"]
+        
+        # Get latest journal entry for this user
+        journal_result = service_client.table("journal_entries").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
+        if not journal_result.data:
+            return {"error": f"No journal entries found for user: {user_email}"}
+        
+        latest_entry = journal_result.data[0]
+        
+        # Initialize AI services
+        ai_service = AdaptiveAIService(db)
+        prefs_service = UserPreferencesService(db)
+        
+        # Get user preferences
+        preferences = await prefs_service.get_user_preferences(user_id)
+        
+        # Generate AI response
+        ai_response = await ai_service.generate_response(
+            user_id=user_id,
+            journal_content=latest_entry["content"],
+            mood_rating=latest_entry.get("mood_rating", 5),
+            energy_level=latest_entry.get("energy_level", 5),
+            stress_level=latest_entry.get("stress_level", 5),
+            user_preferences=preferences,
+            persona="pulse"  # Default to Pulse persona
+        )
+        
+        # Store AI insight
+        insight_data = {
+            "user_id": user_id,
+            "journal_entry_id": latest_entry["id"],
+            "persona_type": "pulse",
+            "message": ai_response.get("message", "AI response generated successfully"),
+            "confidence_score": ai_response.get("confidence_score", 0.8),
+            "response_time_ms": ai_response.get("response_time_ms", 100),
+            "suggested_actions": ai_response.get("suggested_actions", []),
+            "follow_up_question": ai_response.get("follow_up_question"),
+            "created_at": datetime.now().isoformat()
+        }
+        
+        insert_result = service_client.table("ai_insights").insert(insight_data).execute()
+        
+        return {
+            "status": "success",
+            "message": f"AI analysis forced for user {user_email}",
+            "user_id": user_id,
+            "journal_entry_id": latest_entry["id"],
+            "journal_content": latest_entry["content"][:100] + "...",
+            "ai_response": ai_response,
+            "insight_stored": bool(insert_result.data),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "user_email": user_email,
+            "timestamp": datetime.now().isoformat()
+        }
