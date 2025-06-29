@@ -3,7 +3,7 @@ Debug API Router
 Provides endpoints for accessing middleware debugging data
 """
 
-from fastapi import APIRouter, Request, HTTPException, Query
+from fastapi import APIRouter, Request, HTTPException, Query, Depends
 from typing import Optional, List, Dict, Any
 import logging
 from datetime import datetime, timedelta
@@ -15,6 +15,7 @@ import sys
 import importlib
 
 from ..core.security import limiter
+from ..core.database import Database, get_database
 
 # Try to import middleware, fallback if not available
 try:
@@ -2315,3 +2316,92 @@ def generate_documentation_based_recommendations(failed_checks):
             })
     
     return recommendations
+
+@router.get("/test-service-role-access")
+async def test_service_role_access(
+    db: Database = Depends(get_database)
+):
+    """
+    Test that service role client can access user data that would be blocked by RLS
+    This validates our AI interaction fix
+    """
+    try:
+        results = {}
+        
+        # Test 1: Regular anon client (should be limited by RLS)
+        try:
+            anon_client = db.get_client()
+            anon_result = anon_client.table('journal_entries').select('id, user_id').limit(5).execute()
+            results["anon_client"] = {
+                "status": "success",
+                "entries_accessible": len(anon_result.data) if anon_result.data else 0,
+                "note": "Limited by RLS - may return 0 without proper JWT"
+            }
+        except Exception as e:
+            results["anon_client"] = {
+                "status": "error",
+                "error": str(e),
+                "note": "Expected if RLS is working properly"
+            }
+        
+        # Test 2: Service role client (should bypass RLS)
+        try:
+            service_client = db.get_service_client()
+            service_result = service_client.table('journal_entries').select('id, user_id').limit(5).execute()
+            results["service_client"] = {
+                "status": "success",
+                "entries_accessible": len(service_result.data) if service_result.data else 0,
+                "note": "Should access all entries (bypasses RLS)"
+            }
+        except Exception as e:
+            results["service_client"] = {
+                "status": "error",
+                "error": str(e),
+                "note": "This indicates a problem with service role setup"
+            }
+        
+        # Test 3: User preferences access (critical for AI)
+        try:
+            service_client = db.get_service_client()
+            prefs_result = service_client.table('user_ai_preferences').select('user_id, response_frequency').limit(5).execute()
+            results["user_preferences_access"] = {
+                "status": "success",
+                "preferences_accessible": len(prefs_result.data) if prefs_result.data else 0,
+                "note": "AI needs this to work for personalized responses"
+            }
+        except Exception as e:
+            results["user_preferences_access"] = {
+                "status": "error",
+                "error": str(e),
+                "note": "This will break AI personalization"
+            }
+        
+        # Summary
+        service_works = results.get("service_client", {}).get("status") == "success"
+        ai_data_accessible = results.get("user_preferences_access", {}).get("status") == "success"
+        
+        results["summary"] = {
+            "service_role_working": service_works,
+            "ai_data_accessible": ai_data_accessible,
+            "fix_status": "✅ AI interactions should work" if (service_works and ai_data_accessible) else "❌ AI interactions may fail",
+            "recommendation": "Deploy and test AI response generation" if (service_works and ai_data_accessible) else "Check SUPABASE_SERVICE_ROLE_KEY configuration"
+        }
+        
+        return {
+            "test": "service_role_access_validation",
+            "timestamp": datetime.utcnow().isoformat(),
+            "results": results
+        }
+        
+    except Exception as e:
+        return {
+            "test": "service_role_access_validation",
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e),
+            "status": "failed"
+        }
+
+@router.get("/simple-test")
+async def simple_test():
+    """Simple test endpoint to verify routing works"""
+    return {"status": "success", "message": "Debug router is working"}
