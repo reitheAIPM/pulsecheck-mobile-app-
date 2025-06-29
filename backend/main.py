@@ -7,9 +7,9 @@ Version: 2.1.2-cors-fix-v3
 Last Updated: 2025-01-25 - Enhanced CORS handling for Vercel domains
 """
 
-# DEPLOYMENT TRIGGER: Force Railway rebuild - AI RLS BYPASS FIX v1.2 CRITICAL DEPLOYMENT
+# DEPLOYMENT TRIGGER: Force Railway rebuild - AI RLS BYPASS FIX v1.3 CRITICAL DEPLOYMENT
 # This comment forces Railway to rebuild container with SERVICE ROLE CLIENT for AI
-# Deployment timestamp: 2025-06-29 03:40 UTC - CRITICAL FIX: SUPABASE URL CORRECTED
+# Deployment timestamp: 2025-06-29 05:10 UTC - CRITICAL FIX: DNS RESOLUTION ISSUE
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
