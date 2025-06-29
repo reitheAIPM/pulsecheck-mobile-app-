@@ -2489,3 +2489,43 @@ async def force_ai_analysis(
             "user_email": user_email,
             "timestamp": datetime.now().isoformat()
         }
+
+@router.get("/recent-activity")
+@limiter.limit("10/minute")
+async def get_recent_activity(
+    request: Request,
+    db: Database = Depends(get_database)
+):
+    """Get recent journal entries and user activity for debugging"""
+    try:
+        # Get service role client for AI operations
+        service_client = db.get_service_client()
+        
+        # Get recent journal entries (last 10)
+        journal_result = service_client.table("journal_entries").select("*").order("created_at", desc=True).limit(10).execute()
+        
+        # Get recent users (last 10)
+        users_result = service_client.table("profiles").select("id, email, created_at").order("created_at", desc=True).limit(10).execute()
+        
+        # Get recent AI insights
+        ai_result = service_client.table("ai_insights").select("*").order("created_at", desc=True).limit(10).execute()
+        
+        return {
+            "status": "success",
+            "timestamp": datetime.now().isoformat(),
+            "recent_journal_entries": journal_result.data if journal_result.data else [],
+            "recent_users": users_result.data if users_result.data else [],
+            "recent_ai_insights": ai_result.data if ai_result.data else [],
+            "summary": {
+                "total_journal_entries": len(journal_result.data) if journal_result.data else 0,
+                "total_users": len(users_result.data) if users_result.data else 0,
+                "total_ai_insights": len(ai_result.data) if ai_result.data else 0
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
