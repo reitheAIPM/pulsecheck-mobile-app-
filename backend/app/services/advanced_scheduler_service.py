@@ -366,7 +366,8 @@ class AdvancedSchedulerService:
     async def _get_actively_engaging_users(self) -> List[str]:
         """Get users who are actively engaging (for immediate responses)"""
         try:
-            client = self.db.get_client()
+            # CRITICAL: Use service role client to bypass RLS for AI operations
+            client = self.db.get_service_client()
             
             # Users who interacted with AI in last 10 minutes
             cutoff_time = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
@@ -459,7 +460,8 @@ class AdvancedSchedulerService:
     async def _store_analytics_snapshot(self):
         """Store current analytics snapshot to database"""
         try:
-            client = self.db.get_client()
+            # CRITICAL: Use service role client to bypass RLS for AI operations
+            client = self.db.get_service_client()
             
             analytics_data = {
                 "id": str(__import__('uuid').uuid4()),

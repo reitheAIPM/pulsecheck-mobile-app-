@@ -137,7 +137,8 @@ class ComprehensiveProactiveAIService:
     async def get_user_engagement_profile(self, user_id: str) -> UserEngagementProfile:
         """Get comprehensive user engagement profile"""
         try:
-            client = self.db.get_client()
+            # CRITICAL: Use service role client to bypass RLS for AI operations
+            client = self.db.get_service_client()
             
             # Get user tier and preferences (mock for now)
             tier = UserTier.FREE  # TODO: Get from user subscription table
@@ -200,7 +201,8 @@ class ComprehensiveProactiveAIService:
     async def get_active_users(self) -> List[str]:
         """Get users active in the last 7 days (journal entries OR AI interactions)"""
         try:
-            client = self.db.get_client()
+            # CRITICAL: Use service role client to bypass RLS for AI operations
+            client = self.db.get_service_client()
             cutoff_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
             
             # Users with recent journal entries
@@ -214,7 +216,7 @@ class ComprehensiveProactiveAIService:
             # Combine both sets
             active_users = list(journal_users | ai_users)
             
-            logger.info(f"Found {len(active_users)} active users in last 7 days")
+            logger.info(f"Found {len(active_users)} active users in last 7 days (service role access)")
             return active_users
             
         except Exception as e:
@@ -228,7 +230,8 @@ class ComprehensiveProactiveAIService:
             profile = await self.get_user_engagement_profile(user_id)
             
             # Get recent journal entries
-            client = self.db.get_client()
+            # CRITICAL: Use service role client to bypass RLS for AI operations
+            client = self.db.get_service_client()
             cutoff_date = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
             
             entries_result = client.table("journal_entries").select("*").eq("user_id", user_id).gte("created_at", cutoff_date).order("created_at", desc=True).execute()
@@ -489,7 +492,8 @@ class ComprehensiveProactiveAIService:
             return opportunities
         
         # Get last AI response time
-        client = self.db.get_client()
+        # CRITICAL: Use service role client to bypass RLS for AI operations
+        client = self.db.get_service_client()
         last_response_result = client.table("ai_insights").select("created_at").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
         
         if last_response_result.data:
@@ -513,7 +517,8 @@ class ComprehensiveProactiveAIService:
     async def _count_todays_ai_responses(self, user_id: str) -> int:
         """Count AI responses sent today"""
         try:
-            client = self.db.get_client()
+            # CRITICAL: Use service role client to bypass RLS for AI operations
+            client = self.db.get_service_client()
             today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
             
             result = client.table("ai_insights").select("id", count="exact").eq("user_id", user_id).gte("created_at", today_start).execute()
@@ -527,7 +532,8 @@ class ComprehensiveProactiveAIService:
     async def _get_existing_ai_responses(self, user_id: str, entry_ids: List[str]) -> Dict[str, List[Dict]]:
         """Get existing AI responses for entries"""
         try:
-            client = self.db.get_client()
+            # CRITICAL: Use service role client to bypass RLS for AI operations
+            client = self.db.get_service_client()
             responses_result = client.table("ai_insights").select("*").eq("user_id", user_id).in_("journal_entry_id", entry_ids).execute()
             
             responses_by_entry = {}
@@ -584,7 +590,8 @@ class ComprehensiveProactiveAIService:
         """Execute proactive engagement with comprehensive tracking"""
         try:
             # Get the journal entry
-            client = self.db.get_client()
+            # CRITICAL: Use service role client to bypass RLS for AI operations
+            client = self.db.get_service_client()
             entry_result = client.table("journal_entries").select("*").eq("id", opportunity.entry_id).single().execute()
             
             if not entry_result.data:

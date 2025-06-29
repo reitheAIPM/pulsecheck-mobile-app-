@@ -53,6 +53,17 @@
 - **AI Integration**: Ready for personalized experiences
 - **User Experience**: Professional, mobile-optimized interface
 
+## 🔑 **Critical System Credentials**
+
+### **Database Access**
+- **Supabase Project**: qwpwlubxhtuzvmvajjjr
+- **Database Password**: `ciscogoldenapple05!`
+- **Usage**: Required for Supabase CLI operations, migrations, and direct database access
+
+### **Environment Variables**
+- **RATE_LIMIT_ENABLED**: Set to `false` for testing
+- **All Supabase keys**: Configured and operational in Railway
+
 ## 🎊 **Celebration Notes**
 
 **Total Development Time**: ~6 months from concept to production  

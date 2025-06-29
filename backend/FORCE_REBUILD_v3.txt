@@ -1,5 +1,0 @@
-Railway Container Rebuild Force v3 - 2024-01-30
-This file forces Railway to rebuild the container and deploy new code.
-Debug import fixes applied.
-Enhanced logging implemented.
-Request-first debugging workflow ready. 

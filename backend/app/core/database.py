@@ -177,10 +177,10 @@ def get_database_url() -> str:
         # Use environment variable for DB password if available, otherwise use service key
         db_password = os.environ.get('DB_PASSWORD', settings.SUPABASE_SERVICE_ROLE_KEY or 'password')
         
-        # Construct PostgreSQL URL with connection pooling parameters
+        # Construct PostgreSQL URL (pool parameters go to SQLAlchemy, not URL)
         database_url = (
             f"postgresql://postgres:{db_password}@db.{project_ref}.supabase.co:5432/postgres"
-            f"?sslmode=require&pool_size=10&max_overflow=20&pool_timeout=30&pool_recycle=3600"
+            f"?sslmode=require"
         )
         logger.debug(f"Database URL constructed for project: {project_ref}")
         return database_url

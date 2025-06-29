@@ -141,7 +141,7 @@ class MobileApiService {
   }
 
   // Reset journal - delete all entries for current user
-  async resetJournal(userId: string): Promise<{ deleted_count: number; message: string }> {
+  async resetJournal(userId: string): Promise<{ entries_deleted: number; message: string }> {
     console.log('Resetting journal for user:', userId);
     const response = await fetch(`${this.baseURL}/api/v1/journal/reset/${userId}?confirm=true`, {
       method: 'DELETE',

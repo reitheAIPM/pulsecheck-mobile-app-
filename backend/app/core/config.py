@@ -48,6 +48,7 @@ class Settings(BaseSettings):
         return self.SUPABASE_JWT_SECRET
     
     # Rate Limiting Configuration
+    RATE_LIMIT_ENABLED: bool = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
     RATE_LIMIT_REQUESTS: int = 100
     RATE_LIMIT_PERIOD: int = 60  # seconds
     

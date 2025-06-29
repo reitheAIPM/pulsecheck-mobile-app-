@@ -78,7 +78,8 @@ class ProactiveAIService:
             timing_settings = await self.get_user_ai_timing_settings(user_id)
             
             # Get user's recent journal entries (last 7 days)
-            client = self.db.get_client()
+            # CRITICAL: Use service role client to bypass RLS for AI operations
+            client = self.db.get_service_client()
             cutoff_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
             
             entries_result = client.table("journal_entries").select("*").eq("user_id", user_id).gte("created_at", cutoff_date).order("created_at", desc=True).execute()
@@ -108,7 +109,8 @@ class ProactiveAIService:
     async def _get_existing_ai_responses(self, user_id: str, entry_ids: List[str]) -> Dict[str, List[Dict]]:
         """Get existing AI responses for entries to avoid duplicate comments"""
         try:
-            client = self.db.get_client()
+            # CRITICAL: Use service role client to bypass RLS for AI operations
+            client = self.db.get_service_client()
             responses_result = client.table("ai_insights").select("*").eq("user_id", user_id).in_("journal_entry_id", entry_ids).execute()
             
             # Group responses by entry_id
@@ -250,7 +252,8 @@ class ProactiveAIService:
             context = opportunity.get("message_context", "")
             
             # Get the journal entry
-            client = self.db.get_client()
+            # CRITICAL: Use service role client to bypass RLS for AI operations
+            client = self.db.get_service_client()
             entry_result = client.table("journal_entries").select("*").eq("id", entry_id).single().execute()
             
             if not entry_result.data:

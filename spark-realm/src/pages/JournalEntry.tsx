@@ -463,7 +463,7 @@ const JournalEntry = () => {
                     {isRecording ? (
                       <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse" />
                     ) : (
-                      <Mic className="w-4 h-4" />
+                        <Mic className="w-4 h-4" />
                     )}
                   </Button>
                   <Button 
@@ -475,8 +475,8 @@ const JournalEntry = () => {
                     <Camera className="w-4 h-4" />
                   </Button>
                 </div>
-              </div>
-
+                </div>
+                
               {/* Writing Encouragement - clean and separate */}
               <div className="mt-4">
                 {content.length > 0 && content.length < 50 && (

@@ -341,7 +341,7 @@ const Profile = () => {
       // Call the reset journal API with confirmation
       const result = await apiService.resetJournal();
       
-      if (result.deleted_count >= 0) {
+      if (result.entries_deleted >= 0) {
         setResetSuccess(result.message);
         // Clear any cached journal data
         localStorage.removeItem('lastAIResponse');
@@ -358,7 +358,9 @@ const Profile = () => {
       console.error('Error resetting journal:', error);
       
       // Handle specific error messages
-      if (error.response?.data?.detail) {
+      if (error.response?.status === 429) {
+        setResetError('Too many requests. Please wait a moment before trying again.');
+      } else if (error.response?.data?.detail) {
         setResetError(error.response.data.detail);
       } else if (error.message) {
         setResetError(error.message);

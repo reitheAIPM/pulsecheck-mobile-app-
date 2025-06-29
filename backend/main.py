@@ -175,15 +175,18 @@ app = FastAPI(
     openapi_url="/openapi.json" if os.getenv("ENVIRONMENT") != "production" else None,
 )
 
-# Setup rate limiting if available
-if limiter and config_loaded:
+# Setup rate limiting if available and enabled
+if limiter and config_loaded and settings.RATE_LIMIT_ENABLED:
     try:
         setup_rate_limiting(app)
         logger.info("Rate limiting enabled")
     except Exception as e:
         logger.warning(f"Failed to setup rate limiting: {e}")
 else:
-    logger.warning("Rate limiting disabled - limiter not available")
+    if not settings.RATE_LIMIT_ENABLED:
+        logger.info("Rate limiting disabled by configuration (RATE_LIMIT_ENABLED=false)")
+    else:
+        logger.warning("Rate limiting disabled - limiter not available")
 
 # Performance middleware (order matters!)
 # 1. GZip compression for response optimization
@@ -887,6 +890,23 @@ def register_routers():
             print(f"❌ Advanced scheduler router traceback: {traceback.format_exc()}")
             sys.stdout.flush()
             # Continue without advanced scheduler router rather than failing completely
+            pass
+
+        # AI Monitoring router for real-time AI health tracking
+        print("🔄 Importing AI monitoring router...")
+        sys.stdout.flush()
+        try:
+            from app.routers.ai_monitoring import router as ai_monitoring_router
+            print("✅ AI monitoring router imported successfully")
+            sys.stdout.flush()
+            app.include_router(ai_monitoring_router, prefix="/api/v1", tags=["ai-monitoring"])
+            print("✅ AI monitoring router registered")
+            sys.stdout.flush()
+        except Exception as ai_monitoring_error:
+            print(f"❌ AI monitoring router import/registration failed: {ai_monitoring_error}")
+            print(f"❌ AI monitoring router traceback: {traceback.format_exc()}")
+            sys.stdout.flush()
+            # Continue without AI monitoring router rather than failing completely
             pass
 
         print("🎉 All routers registered successfully!")

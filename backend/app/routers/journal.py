@@ -721,7 +721,7 @@ async def delete_journal_entry(
         raise HTTPException(status_code=500, detail=f"Error deleting journal entry: {str(e)}")
 
 @router.delete("/reset/{user_id}")
-@limiter.limit("1/hour")  # Strict rate limit for reset operations
+@limiter.limit("10/minute")  # More lenient rate limit for testing
 async def reset_journal(
     request: Request,  # Required for rate limiter
     user_id: str,

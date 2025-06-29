@@ -13,6 +13,38 @@
 - iOS TestFlight Beta Testing
 - React Native conversion
 
+### 🔧 Fixed
+- **CORS Issues**: Implemented dynamic CORS middleware to handle Vercel preview deployments automatically
+  - Replaced static CORS configuration with regex pattern matching
+  - Added support for any Vercel preview URL pattern
+  - Removed Vercel API rewrites that were causing origin confusion
+  - Future-proof solution that doesn't require manual updates for new deployments
+
+### 🎨 UI/UX Improvements
+- **Journal Entry Interface**: Cleaned up the writing experience
+  - Removed emoji statistics (📝 words, 📊 characters, ⏱️ read time) from bottom of journal box
+  - Simplified header by removing redundant status text
+  - Added contextual minimum character warning that only appears when needed
+  - Moved Voice Input and Add Image buttons closer to text area for better workflow
+  - Reduced visual clutter and improved focus on writing
+
+### 🏗️ Architecture
+- **Backend**: Implemented `DynamicCORSMiddleware` class in `backend/main.py`
+- **Frontend**: Updated `spark-realm/vercel.json` to remove API proxy rewrites
+- **Configuration**: Enhanced CORS handling in `backend/app/core/config.py`
+
+### 📝 Technical Details
+- **Files Modified**: 
+  - `backend/main.py` - Dynamic CORS middleware implementation
+  - `backend/app/core/config.py` - CORS configuration updates
+  - `spark-realm/vercel.json` - Removed API rewrites
+  - `spark-realm/src/pages/JournalEntry.tsx` - UI cleanup and improvements
+
+### 🚀 Deployment
+- **Railway**: Backend updated with dynamic CORS handling
+- **Vercel**: Frontend configuration updated to make direct API calls to Railway
+- **Status**: Both deployments completed successfully
+
 ---
 
 ## [2.0.1] - 2025-01-30 - Critical 404 Error Resolution ✅

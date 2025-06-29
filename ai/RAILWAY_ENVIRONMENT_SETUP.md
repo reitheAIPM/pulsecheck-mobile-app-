@@ -173,14 +173,8 @@ Use these endpoints to monitor the fix:
 3. `SUPABASE_SERVICE_ROLE_KEY` - Service role key for backend operations
 4. `DB_PASSWORD` - Direct database password (optional)
 
-### 🤖 OpenAI Integration Variables (❌ MISSING - AI PERSONAS WON'T WORK)
-5. `OPENAI_API_KEY` - **CRITICAL**: Required for AI personas and responses
-   - Without this, you'll see:
-     - "0 AI companions available" 
-     - 500 errors on `/api/v1/adaptive-ai/personas`
-     - No AI responses in journal entries
-   - Get your API key from: https://platform.openai.com/api-keys
-   - Add to Railway: Variables tab → Add Variable → `OPENAI_API_KEY`
+### 🤖 OpenAI Integration Variables (✅ CONFIGURED)
+5. `OPENAI_API_KEY` - ✅ Set (Critical for AI personas and responses)
 
 ### 🔧 System Variables (Auto-configured)
 6. `PORT` - Railway provides this automatically
