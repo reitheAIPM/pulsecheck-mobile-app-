@@ -206,8 +206,8 @@ class UserPreferencesService:
                 # Set the authorization header for RLS
                 client.postgrest.auth(jwt_token)
             else:
-                # Use default client (service role) for internal operations
-                client = self.db.get_client()
+                # Use service role client for AI operations (bypasses RLS)
+                client = self.db.get_service_client()
             
             # Query user preferences from database
             response = client.table('user_ai_preferences').select('*').eq('user_id', user_id).execute()
@@ -258,8 +258,8 @@ class UserPreferencesService:
                 # Set the authorization header for RLS
                 client.postgrest.auth(jwt_token)
             else:
-                # Use default client (service role) for internal operations
-                client = self.db.get_client()
+                # Use service role client for AI operations (bypasses RLS)
+                client = self.db.get_service_client()
             
             # Prepare data for database
             pref_data = {

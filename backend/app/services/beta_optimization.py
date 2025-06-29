@@ -170,7 +170,7 @@ class UserTierService:
             # For now, we'll query the tables directly.
             # This logic needs to be robust.
             
-            user_result = self.db.get_client().table("users").select("is_premium, daily_ai_usage, daily_usage_reset_at, tier_name").eq("id", user_id).execute()
+            user_result = self.db.get_service_client().table("users").select("is_premium, daily_ai_usage, daily_usage_reset_at, tier_name").eq("id", user_id).execute()
             
             if not user_result.data:
                  # Fallback for new users
@@ -190,7 +190,7 @@ class UserTierService:
             user_data = user_result.data[0]
             tier_name = user_data.get('tier_name', 'free')
 
-            limits_result = self.db.get_client().table("user_tier_limits").select("*").eq("tier_name", tier_name).execute()
+            limits_result = self.db.get_service_client().table("user_tier_limits").select("*").eq("tier_name", tier_name).execute()
             
             if not limits_result.data:
                 # Default to free tier limits if not found
@@ -248,11 +248,11 @@ class UserTierService:
         """Increment daily usage for a user"""
         try:
             # Get current usage first
-            result = self.db.get_client().table("users").select("daily_ai_usage").eq("id", user_id).execute()
+            result = self.db.get_service_client().table("users").select("daily_ai_usage").eq("id", user_id).execute()
             if result.data:
                 current_usage = result.data[0].get("daily_ai_usage") or 0
                 # Update with incremented value
-                self.db.get_client().table("users").update({
+                self.db.get_service_client().table("users").update({
                     "daily_ai_usage": current_usage + 1
                 }).eq("id", user_id).execute()
         except Exception as e:
@@ -262,7 +262,7 @@ class UserTierService:
         """Reset daily usage for a user"""
         try:
             # Use Supabase table update instead of raw SQL
-            self.db.get_client().table("users").update({
+            self.db.get_service_client().table("users").update({
                 "daily_ai_usage": 0,
                 "daily_usage_reset_at": datetime.now(timezone.utc).date().isoformat()
             }).eq("id", user_id).execute()
@@ -308,7 +308,7 @@ class ContextBuilderService:
         if limit == 0:
             return []
         try:
-            result = self.db.get_client().table("journal_entries").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute()
+            result = self.db.get_service_client().table("journal_entries").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute()
             if result.data:
                 return [JournalEntryResponse(**entry) for entry in result.data]
         except Exception as e:
@@ -392,7 +392,7 @@ class CostTracker:
             }
             
             # Use Supabase client method instead of SQLAlchemy
-            self.db.get_client().table("ai_usage_logs").insert(log_data).execute()
+            self.db.get_service_client().table("ai_usage_logs").insert(log_data).execute()
             
         except Exception as e:
             # Silently fail to avoid breaking user-facing flows
@@ -431,7 +431,7 @@ class FeedbackService:
             }
             
             # Use Supabase client method instead of SQLAlchemy
-            self.db.get_client().table("ai_feedback").insert(feedback_data).execute()
+            self.db.get_service_client().table("ai_feedback").insert(feedback_data).execute()
             
         except Exception as e:
             # Silently fail to avoid breaking user-facing flows

@@ -17,11 +17,13 @@ logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 class Database:
-    """Optimized database connection manager for Supabase with connection pooling"""
+    """Enhanced database manager with separate clients for different use cases"""
     
     def __init__(self):
-        self.client: Client = None
+        self.client: Optional[Client] = None  # Anon key client for user operations
+        self.service_client: Optional[Client] = None  # Service role client for AI operations
         self._connected = False
+        self._service_connected = False
         self._connection_pool: dict = {}
         self._last_health_check = 0
         self._health_check_interval = 30  # Check every 30 seconds
@@ -32,13 +34,13 @@ class Database:
             return
             
         try:
-            # Create Supabase client with basic configuration
+            # Create Supabase client with anon key for user operations
             self.client = create_client(
                 supabase_url=settings.SUPABASE_URL,
                 supabase_key=settings.SUPABASE_ANON_KEY
             )
             
-            # Test the connection with a simple query (with implicit timeout from HTTP client)
+            # Test the connection with a simple query
             try:
                 result = self.client.table('profiles').select('id').limit(1).execute()
                 logger.info("✅ Connected to Supabase database with anon key")
@@ -51,24 +53,49 @@ class Database:
                 
         except Exception as e:
             logger.error(f"❌ Failed to connect to Supabase: {e}")
-            # For missing service role key, continue with anon key only
-            if "service" in str(e).lower() or "role" in str(e).lower():
-                logger.warning("⚠️  Service role key missing, using anon key only")
-                try:
-                    self.client = create_client(
-                        supabase_url=settings.SUPABASE_URL,
-                        supabase_key=settings.SUPABASE_ANON_KEY
-                    )
-                    self._connected = True
-                    logger.info("✅ Connected with anon key fallback")
-                except Exception as fallback_error:
-                    logger.error(f"❌ Anon key fallback failed: {fallback_error}")
-                    raise
-            else:
-                raise
+            raise
+    
+    def connect_service_role(self):
+        """Initialize service role client for AI operations that bypass RLS"""
+        if self._service_connected and self.service_client:
+            return
+            
+        try:
+            # Check if service role key is available
+            if not settings.SUPABASE_SERVICE_ROLE_KEY:
+                logger.warning("⚠️  SUPABASE_SERVICE_ROLE_KEY not configured - AI operations may fail")
+                return
+            
+            # Create service role client that bypasses RLS
+            self.service_client = create_client(
+                supabase_url=settings.SUPABASE_URL,
+                supabase_key=settings.SUPABASE_SERVICE_ROLE_KEY,
+                options={
+                    'auth': {
+                        'autoRefreshToken': False,
+                        'persistSession': False,
+                        'detectSessionInUrl': False,
+                    }
+                }
+            )
+            
+            # Test service role connection
+            try:
+                result = self.service_client.table('journal_entries').select('id').limit(1).execute()
+                logger.info("✅ Connected to Supabase with service role (AI operations enabled)")
+                self._service_connected = True
+            except Exception as query_error:
+                logger.warning(f"⚠️  Service role query test failed: {query_error}")
+                # Still consider connected if client creation succeeded
+                logger.info("✅ Service role client created (query test failed but client OK)")
+                self._service_connected = True
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to connect with service role: {e}")
+            logger.warning("AI operations will be limited without service role access")
     
     def get_client(self) -> Client:
-        """Get the Supabase client instance with health checking"""
+        """Get the Supabase anon key client for user operations (subject to RLS)"""
         current_time = time.time()
         
         # Perform periodic health checks
@@ -82,6 +109,18 @@ class Database:
         if not self._connected:
             self.connect()
         return self.client
+    
+    def get_service_client(self) -> Client:
+        """Get the service role client for AI operations (bypasses RLS)"""
+        if not self._service_connected:
+            self.connect_service_role()
+        
+        if not self.service_client:
+            # Fallback to anon key client with warning
+            logger.warning("Service role client unavailable, falling back to anon key (RLS applies)")
+            return self.get_client()
+        
+        return self.service_client
     
     def _is_connection_healthy(self) -> bool:
         """Quick health check for database connection"""
@@ -159,6 +198,7 @@ def get_database() -> Database:
     if _db_instance is None:
         _db_instance = Database()
         _db_instance.connect()  # Eager connection for better performance
+        _db_instance.connect_service_role()  # Initialize service role for AI operations
     return _db_instance
 
 # Export a global supabase client for direct use
