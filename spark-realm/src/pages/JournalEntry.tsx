@@ -439,60 +439,61 @@ const JournalEntry = () => {
                 </div>
               </div>
 
-              {/* Large, Prominent Text Area */}
+              {/* Large, Prominent Text Area with Corner Controls */}
               <div className="relative">
                 <Textarea
                   id="journal-content"
                   placeholder="Start writing here... Let your thoughts flow freely. This is your private space to explore your inner world, process your experiences, and capture what matters to you. Take your time - there's no rush."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[400px] border-0 bg-transparent text-foreground placeholder:text-muted-foreground resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0"
+                  className="min-h-[400px] border-0 bg-transparent text-foreground placeholder:text-muted-foreground resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 pr-20"
                   style={{ fontSize: "16px", lineHeight: "1.4" }}
                 />
                 
-                {/* Move Voice Input and Add Image buttons here */}
-                <div className="flex items-center gap-3 mt-4">
+                {/* Corner Controls - positioned absolutely in top-right */}
+                <div className="absolute top-2 right-2 flex items-center gap-2">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleVoiceInput}
                     disabled={isRecording}
-                    className="gap-2"
+                    className="h-8 w-8 p-0 hover:bg-muted/50"
+                    title={isRecording ? "Recording..." : "Voice Input"}
                   >
                     {isRecording ? (
-                      <>
-                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-                        Recording...
-                      </>
+                      <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse" />
                     ) : (
-                      <>
-                        <Mic className="w-4 h-4" />
-                        Voice Input
-                      </>
+                      <Mic className="w-4 h-4" />
                     )}
                   </Button>
-                  <Button variant="ghost" size="sm" className="gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0 hover:bg-muted/50"
+                    title="Add Image"
+                  >
                     <Camera className="w-4 h-4" />
-                    Add Image
                   </Button>
                 </div>
-                
-                {/* Writing Encouragement */}
+              </div>
+
+              {/* Writing Encouragement - clean and separate */}
+              <div className="mt-4">
                 {content.length > 0 && content.length < 50 && (
-                  <div className="absolute bottom-4 left-0 text-sm text-muted-foreground animate-fade-in">
-                    💭 Keep going... share more of what you're thinking
+                  <div className="text-xs text-muted-foreground animate-fade-in text-center py-2">
+                    💭 Keep going...
                   </div>
                 )}
                 
                 {content.length >= 50 && content.length < 200 && (
-                  <div className="absolute bottom-4 left-0 text-sm text-green-600 animate-fade-in">
-                    ✨ Great start! You're building a meaningful reflection
+                  <div className="text-xs text-green-600 animate-fade-in text-center py-2">
+                    ✨ Great start!
                   </div>
                 )}
                 
                 {content.length >= 200 && (
-                  <div className="absolute bottom-4 left-0 text-sm text-blue-600 animate-fade-in">
-                    🎯 Excellent depth! This kind of reflection is powerful
+                  <div className="text-xs text-blue-600 animate-fade-in text-center py-2">
+                    🎯 Excellent depth!
                   </div>
                 )}
               </div>
