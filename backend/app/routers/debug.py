@@ -2529,3 +2529,146 @@ async def get_recent_activity(
             "error": str(e),
             "timestamp": datetime.now().isoformat()
         }
+
+@router.get("/database-connection-debug")
+@limiter.limit("5/minute")
+async def debug_database_connection(
+    request: Request,
+    db: Database = Depends(get_database)
+):
+    """Debug database connection discrepancies between frontend and backend"""
+    try:
+        import os
+        from supabase import create_client
+        
+        results = {
+            "timestamp": datetime.now().isoformat(),
+            "environment_check": {},
+            "connection_tests": {},
+            "table_schema_check": {},
+            "data_access_tests": {}
+        }
+        
+        # 1. Check environment variables
+        results["environment_check"] = {
+            "supabase_url": os.getenv("SUPABASE_URL", "NOT_SET")[:50] + "..." if os.getenv("SUPABASE_URL") else "NOT_SET",
+            "supabase_anon_key_present": bool(os.getenv("SUPABASE_ANON_KEY")),
+            "supabase_service_role_key_present": bool(os.getenv("SUPABASE_SERVICE_ROLE_KEY")),
+            "anon_key_prefix": os.getenv("SUPABASE_ANON_KEY", "")[:20] + "..." if os.getenv("SUPABASE_ANON_KEY") else "",
+            "service_key_prefix": os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")[:20] + "..." if os.getenv("SUPABASE_SERVICE_ROLE_KEY") else ""
+        }
+        
+        # 2. Test different connection methods
+        try:
+            # Method 1: Database dependency client (regular)
+            regular_client = db.get_client()
+            results["connection_tests"]["regular_client"] = "success"
+        except Exception as e:
+            results["connection_tests"]["regular_client"] = f"error: {str(e)}"
+        
+        try:
+            # Method 2: Database dependency service client
+            service_client = db.get_service_client()
+            results["connection_tests"]["service_client"] = "success"
+        except Exception as e:
+            results["connection_tests"]["service_client"] = f"error: {str(e)}"
+        
+        try:
+            # Method 3: Direct anon client creation
+            direct_anon = create_client(
+                os.getenv("SUPABASE_URL"),
+                os.getenv("SUPABASE_ANON_KEY")
+            )
+            results["connection_tests"]["direct_anon_client"] = "success"
+        except Exception as e:
+            results["connection_tests"]["direct_anon_client"] = f"error: {str(e)}"
+        
+        try:
+            # Method 4: Direct service role client creation
+            direct_service = create_client(
+                os.getenv("SUPABASE_URL"),
+                os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+            )
+            results["connection_tests"]["direct_service_client"] = "success"
+        except Exception as e:
+            results["connection_tests"]["direct_service_client"] = f"error: {str(e)}"
+        
+        # 3. Check table schemas and existence
+        try:
+            service_client = db.get_service_client()
+            
+            # Check if tables exist and get basic info
+            tables_to_check = ["journal_entries", "profiles", "ai_insights", "user_ai_preferences"]
+            
+            for table_name in tables_to_check:
+                try:
+                    # Try to get table info by selecting with limit 0
+                    result = service_client.table(table_name).select("*").limit(0).execute()
+                    results["table_schema_check"][table_name] = "exists"
+                except Exception as e:
+                    results["table_schema_check"][table_name] = f"error: {str(e)}"
+        except Exception as e:
+            results["table_schema_check"]["error"] = str(e)
+        
+        # 4. Test data access with different methods
+        try:
+            service_client = db.get_service_client()
+            
+            # Test 1: Count all entries in journal_entries
+            try:
+                count_result = service_client.table("journal_entries").select("*", count="exact").execute()
+                results["data_access_tests"]["journal_entries_count"] = count_result.count if hasattr(count_result, 'count') else len(count_result.data or [])
+            except Exception as e:
+                results["data_access_tests"]["journal_entries_count"] = f"error: {str(e)}"
+            
+            # Test 2: Get sample entries
+            try:
+                sample_result = service_client.table("journal_entries").select("id, user_id, created_at").limit(5).execute()
+                results["data_access_tests"]["sample_entries"] = len(sample_result.data) if sample_result.data else 0
+                if sample_result.data:
+                    results["data_access_tests"]["sample_data"] = sample_result.data[:2]  # First 2 entries for debugging
+            except Exception as e:
+                results["data_access_tests"]["sample_entries"] = f"error: {str(e)}"
+            
+            # Test 3: Count users
+            try:
+                users_result = service_client.table("profiles").select("*", count="exact").execute()
+                results["data_access_tests"]["users_count"] = users_result.count if hasattr(users_result, 'count') else len(users_result.data or [])
+            except Exception as e:
+                results["data_access_tests"]["users_count"] = f"error: {str(e)}"
+            
+            # Test 4: Count AI insights
+            try:
+                ai_result = service_client.table("ai_insights").select("*", count="exact").execute()
+                results["data_access_tests"]["ai_insights_count"] = ai_result.count if hasattr(ai_result, 'count') else len(ai_result.data or [])
+            except Exception as e:
+                results["data_access_tests"]["ai_insights_count"] = f"error: {str(e)}"
+                
+        except Exception as e:
+            results["data_access_tests"]["error"] = str(e)
+        
+        # 5. Compare with what frontend expects
+        results["frontend_comparison"] = {
+            "frontend_reports": "29 journal entries via /api/v1/journal/entries",
+            "backend_service_role_sees": results["data_access_tests"].get("journal_entries_count", "unknown"),
+            "discrepancy": results["data_access_tests"].get("journal_entries_count", 0) != 29,
+            "possible_causes": [
+                "Different database instances (different SUPABASE_URL)",
+                "Different authentication contexts",
+                "Frontend using cached data",
+                "RLS policies blocking service role access",
+                "Table name or schema differences"
+            ]
+        }
+        
+        return {
+            "status": "success",
+            "debug_results": results
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
