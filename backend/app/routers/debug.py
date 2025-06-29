@@ -2318,7 +2318,9 @@ def generate_documentation_based_recommendations(failed_checks):
     return recommendations
 
 @router.get("/test-service-role-access")
+@limiter.limit("10/minute")
 async def test_service_role_access(
+    request: Request,
     db: Database = Depends(get_database)
 ):
     """
@@ -2389,19 +2391,20 @@ async def test_service_role_access(
         
         return {
             "test": "service_role_access_validation",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now().isoformat(),
             "results": results
         }
         
     except Exception as e:
         return {
             "test": "service_role_access_validation",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now().isoformat(),
             "error": str(e),
             "status": "failed"
         }
 
 @router.get("/simple-test")
-async def simple_test():
+@limiter.limit("10/minute")
+async def simple_test(request: Request):
     """Simple test endpoint to verify routing works"""
     return {"status": "success", "message": "Debug router is working"}
