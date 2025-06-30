@@ -225,12 +225,13 @@ class DynamicCORSMiddleware:
             
             async def send_wrapper(message):
                 if message["type"] == "http.response.start" and is_allowed:
-                    headers = MutableHeaders(scope=message)
+                    headers = MutableHeaders(raw=message.get("headers", []))
                     headers["Access-Control-Allow-Origin"] = origin
                     headers["Access-Control-Allow-Credentials"] = "true"
                     headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
                     headers["Access-Control-Allow-Headers"] = "*"
                     headers["Access-Control-Max-Age"] = "3600"
+                    message["headers"] = headers.raw
                 await send(message)
             
             # Handle preflight requests
