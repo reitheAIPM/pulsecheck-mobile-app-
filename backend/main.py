@@ -201,6 +201,7 @@ class DynamicCORSMiddleware:
         self.allowed_patterns = [
             re.compile(r"^https://pulsecheck-mobile-app\.vercel\.app$"),
             re.compile(r"^https://pulsecheck-mobile-[a-z0-9]+-reitheaipms-projects\.vercel\.app$"),
+            re.compile(r"^https://pulsecheck-mobile-[a-z0-9-]+-reitheaipms-projects\.vercel\.app$"),
             re.compile(r"^https://[a-z0-9-]+-reitheaipms-projects\.vercel\.app$"),
             re.compile(r"^http://localhost:\d+$"),
         ]
