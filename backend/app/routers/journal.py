@@ -745,7 +745,8 @@ async def reset_journal(
                 detail="Must set confirm=true to reset journal data"
             )
         
-        client = db.get_client()
+        # CRITICAL: Use service role client to bypass RLS for admin operations
+        client = db.get_service_client()
         
         # Count entries before deletion for confirmation
         count_result = client.table("journal_entries").select("id", count="exact").eq("user_id", user_id).execute()
@@ -762,6 +763,9 @@ async def reset_journal(
         
         # Also delete related AI insights
         client.table("ai_insights").delete().eq("user_id", user_id).execute()
+        
+        # Also delete user patterns and preferences for complete reset
+        client.table("user_ai_preferences").delete().eq("user_id", user_id).execute()
         
         return {
             "message": f"Journal reset completed for user {user_id}",
