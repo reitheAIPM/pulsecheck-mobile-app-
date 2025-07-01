@@ -1047,6 +1047,58 @@ async def root():
     return {"message": "PulseCheck API with Enhanced Debug Logging", "version": "2.0.0-debug-enhanced"}
 
 # QUICK FIX: Manual AI endpoints added directly to main.py to bypass router registration issues
+@app.get("/api/v1/manual-ai/list-journals/{user_id}")
+async def list_user_journals(user_id: str):
+    """List journal entries for a user so they can see journal IDs for testing"""
+    try:
+        from app.core.database import get_database
+        
+        db = get_database()
+        supabase = db.get_client()
+        
+        # Get recent journal entries for this user
+        response = supabase.table("journal_entries").select(
+            "id, content, mood_rating, energy_level, created_at"
+        ).eq("user_id", user_id).order("created_at", desc=True).limit(10).execute()
+        
+        if not response.data:
+            return {
+                "user_id": user_id,
+                "message": "No journal entries found for this user",
+                "journal_entries": [],
+                "next_step": "Create a journal entry first using your mobile app"
+            }
+        
+        # Format the results for easy reading
+        formatted_entries = []
+        for entry in response.data:
+            formatted_entries.append({
+                "journal_id": entry["id"],
+                "content_preview": entry["content"][:100] + "..." if len(entry["content"]) > 100 else entry["content"],
+                "mood_rating": entry["mood_rating"],
+                "energy_level": entry["energy_level"],
+                "created_at": entry["created_at"]
+            })
+        
+        return {
+            "success": True,
+            "user_id": user_id,
+            "total_entries": len(formatted_entries),
+            "journal_entries": formatted_entries,
+            "instructions": {
+                "you_asked": "I don't know what the journal ID is?",
+                "answer": "Here are your journal IDs! Pick any journal_id from the list above for testing.",
+                "next_step": "Use any journal_id with other endpoints or simply note them for reference"
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "error": f"Failed to list journal entries: {str(e)}",
+            "user_id": user_id,
+            "troubleshooting": "Check database connectivity and user_id format"
+        }
+
 @app.post("/api/v1/manual-ai/respond-to-latest/{user_id}")
 async def manual_respond_to_latest(user_id: str):
     """Automatically find user's most recent journal entry and generate AI response"""
