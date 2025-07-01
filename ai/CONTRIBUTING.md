@@ -207,13 +207,34 @@ Our debug system is designed to **prevent false positives** that could mislead A
 - **Environment**: Windows PowerShell - **NOT Unix/Linux**
 
 ### **🚨 CRITICAL: PowerShell Compatibility Requirements**
-**❗ ALWAYS Use curl.exe in PowerShell (NOT curl)**
-```powershell
-# ✅ CORRECT - Use curl.exe for PowerShell compatibility
-curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/summary"
+**❗ ALWAYS Use Invoke-WebRequest for API Testing in PowerShell**
 
-# ❌ WRONG - Don't use curl (causes PowerShell issues)
-curl -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/summary"
+**For POST Requests (Testing Mode Control):**
+```powershell
+# ✅ CORRECT - Enable AI testing mode
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/enable" -Method POST
+
+# ✅ CORRECT - Disable AI testing mode  
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/disable" -Method POST
+
+# ✅ CORRECT - Check testing mode status
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/status" -Method GET
+```
+
+**For GET Requests (System Health):**
+```powershell
+# ✅ CORRECT - Use curl.exe for simple GET requests
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/health"
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/status"
+
+# ❌ WRONG - Don't use curl -X in PowerShell (causes parameter binding errors)
+curl -X POST "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/enable"
+```
+
+**For JSON Response Parsing:**
+```powershell
+# ✅ CORRECT - Parse JSON responses for detailed analysis
+(Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/status" -Method GET).Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
 ```
 
 ### **📋 CONFIRMED ENVIRONMENT VARIABLES STATUS**
@@ -227,6 +248,99 @@ Why this matters:
 - Don't waste time checking environment variables that are already configured
 - Focus on code bugs, API connectivity, and service logic issues first
 - All critical integrations (OpenAI, Supabase, JWT) have proper credentials
+
+### **🚨 CRITICAL: AI TESTING MODE SYSTEM**
+
+**❗ PRODUCTION TESTING CAPABILITY**: The system includes a testing mode for immediate AI responses
+
+#### **AI Testing Mode Overview**
+The production system includes a sophisticated testing mode that allows bypassing all timing delays for immediate AI response testing:
+
+**Testing Mode Features:**
+- **Immediate responses**: All AI timing delays bypassed (5min-1hr → 0min)
+- **Bombardment prevention disabled**: No 30-minute minimums between responses
+- **Production-safe**: Can be enabled/disabled without affecting live users
+- **Real-time status**: Complete visibility into current testing state
+
+#### **Testing Mode API Endpoints**
+```powershell
+# Enable testing mode (bypasses all delays)
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/enable" -Method POST
+
+# Disable testing mode (restores production timing)
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/disable" -Method POST
+
+# Check current testing status
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/status" -Method GET
+```
+
+#### **Testing Mode Response Examples**
+
+**When Enabled:**
+```json
+{
+  "testing_mode": true,
+  "status": "enabled",
+  "message": "AI responses will now be immediate (bypassing all delays)",
+  "testing_behavior": {
+    "all_delays_bypassed": true,
+    "bombardment_prevention_disabled": true,
+    "immediate_responses": true
+  },
+  "production_timing": {
+    "initial_comment_min": 5,
+    "initial_comment_max": 60,
+    "collaborative_delay": 15,
+    "bombardment_prevention": 30
+  }
+}
+```
+
+**When Disabled:**
+```json
+{
+  "testing_mode": false,
+  "status": "disabled",
+  "message": "Restored production timing: 5min-1hour delays with bombardment prevention",
+  "testing_behavior": {
+    "all_delays_bypassed": false,
+    "bombardment_prevention_disabled": false,
+    "immediate_responses": false
+  }
+}
+```
+
+#### **Testing Mode Usage Guidelines**
+
+**When to Enable:**
+- Testing AI response quality and content
+- Validating journal entry → AI response workflows
+- Debugging AI persona behavior
+- Demonstrating system capabilities
+
+**When to Disable:**
+- After completing testing sessions
+- Before leaving system unattended
+- To restore natural user experience timing
+- For production user validation
+
+**⚠️ Important Notes:**
+- Testing mode affects the entire system (all users)
+- Always disable after testing to maintain natural user experience
+- Scheduler may show as "stopped" after deployments (normal)
+- Testing mode works independently of scheduler running state
+
+#### **System Health Monitoring**
+```powershell
+# Check overall system health
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/health"
+
+# Check AI scheduler status
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/status"
+
+# Check database connectivity
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/database/comprehensive-status"
+```
 
 ### **🎯 CRITICAL: AI PERSONA BEHAVIOR REQUIREMENTS**
 

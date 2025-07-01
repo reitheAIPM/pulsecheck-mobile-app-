@@ -203,9 +203,10 @@ The debugging system is now integrated with a **single, comprehensive testing sc
 
 **Location**: `tests/unified_testing.ps1`
 
-**🔧 Testing Modes (4 Options):**
+**🔧 Testing Modes (5 Options):**
 - **🔒 Security Scan** (`security`): Vulnerability scanning and dependency validation (10 seconds)
 - **🤖 Quick AI Check** (`quick`): AI debugging endpoints health check (30 seconds)
+- **⚡ AI Testing Mode** (`testing`): Immediate AI response testing with bypassed delays (60 seconds)
 - **🌐 Full System** (`full`): Complete runtime validation without AI (45 seconds)  
 - **🎯 Everything** (default): Security + AI + Runtime comprehensive testing (2 minutes)
 
@@ -241,6 +242,185 @@ The debugging system is now integrated with a **single, comprehensive testing sc
 2. **Consolidated Workflow**: One script replaces 3+ separate scripts
 3. **Production Ready**: 100% success rate indicates excellent system health
 4. **Development Integration**: Perfect for CI/CD and daily development
+
+---
+
+## ⚡ **AI TESTING MODE SYSTEM (CRITICAL DEBUGGING CAPABILITY)**
+
+### **🎯 SYSTEM OVERVIEW**
+The AI Testing Mode is a **production-safe debugging system** that allows bypassing all AI timing delays for immediate response testing without affecting live users.
+
+### **✅ PRODUCTION TESTING CAPABILITY**
+- **Immediate AI responses**: All timing delays bypassed (5min-1hr → 0min)
+- **Bombardment prevention disabled**: No 30-minute minimums between responses
+- **Real-time status monitoring**: Complete visibility into current testing state
+- **Production-safe operation**: Can be toggled without affecting live user experience
+
+### **🔧 POWERSHELL COMPATIBILITY REQUIREMENTS**
+
+**❗ CRITICAL**: Use `Invoke-WebRequest` for POST requests, NOT `curl -X` which fails in PowerShell
+
+```powershell
+# ✅ CORRECT - Enable AI testing mode
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/enable" -Method POST
+
+# ✅ CORRECT - Disable AI testing mode  
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/disable" -Method POST
+
+# ✅ CORRECT - Check testing mode status
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/status" -Method GET
+
+# ❌ WRONG - PowerShell parameter binding error
+curl -X POST "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/enable"
+```
+
+### **📋 TESTING MODE API ENDPOINTS**
+
+#### **Control Endpoints**
+```powershell
+# Enable testing mode (bypasses all delays)
+POST /api/v1/scheduler/testing/enable
+
+# Disable testing mode (restores production timing)  
+POST /api/v1/scheduler/testing/disable
+
+# Check current testing status
+GET /api/v1/scheduler/testing/status
+```
+
+#### **Response Examples**
+
+**When Testing Mode Enabled:**
+```json
+{
+  "testing_mode": true,
+  "status": "enabled",
+  "message": "AI responses will now be immediate (bypassing all delays)",
+  "testing_behavior": {
+    "all_delays_bypassed": true,
+    "bombardment_prevention_disabled": true,
+    "immediate_responses": true
+  },
+  "production_timing": {
+    "initial_comment_min": 5,
+    "initial_comment_max": 60,
+    "collaborative_delay": 15,
+    "bombardment_prevention": 30
+  },
+  "scheduler_status": "running|stopped"
+}
+```
+
+**When Testing Mode Disabled:**
+```json
+{
+  "testing_mode": false,
+  "status": "disabled", 
+  "message": "Restored production timing: 5min-1hour delays with bombardment prevention",
+  "testing_behavior": {
+    "all_delays_bypassed": false,
+    "bombardment_prevention_disabled": false,
+    "immediate_responses": false
+  }
+}
+```
+
+### **🚨 CRITICAL USAGE GUIDELINES**
+
+#### **When to Enable Testing Mode:**
+- **AI response quality testing**: Validate persona behavior and content
+- **Journal workflow debugging**: Test journal entry → AI response cycles
+- **Demonstration purposes**: Show system capabilities to stakeholders
+- **Development debugging**: Immediate feedback during AI development
+
+#### **When to Disable Testing Mode:**
+- **After completing testing sessions**: Always restore production timing
+- **Before leaving system unattended**: Prevent unintended behavior changes
+- **For production user validation**: Maintain natural user experience
+- **During live user sessions**: Respect intended interaction patterns
+
+### **⚠️ IMPORTANT OPERATIONAL NOTES**
+
+#### **System-Wide Impact**
+- **Testing mode affects ALL users**: Not scoped to individual users
+- **Independent of scheduler state**: Works even when scheduler shows "stopped"
+- **Deployment persistence**: May reset during Railway deployments
+- **Real-time effectiveness**: Changes take effect immediately
+
+#### **Scheduler Status Clarification**
+- **"Stopped" after deployments**: Normal Railway deployment behavior
+- **Testing mode independence**: Testing endpoints work regardless of scheduler state
+- **No impact on testing**: Testing mode functionality unaffected by scheduler status
+- **Expected behavior**: Scheduler may show stopped but testing mode still operational
+
+### **🔍 DEBUGGING WORKFLOW WITH TESTING MODE**
+
+#### **Standard AI Debugging Protocol:**
+```powershell
+# 1. Enable testing mode for immediate responses
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/enable" -Method POST
+
+# 2. Verify testing mode is active
+$status = Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/status" -Method GET
+$statusData = $status.Content | ConvertFrom-Json
+Write-Host "Testing Mode: $($statusData.testing_mode)"
+
+# 3. Perform AI interaction testing (create journal entries, trigger responses)
+
+# 4. Monitor system health during testing
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/health"
+
+# 5. Disable testing mode when finished
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/disable" -Method POST
+
+# 6. Verify production timing restored
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/status" -Method GET
+```
+
+#### **JSON Response Parsing for Detailed Analysis:**
+```powershell
+# Parse and format JSON responses for comprehensive analysis
+$response = Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/status" -Method GET
+$data = $response.Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
+Write-Host $data
+```
+
+### **🎯 INTEGRATION WITH OTHER DEBUGGING SYSTEMS**
+
+#### **Combined with System Health Monitoring:**
+```powershell
+# Check overall system health before testing
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/health"
+
+# Check AI scheduler status  
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/status"
+
+# Enable testing mode
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/enable" -Method POST
+
+# Monitor during testing
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/database/comprehensive-status"
+```
+
+#### **Error Prevention & Validation:**
+- **Always check status after enabling**: Verify `"testing_mode": true` response
+- **Monitor system health during testing**: Watch for degraded status or errors
+- **Always disable after testing**: Prevent unintended production behavior changes
+- **Document testing sessions**: Record what was tested and results
+
+### **📊 TESTING MODE PERFORMANCE METRICS**
+
+#### **Expected Response Times:**
+- **Enable/Disable requests**: < 5ms response time
+- **Status checks**: < 2ms response time  
+- **Immediate AI responses**: < 30 seconds (vs 5min-1hr production)
+- **System health checks**: < 100ms response time
+
+#### **Success Indicators:**
+- **Status Response**: `"testing_mode": true` when enabled
+- **Behavior Flags**: All bypass flags set to `true` when enabled
+- **No Errors**: Clean responses without exception messages
+- **Immediate Effects**: AI responses trigger immediately when testing mode active
 
 ---
 
