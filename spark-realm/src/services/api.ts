@@ -225,8 +225,8 @@ class ApiService {
   private baseURL: string;
 
   constructor() {
-    // Use environment variable for API URL, fallback to Railway production
-    this.baseURL = import.meta.env.VITE_API_URL || 'https://pulsecheck-mobile-app-production.up.railway.app';
+    // Use environment variable for API URL, fallback to relative URLs (goes through Vercel proxy)
+    this.baseURL = import.meta.env.VITE_API_URL || '';
     
     this.client = axios.create({
       baseURL: this.baseURL,

@@ -76,7 +76,7 @@ const AIMonitoring: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  const API_BASE = process.env.REACT_APP_API_URL || 'https://pulsecheck-backend-production.up.railway.app';
+  const API_BASE = process.env.REACT_APP_API_URL || '';
 
   const fetchAIHealth = async () => {
     try {

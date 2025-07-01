@@ -5,6 +5,18 @@
   "installCommand": "npm install",
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "https://pulsecheck-mobile-app-production.up.railway.app/api/$1"
+    },
+    {
+      "source": "/health",
+      "destination": "https://pulsecheck-mobile-app-production.up.railway.app/health"
+    },
+    {
+      "source": "/cors-test",
+      "destination": "https://pulsecheck-mobile-app-production.up.railway.app/cors-test"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

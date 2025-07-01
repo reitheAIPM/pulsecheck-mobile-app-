@@ -85,7 +85,7 @@ export default function Auth() {
       try {
         console.log('🌐 Testing network connectivity...');
         // Use GET instead of HEAD - the health endpoint doesn't support HEAD requests
-        const response = await fetch('https://pulsecheck-mobile-app-production.up.railway.app/health', { 
+        const response = await fetch('/health', { 
           method: 'GET',
           cache: 'no-cache'
         });
