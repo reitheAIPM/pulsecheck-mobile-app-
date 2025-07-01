@@ -1051,10 +1051,11 @@ async def root():
 async def manual_respond_to_latest(user_id: str):
     """Automatically find user's most recent journal entry and generate AI response"""
     try:
-        from app.core.database import get_supabase_service_client
+        from app.core.database import get_database
         from app.services.ai_service import create_ai_comment
         
-        supabase = get_supabase_service_client()
+        db = get_database()
+        supabase = db.get_client()
         
         # Find the most recent journal entry for this user
         response = supabase.table("journal_entries").select(
