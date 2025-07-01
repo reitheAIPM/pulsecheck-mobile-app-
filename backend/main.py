@@ -1047,6 +1047,59 @@ async def root():
     return {"message": "PulseCheck API with Enhanced Debug Logging", "version": "2.0.0-debug-enhanced"}
 
 # QUICK FIX: Manual AI endpoints added directly to main.py to bypass router registration issues
+@app.get("/api/v1/manual-ai/debug-database/{user_id}")
+async def debug_database_access(user_id: str):
+    """Debug database access to see why journal entries aren't visible"""
+    try:
+        from app.core.database import get_database
+        
+        db = get_database()
+        supabase = db.get_client()
+        
+        # Test 1: Raw table query
+        try:
+            raw_response = supabase.table("journal_entries").select("*").execute()
+            raw_count = len(raw_response.data) if raw_response.data else 0
+        except Exception as e:
+            raw_count = f"ERROR: {str(e)}"
+        
+        # Test 2: User-specific query
+        try:
+            user_response = supabase.table("journal_entries").select("*").eq("user_id", user_id).execute()
+            user_count = len(user_response.data) if user_response.data else 0
+            user_data = user_response.data[:3] if user_response.data else []  # First 3 entries
+        except Exception as e:
+            user_count = f"ERROR: {str(e)}"
+            user_data = []
+        
+        # Test 3: Check if using service role
+        client_info = str(type(supabase))
+        
+        return {
+            "user_id": user_id,
+            "diagnosis": "Journal entries exist in mobile app but API can't see them",
+            "database_tests": {
+                "raw_table_count": raw_count,
+                "user_specific_count": user_count,
+                "user_entries_sample": user_data,
+                "client_type": client_info
+            },
+            "possible_causes": [
+                "RLS policies blocking service role access",
+                "Mobile app using different database",
+                "Service role vs anon role mismatch",
+                "Table schema differences"
+            ],
+            "next_steps": "Check RLS policies and service role permissions"
+        }
+        
+    except Exception as e:
+        return {
+            "error": f"Database test failed: {str(e)}",
+            "user_id": user_id,
+            "diagnosis": "Cannot access database at all"
+        }
+
 @app.get("/api/v1/manual-ai/list-journals/{user_id}")
 async def list_user_journals(user_id: str):
     """List journal entries for a user so they can see journal IDs for testing"""
