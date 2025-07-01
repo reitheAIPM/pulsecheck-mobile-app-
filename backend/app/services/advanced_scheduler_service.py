@@ -555,4 +555,38 @@ class AdvancedSchedulerService:
         if self.metrics.engagement_success_rate < 20:
             recommendations.append("Low engagement success rate - consider adjusting timing strategies")
         
-        return recommendations 
+        return recommendations
+
+
+# Global scheduler instance
+_scheduler_instance: Optional[AdvancedSchedulerService] = None
+
+
+def get_scheduler_service() -> AdvancedSchedulerService:
+    """Get or create scheduler service instance"""
+    global _scheduler_instance
+    
+    if _scheduler_instance is None:
+        db = get_database()
+        _scheduler_instance = AdvancedSchedulerService(db)
+        logger.info("Created new AdvancedSchedulerService instance")
+    
+    return _scheduler_instance
+
+
+async def start():
+    """Start the scheduler service"""
+    scheduler = get_scheduler_service()
+    return await scheduler.start_scheduler()
+
+
+async def stop():
+    """Stop the scheduler service"""
+    scheduler = get_scheduler_service()
+    return await scheduler.stop_scheduler()
+
+
+def get_status():
+    """Get scheduler status"""
+    scheduler = get_scheduler_service()
+    return scheduler.get_scheduler_status() 

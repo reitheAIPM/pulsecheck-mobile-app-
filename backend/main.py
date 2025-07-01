@@ -257,7 +257,7 @@ class DynamicCORSMiddleware:
                     headers = MutableHeaders(raw=message.get("headers", []))
                     headers["Access-Control-Allow-Origin"] = origin
                     headers["Access-Control-Allow-Credentials"] = "true"
-                    headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+                    headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
                     headers["Access-Control-Allow-Headers"] = "*"
                     headers["Access-Control-Max-Age"] = "3600"
                     message["headers"] = headers.raw
@@ -268,7 +268,7 @@ class DynamicCORSMiddleware:
                 response_headers = [
                     (b"access-control-allow-origin", origin.encode()),
                     (b"access-control-allow-credentials", b"true"),
-                    (b"access-control-allow-methods", b"GET, POST, PUT, DELETE, OPTIONS"),
+                    (b"access-control-allow-methods", b"GET, POST, PUT, PATCH, DELETE, OPTIONS"),
                     (b"access-control-allow-headers", b"*"),
                     (b"access-control-max-age", b"3600"),
                     (b"content-length", b"0"),
@@ -1011,6 +1011,25 @@ def register_routers():
             routers_failed += 1
             sys.stdout.flush()
             # Continue without admin monitoring router rather than failing completely
+            pass
+
+        # Manual AI Response router for testing AI without scheduler
+        print("🔄 Importing manual AI response router...")
+        sys.stdout.flush()
+        try:
+            from app.routers.manual_ai_response import router as manual_ai_router
+            print("✅ Manual AI response router imported successfully")
+            sys.stdout.flush()
+            app.include_router(manual_ai_router, tags=["manual-ai"])  # Router already has prefix
+            print("✅ Manual AI response router registered")
+            routers_registered += 1
+            sys.stdout.flush()
+        except Exception as manual_ai_error:
+            print(f"❌ Manual AI response router import/registration failed: {manual_ai_error}")
+            print(f"❌ Manual AI response router traceback: {traceback.format_exc()}")
+            routers_failed += 1
+            sys.stdout.flush()
+            # Continue without manual AI router rather than failing completely
             pass
 
         print(f"🎉 Router registration complete! {routers_registered} routers registered successfully, {routers_failed} optional routers failed")
