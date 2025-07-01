@@ -80,8 +80,18 @@ from app.middleware.observability_middleware import ObservabilityMiddleware
 
 # Import required modules for lifespan and services
 from app.core.database import get_database, init_supabase
-from app.services.advanced_scheduler_service import get_scheduler_service
 from app.middleware.observability_middleware import ObservabilityMiddleware
+
+# Import scheduler service with error handling for Railway deployment
+try:
+    from app.services.advanced_scheduler_service import get_scheduler_service
+    scheduler_available = True
+except ImportError as e:
+    logger.warning(f"Scheduler service not available: {e}")
+    scheduler_available = False
+    
+    def get_scheduler_service():
+        raise ImportError("Scheduler service not available")
 
 # Global scheduler reference for graceful shutdown
 scheduler_service = None
@@ -141,11 +151,18 @@ async def lifespan(app: FastAPI):
         register_routers()
         logger.info("✅ All API routers registered successfully")
         
-        # Start advanced scheduler
-        logger.info("🤖 Starting advanced AI scheduler...")
-        scheduler_service = get_scheduler_service()
-        await scheduler_service.start()
-        logger.info("✅ Advanced AI scheduler started successfully")
+        # Start advanced scheduler if available
+        if scheduler_available:
+            logger.info("🤖 Starting advanced AI scheduler...")
+            try:
+                scheduler_service = get_scheduler_service()
+                await scheduler_service.start()
+                logger.info("✅ Advanced AI scheduler started successfully")
+            except Exception as e:
+                logger.error(f"⚠️ Scheduler startup failed (continuing without scheduler): {e}")
+                # Continue without scheduler to allow Railway deployment to complete
+        else:
+            logger.info("⚠️ Advanced AI scheduler not available, continuing without background scheduling")
         
         yield
         
@@ -166,9 +183,12 @@ async def lifespan(app: FastAPI):
         summary = observability.get_ai_debugging_summary()
         logger.info(f"📊 Final system summary: {summary}")
         
-        if scheduler_service:
-            await scheduler_service.stop()
-            logger.info("✅ Scheduler stopped gracefully")
+        if scheduler_service and scheduler_available:
+            try:
+                await scheduler_service.stop()
+                logger.info("✅ Scheduler stopped gracefully")
+            except Exception as e:
+                logger.error(f"Error stopping scheduler: {e}")
         
     except Exception as e:
         logger.error(f"Error during shutdown: {e}")
