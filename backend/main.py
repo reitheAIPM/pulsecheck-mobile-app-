@@ -23,7 +23,7 @@ import os
 from dotenv import load_dotenv
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 import sys
 import traceback
 import asyncio
@@ -1235,6 +1235,53 @@ def signal_handler(signum, frame):
 # Register signal handlers
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
+
+@app.get("/api/v1/debug/test-database-access")
+async def test_database_access():
+    """Simple test to check if we can access journal entries after RLS fix"""
+    try:
+        from app.core.database import get_database
+        
+        db = get_database()
+        supabase = db.get_client()
+        
+        # Test 1: Try to read ANY journal entries (should work with service role)
+        try:
+            result = supabase.table("journal_entries").select("id, user_id, content, created_at").limit(5).execute()
+            journal_count = len(result.data) if result.data else 0
+            sample_entries = result.data[:2] if result.data else []
+        except Exception as e:
+            journal_count = f"ERROR: {str(e)}"
+            sample_entries = []
+        
+        # Test 2: Check if table exists and what columns it has
+        try:
+            table_info = supabase.rpc("get_table_info", {"table_name": "journal_entries"}).execute()
+            table_exists = True
+        except Exception as e:
+            table_exists = f"ERROR: {str(e)}"
+            table_info = None
+        
+        return {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "test_type": "direct_database_access",
+            "rls_fix_applied": "2025-07-01T23:02:48",
+            "journal_table_access": {
+                "total_entries_found": journal_count,
+                "sample_entries": sample_entries,
+                "table_exists": table_exists
+            },
+            "database_client": str(type(supabase)),
+            "success": journal_count > 0
+        }
+    
+    except Exception as e:
+        return {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "test_type": "direct_database_access",
+            "error": str(e),
+            "success": False
+        }
 
 if __name__ == "__main__":
     import uvicorn
