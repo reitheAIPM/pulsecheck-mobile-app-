@@ -498,7 +498,7 @@ class ComprehensiveProactiveAIService:
         """Apply bombardment prevention logic"""
         if not opportunities:
             return opportunities
-
+        
         # 🧪 TESTING MODE - Skip bombardment prevention for immediate responses
         if self.testing_mode:
             logger.info(f"🧪 Testing mode: Skipping bombardment prevention for user {user_id}")
@@ -508,11 +508,11 @@ class ComprehensiveProactiveAIService:
         # CRITICAL: Use service role client to bypass RLS for AI operations
         client = self.db.get_service_client()
         last_response_result = client.table("ai_insights").select("created_at").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
-
+        
         if last_response_result.data:
             last_response_time = datetime.fromisoformat(last_response_result.data[0]["created_at"].replace('Z', '+00:00'))
             minutes_since_last = (datetime.now(timezone.utc) - last_response_time).total_seconds() / 60
-
+            
             # If less than bombardment prevention time, filter opportunities
             if minutes_since_last < self.timing_configs["bombardment_prevention"]:
                 # Only keep highest priority opportunity and delay it
@@ -524,7 +524,7 @@ class ComprehensiveProactiveAIService:
                     )
                     return [top_opportunity]
                 return []
-
+        
         return opportunities
     
     async def _count_todays_ai_responses(self, user_id: str) -> int:
