@@ -69,24 +69,7 @@ except Exception as e:
     settings = MinimalSettings()
     limiter = None
 
-# Import routers with error handling to prevent deployment failures
-try:
-    from app.routers import auth
-    from app.routers import checkins
-    from app.routers import journal
-    from app.routers import admin
-    from app.routers import debugging
-    from app.routers.adaptive_ai import router as adaptive_ai_router
-except Exception as e:
-    logger.error(f"Error importing routers: {e}")
-    # Create minimal fallback routers
-    from fastapi import APIRouter
-    auth = APIRouter()
-    checkins = APIRouter()
-    journal = APIRouter()
-    admin = APIRouter()
-    debugging = APIRouter()
-    adaptive_ai_router = APIRouter()
+# Note: Routers are now imported and registered in the lifespan function
 
 from app.core.monitoring import monitor, log_error, log_performance, check_health, ErrorSeverity, ErrorCategory
 from app.core.database import engine, Base, get_database
@@ -95,12 +78,8 @@ from app.core.database import engine, Base, get_database
 from app.core.observability import init_observability, observability
 from app.middleware.observability_middleware import ObservabilityMiddleware
 
-# Import all routers
-from app.routers import pulse_ai, debug, advanced_scheduler, ai_monitoring, adaptive_ai, admin
-from app.routers import database_debug
-from app.routers import admin_monitoring  # NEW: Admin monitoring with service role access
+# Import required modules for lifespan and services
 from app.core.database import get_database, init_supabase
-from app.core.config import settings
 from app.services.advanced_scheduler_service import get_scheduler_service
 from app.middleware.observability_middleware import ObservabilityMiddleware
 
@@ -156,6 +135,11 @@ async def lifespan(app: FastAPI):
             logger.info("✅ Database connection pool warmed up")
         except Exception as e:
             logger.warning(f"⚠️  Database warmup failed: {e}")
+        
+        # Register routers after all initialization is complete
+        logger.info("🔄 Registering API routers...")
+        register_routers()
+        logger.info("✅ All API routers registered successfully")
         
         # Start advanced scheduler
         logger.info("🤖 Starting advanced AI scheduler...")
@@ -755,6 +739,9 @@ async def record_ai_debugging_attempt(error_id: str, attempt_details: Dict[str, 
 # Router registration with enhanced debugging
 def register_routers():
     """Register all API routers with comprehensive error handling"""
+    routers_registered = 0
+    routers_failed = 0
+    
     try:
         # Import sys and os first before using them
         import sys
@@ -779,6 +766,7 @@ def register_routers():
         sys.stdout.flush()
         app.include_router(auth_router, prefix="/api/v1/auth", tags=["authentication"])
         print("✅ Auth router registered")
+        routers_registered += 1
         sys.stdout.flush()
 
         print("🔄 Importing journal router...")
@@ -788,6 +776,7 @@ def register_routers():
         sys.stdout.flush()
         app.include_router(journal_router, prefix="/api/v1/journal", tags=["journal"])
         print("✅ Journal router registered")
+        routers_registered += 1
         sys.stdout.flush()
 
         print("🔄 Importing adaptive AI router...")
@@ -797,6 +786,7 @@ def register_routers():
         sys.stdout.flush()
         app.include_router(adaptive_ai_router, prefix="/api/v1/adaptive-ai", tags=["adaptive-ai"])
         print("✅ Adaptive AI router registered")
+        routers_registered += 1
         sys.stdout.flush()
 
         print("🔄 Importing proactive AI router...")
@@ -811,6 +801,7 @@ def register_routers():
         except Exception as proactive_ai_error:
             print(f"❌ Proactive AI router import/registration failed: {proactive_ai_error}")
             print(f"❌ Proactive AI router traceback: {traceback.format_exc()}")
+            routers_failed += 1
             sys.stdout.flush()
             # Continue without proactive AI router rather than failing completely
             pass
@@ -822,6 +813,7 @@ def register_routers():
         sys.stdout.flush()
         app.include_router(checkins_router, prefix="/api/v1/checkins", tags=["checkins"])
         print("✅ Checkins router registered")
+        routers_registered += 1
         sys.stdout.flush()
 
         print("🔄 Importing monitoring router...")
@@ -831,6 +823,7 @@ def register_routers():
         sys.stdout.flush()
         app.include_router(monitoring_router, prefix="/api/v1/monitoring", tags=["monitoring"])
         print("✅ Monitoring router registered")
+        routers_registered += 1
         sys.stdout.flush()
 
         # Debug router with enhanced error handling
@@ -845,11 +838,13 @@ def register_routers():
             sys.stdout.flush()
             app.include_router(debug_router, prefix="/api/v1/debug", tags=["debug"])
             print("✅ Debug router registered successfully!")
+            routers_registered += 1
             sys.stdout.flush()
             
         except Exception as debug_error:
             print(f"❌ Debug router import/registration failed: {debug_error}")
             print(f"❌ Debug router traceback: {traceback.format_exc()}")
+            routers_failed += 1
             sys.stdout.flush()
             # Continue without debug router rather than failing completely
             pass
@@ -863,10 +858,12 @@ def register_routers():
             sys.stdout.flush()
             app.include_router(openai_debug_router, prefix="/api/v1", tags=["openai-debug"])
             print("✅ OpenAI debug router registered")
+            routers_registered += 1
             sys.stdout.flush()
         except Exception as openai_debug_error:
             print(f"❌ OpenAI debug router import/registration failed: {openai_debug_error}")
             print(f"❌ OpenAI debug router traceback: {traceback.format_exc()}")
+            routers_failed += 1
             sys.stdout.flush()
             # Continue without OpenAI debug router rather than failing completely
             pass
@@ -880,10 +877,12 @@ def register_routers():
             sys.stdout.flush()
             app.include_router(debug_journal_router, prefix="/api/v1", tags=["debug-journal"])
             print("✅ Journal debug router registered")
+            routers_registered += 1
             sys.stdout.flush()
         except Exception as journal_debug_error:
             print(f"❌ Journal debug router import/registration failed: {journal_debug_error}")
             print(f"❌ Journal debug router traceback: {traceback.format_exc()}")
+            routers_failed += 1
             sys.stdout.flush()
             # Continue without journal debug router rather than failing completely
             pass
@@ -897,10 +896,12 @@ def register_routers():
             sys.stdout.flush()
             app.include_router(journal_fix_router, prefix="/api/v1", tags=["journal-fix"])
             print("✅ Journal fix router registered")
+            routers_registered += 1
             sys.stdout.flush()
         except Exception as journal_fix_error:
             print(f"❌ Journal fix router import/registration failed: {journal_fix_error}")
             print(f"❌ Journal fix router traceback: {traceback.format_exc()}")
+            routers_failed += 1
             sys.stdout.flush()
             # Continue without journal fix router rather than failing completely
             pass
@@ -914,10 +915,12 @@ def register_routers():
             sys.stdout.flush()
             app.include_router(database_debug_router, prefix="/api/v1", tags=["database-debug"])
             print("✅ Database debug router registered")
+            routers_registered += 1
             sys.stdout.flush()
         except Exception as db_debug_error:
             print(f"❌ Database debug router import/registration failed: {db_debug_error}")
             print(f"❌ Database debug router traceback: {traceback.format_exc()}")
+            routers_failed += 1
             sys.stdout.flush()
             # Continue without database debug router rather than failing completely
             pass
@@ -930,6 +933,7 @@ def register_routers():
         sys.stdout.flush()
         app.include_router(admin_router, prefix="/api/v1/admin", tags=["admin"])
         print("✅ Admin router registered")
+        routers_registered += 1
         sys.stdout.flush()
 
         # Advanced Scheduler router for comprehensive proactive AI
@@ -941,10 +945,12 @@ def register_routers():
             sys.stdout.flush()
             app.include_router(advanced_scheduler_router, prefix="/api/v1/scheduler", tags=["scheduler"])
             print("✅ Advanced scheduler router registered")
+            routers_registered += 1
             sys.stdout.flush()
         except Exception as scheduler_error:
             print(f"❌ Advanced scheduler router import/registration failed: {scheduler_error}")
             print(f"❌ Advanced scheduler router traceback: {traceback.format_exc()}")
+            routers_failed += 1
             sys.stdout.flush()
             # Continue without advanced scheduler router rather than failing completely
             pass
@@ -958,10 +964,12 @@ def register_routers():
             sys.stdout.flush()
             app.include_router(ai_monitoring_router, tags=["ai-monitoring"])  # o3 Fix: Router already has prefix="/api/v1/ai-monitoring"
             print("✅ AI monitoring router registered")
+            routers_registered += 1
             sys.stdout.flush()
         except Exception as ai_monitoring_error:
             print(f"❌ AI monitoring router import/registration failed: {ai_monitoring_error}")
             print(f"❌ AI monitoring router traceback: {traceback.format_exc()}")
+            routers_failed += 1
             sys.stdout.flush()
             # Continue without AI monitoring router rather than failing completely
             pass
@@ -975,25 +983,25 @@ def register_routers():
             sys.stdout.flush()
             app.include_router(admin_monitoring_router, prefix="/api/v1", tags=["admin-monitoring"])
             print("✅ Admin monitoring router registered")
+            routers_registered += 1
             sys.stdout.flush()
         except Exception as admin_monitoring_error:
             print(f"❌ Admin monitoring router import/registration failed: {admin_monitoring_error}")
             print(f"❌ Admin monitoring router traceback: {traceback.format_exc()}")
+            routers_failed += 1
             sys.stdout.flush()
             # Continue without admin monitoring router rather than failing completely
             pass
 
-        print("🎉 All routers registered successfully!")
+        print(f"🎉 Router registration complete! {routers_registered} routers registered successfully, {routers_failed} optional routers failed")
         sys.stdout.flush()
 
     except Exception as e:
-        print(f"❌ ERROR: Router registration failed: {e}")
+        print(f"❌ ERROR: Critical router registration failed: {e}")
         print(f"❌ Full traceback: {traceback.format_exc()}")
         sys.stdout.flush()
-        raise e
-
-# Call router registration
-register_routers()
+        # Don't raise the error - let the app start with available routers
+        logger.error(f"Router registration failed but continuing startup: {e}")
 
 @app.get("/")
 async def root():

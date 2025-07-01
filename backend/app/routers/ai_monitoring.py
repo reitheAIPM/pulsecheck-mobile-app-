@@ -14,6 +14,20 @@ from app.core.security import get_current_user_with_fallback, limiter
 from app.services.adaptive_ai_service import AdaptiveAIService
 
 logger = logging.getLogger(__name__)
+
+# Defensive helper functions for optional services that may not exist yet
+try:
+    from app.services.comprehensive_proactive_ai_service import get_proactive_ai_service  # type: ignore
+except Exception:
+    def get_proactive_ai_service():
+        return None
+
+try:
+    from app.services.advanced_scheduler_service import get_scheduler_service  # type: ignore
+except Exception:
+    def get_scheduler_service():
+        return None
+
 router = APIRouter(prefix="/api/v1/ai-monitoring", tags=["AI Monitoring"])
 
 @router.get("/last-action/{user_id}")
@@ -52,20 +66,10 @@ async def get_last_ai_action_status(
         last_ai_comment = last_ai_result.data[0] if last_ai_result.data else None
         
         # Check testing mode status
-        try:
-            from app.services.comprehensive_proactive_ai_service import get_proactive_ai_service
-            proactive_service = get_proactive_ai_service()
-            testing_mode = proactive_service.testing_mode
-        except:
-            testing_mode = False
+        testing_mode = get_proactive_ai_service() is not None and get_proactive_ai_service().testing_mode
         
         # Check scheduler status
-        try:
-            from app.services.advanced_scheduler_service import get_scheduler_service
-            scheduler_service = get_scheduler_service()
-            scheduler_running = scheduler_service.is_running()
-        except:
-            scheduler_running = False
+        scheduler_running = get_scheduler_service() is not None and get_scheduler_service().is_running()
         
         # Calculate next scheduled AI action (if scheduler running)
         next_scheduled_at = None
