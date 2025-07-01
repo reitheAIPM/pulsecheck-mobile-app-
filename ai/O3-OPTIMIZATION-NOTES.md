@@ -14,17 +14,15 @@
 **✅ FIXED**: Use `ClientOptions` class instead of raw dict
 
 ```python
-# ❌ OLD (Causes crash):
+# ❌ OLD (Causes crash with dict options):
 self.service_client = create_client(url, key, {"auth": {...}})
 
-# ✅ NEW (Works with v2):
-from supabase import ClientOptions
-options = ClientOptions(
-    schema="public", 
-    headers={"X-Client-Info": "pulsecheck-server"},
-    auto_refresh_token=False
-)
-self.service_client = create_client(url, key, options=options)
+# ✅ NEW (Works with supabase 2.3.0):
+# Service role key automatically bypasses RLS - no extra options needed
+self.service_client = create_client(url, service_role_key)
+
+# NOTE: ClientOptions class only exists in supabase >= 2.5.0
+# For version 2.3.0, just pass the service role key directly
 ```
 
 ### **❗ Issue 2: Debug Middleware Import Crash**
@@ -62,6 +60,27 @@ app.include_router(router, prefix="/api/v1")  # Results in /api/v1/api/v1/...
 # ✅ NEW (Single prefix):
 router = APIRouter(prefix="/api/v1/ai-monitoring") 
 app.include_router(router)  # Results in /api/v1/ai-monitoring/...
+```
+
+---
+
+## ⚠️ **VERSION COMPATIBILITY WARNING**
+
+### **Supabase Python SDK Version Issues**
+- **supabase 2.3.0** (current): No `ClientOptions` class - just pass key directly
+- **supabase 2.5.0+**: Has `ClientOptions` class for advanced configuration
+- **Always check**: `pip show supabase` locally matches Railway's `requirements.txt`
+
+**Railway Deployment Fix:**
+```python
+# Check your requirements.txt version FIRST
+# If supabase < 2.5.0:
+client = create_client(url, key)  # Simple, works
+
+# If supabase >= 2.5.0:
+from supabase import ClientOptions
+options = ClientOptions(...)
+client = create_client(url, key, options=options)
 ```
 
 ---
