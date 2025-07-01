@@ -258,4 +258,60 @@ async def list_recent_journals(
             "error": f"Failed to list journal entries: {str(e)}",
             "user_id": user_id,
             "troubleshooting": "Check database connectivity and user_id format"
+        }
+
+
+@router.post("/respond-to-latest/{user_id}")
+async def respond_to_latest_journal(user_id: str):
+    """Automatically find user's most recent journal entry and generate AI response"""
+    try:
+        supabase = get_supabase_service_client()
+        
+        # Find the most recent journal entry for this user
+        response = supabase.table("journal_entries").select(
+            "id, content, mood_rating, energy_level, created_at"
+        ).eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
+        
+        if not response.data:
+            return {
+                "error": "No journal entries found for this user",
+                "user_id": user_id,
+                "next_step": "Create a journal entry first using your mobile app"
+            }
+        
+        latest_entry = response.data[0]
+        journal_id = latest_entry["id"]
+        
+        # Check if AI comment already exists
+        existing_comment = supabase.table("ai_comments").select("id").eq("journal_entry_id", journal_id).execute()
+        
+        if existing_comment.data:
+            return {
+                "message": "AI comment already exists for this journal entry",
+                "journal_id": journal_id,
+                "journal_preview": latest_entry["content"][:100] + "...",
+                "existing_comment_id": existing_comment.data[0]["id"],
+                "suggestion": f"Use respond-to-journal/{journal_id} to regenerate"
+            }
+        
+        # Generate AI response
+        ai_comment = await create_ai_comment(journal_id, user_id)
+        
+        return {
+            "success": True,
+            "message": "AI response generated for latest journal entry",
+            "journal_id": journal_id,
+            "journal_created": latest_entry["created_at"],
+            "journal_preview": latest_entry["content"][:100] + "...",
+            "ai_comment_id": ai_comment.get("id"),
+            "ai_response_preview": ai_comment.get("comment", "")[:100] + "...",
+            "monitoring_check": f"GET /api/v1/ai-monitoring/last-action/{user_id}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in respond_to_latest for user {user_id}: {e}")
+        return {
+            "error": f"Failed to generate AI response: {str(e)}",
+            "user_id": user_id,
+            "troubleshooting": "Check logs and database connectivity"
         } 
