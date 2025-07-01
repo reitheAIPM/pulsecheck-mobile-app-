@@ -5,8 +5,8 @@ Allows manual triggering of AI responses for testing and immediate feedback.
 This bypasses the scheduler and provides instant AI interaction.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict, Any
+from fastapi import APIRouter, HTTPException, Depends, Query
+from typing import Dict, Any, List
 import logging
 from datetime import datetime, timezone
 
@@ -14,6 +14,8 @@ from ..core.database import Database, get_database
 from ..services.adaptive_ai_service import AdaptiveAIService
 from ..services.pulse_ai import PulseAI
 from ..services.persona_service import PersonaService
+from ..core.database import get_supabase_service_client
+from ..services.ai_service import create_ai_comment
 
 logger = logging.getLogger(__name__)
 
@@ -202,4 +204,58 @@ async def get_scheduler_status() -> Dict[str, Any]:
             "status": "unavailable",
             "message": f"Scheduler service not available: {str(e)}",
             "note": "Use manual AI response endpoints for testing"
+        }
+
+
+@router.get("/list-journals/{user_id}")
+async def list_recent_journals(
+    user_id: str,
+    limit: int = Query(default=10, description="Number of recent entries to show")
+):
+    """List recent journal entries for a user to see available journal IDs for testing"""
+    try:
+        supabase = get_supabase_service_client()
+        
+        # Get recent journal entries for this user
+        response = supabase.table("journal_entries").select(
+            "id, content, mood_rating, energy_level, created_at"
+        ).eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute()
+        
+        if not response.data:
+            return {
+                "user_id": user_id,
+                "message": "No journal entries found for this user",
+                "journal_entries": [],
+                "next_step": "Create a journal entry first using your mobile app"
+            }
+        
+        # Format the results for easy reading
+        formatted_entries = []
+        for entry in response.data:
+            formatted_entries.append({
+                "journal_id": entry["id"],
+                "content_preview": entry["content"][:100] + "..." if len(entry["content"]) > 100 else entry["content"],
+                "mood_rating": entry["mood_rating"],
+                "energy_level": entry["energy_level"],
+                "created_at": entry["created_at"],
+                "test_command": f"POST /api/v1/manual-ai/respond-to-journal/{entry['id']}?user_id={user_id}"
+            })
+        
+        return {
+            "user_id": user_id,
+            "total_entries": len(formatted_entries),
+            "journal_entries": formatted_entries,
+            "testing_instructions": {
+                "step_1": "Pick a journal_id from the list above",
+                "step_2": "Use: POST /api/v1/manual-ai/respond-to-journal/{journal_id}?user_id={user_id}",
+                "step_3": "Or use the exact test_command shown for each entry"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error listing journals for user {user_id}: {e}")
+        return {
+            "error": f"Failed to list journal entries: {str(e)}",
+            "user_id": user_id,
+            "troubleshooting": "Check database connectivity and user_id format"
         } 
