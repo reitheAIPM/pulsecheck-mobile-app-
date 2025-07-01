@@ -317,39 +317,183 @@ async def get_metrics_summary(
     scheduler: AdvancedSchedulerService = Depends(get_scheduler_service)
 ) -> Dict[str, Any]:
     """
-    Get a summary of key scheduler metrics
+    Get summarized performance metrics for dashboard display
     
-    Provides a condensed view of the most important performance indicators.
+    Returns key metrics in a compact format suitable for monitoring dashboards.
     """
     try:
         status = scheduler.get_scheduler_status()
         metrics = status.get("metrics", {})
         
         return {
-            "summary": {
-                "status": status.get("status"),
-                "uptime_hours": metrics.get("uptime_hours", 0),
-                "total_cycles": metrics.get("total_cycles", 0),
-                "success_rate": 100 - metrics.get("error_rate", 0),
-                "avg_engagements_per_cycle": metrics.get("avg_engagements_per_cycle", 0),
-                "engagement_success_rate": metrics.get("engagement_success_rate", 0)
-            },
-            "recent_performance": {
-                "cycles": len(status.get("recent_cycles", [])),
-                "last_cycle_duration": status.get("recent_cycles", [{}])[-1].get("duration_seconds") if status.get("recent_cycles") else 0,
-                "last_cycle_engagements": status.get("recent_cycles", [{}])[-1].get("engagements_executed") if status.get("recent_cycles") else 0
-            },
-            "next_scheduled": {
-                "main_cycle": None,  # TODO: Get from job schedule
-                "immediate_cycle": None,
-                "analytics_cycle": None
-            },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "status": status.get("status", "unknown"),
+            "uptime_hours": metrics.get("uptime_hours", 0),
+            "total_cycles": metrics.get("total_cycles", 0),
+            "successful_cycles": metrics.get("successful_cycles", 0),
+            "error_rate": metrics.get("error_rate", 0),
+            "engagement_rate": metrics.get("engagement_success_rate", 0),
+            "avg_engagements_per_cycle": metrics.get("avg_engagements_per_cycle", 0),
+            "last_cycle": metrics.get("last_cycle_timestamp"),
+            "next_cycle": metrics.get("next_cycle_timestamp"),
+            "summary": f"Running {metrics.get('total_cycles', 0)} cycles with {metrics.get('error_rate', 0):.1%} error rate"
         }
         
     except Exception as e:
         logger.error(f"Error getting metrics summary: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get metrics summary: {str(e)}")
+
+# 🧪 TESTING MODE ENDPOINTS
+@router.post("/testing/enable")
+async def enable_testing_mode(
+    scheduler: AdvancedSchedulerService = Depends(get_scheduler_service)
+) -> Dict[str, Any]:
+    """
+    🧪 Enable TESTING MODE for immediate AI responses
+    
+    WARNING: This bypasses ALL production timing delays:
+    - Initial comments: 0 minutes (instead of 5min-1hour)
+    - Collaborative responses: Immediate (instead of 15min delay)
+    - Bombardment prevention: Disabled (instead of 30min minimum)
+    
+    Use ONLY for testing purposes. Remember to disable before production use.
+    """
+    try:
+        # Enable testing mode on the proactive AI service
+        result = scheduler.proactive_ai.enable_testing_mode()
+        
+        logger.warning("🧪 TESTING MODE ENABLED via API - All AI responses will be immediate!")
+        
+        return {
+            "testing_enabled": True,
+            "api_timestamp": datetime.now(timezone.utc).isoformat(),
+            **result,
+            "warning": "⚠️ ALL PRODUCTION TIMING BYPASSED - Use only for testing!",
+            "next_steps": [
+                "1. Create journal entries to test immediate AI responses",
+                "2. Trigger manual cycles with /scheduler/manual-cycle?cycle_type=main",
+                "3. Remember to disable testing mode when done"
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error enabling testing mode: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to enable testing mode: {str(e)}")
+
+@router.post("/testing/disable")
+async def disable_testing_mode(
+    scheduler: AdvancedSchedulerService = Depends(get_scheduler_service)
+) -> Dict[str, Any]:
+    """
+    🔄 Disable testing mode and restore production timing
+    
+    This restores all production timing logic:
+    - Initial comments: 5 minutes to 1 hour delays
+    - Collaborative responses: 15 minute delays
+    - Bombardment prevention: 30 minute minimums
+    """
+    try:
+        # Disable testing mode on the proactive AI service
+        result = scheduler.proactive_ai.disable_testing_mode()
+        
+        logger.info("🔄 TESTING MODE DISABLED via API - Production timing restored")
+        
+        return {
+            "testing_disabled": True,
+            "api_timestamp": datetime.now(timezone.utc).isoformat(),
+            **result,
+            "confirmation": "✅ Production timing logic restored",
+            "timing_restored": {
+                "initial_comments": "5 minutes to 1 hour",
+                "collaborative_responses": "15 minute delays", 
+                "bombardment_prevention": "30 minute minimums"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error disabling testing mode: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to disable testing mode: {str(e)}")
+
+@router.get("/testing/status")
+async def get_testing_mode_status(
+    scheduler: AdvancedSchedulerService = Depends(get_scheduler_service)
+) -> Dict[str, Any]:
+    """
+    Get current testing mode status and timing configuration
+    
+    Shows whether testing mode is enabled and what the current timing behavior is.
+    """
+    try:
+        # Get testing mode status from proactive AI service
+        result = scheduler.proactive_ai.get_testing_mode_status()
+        
+        return {
+            "api_timestamp": datetime.now(timezone.utc).isoformat(),
+            **result,
+            "scheduler_status": scheduler.status.value if hasattr(scheduler, 'status') else "unknown",
+            "quick_actions": {
+                "enable_testing": "POST /api/v1/scheduler/testing/enable",
+                "disable_testing": "POST /api/v1/scheduler/testing/disable", 
+                "trigger_immediate_cycle": "POST /api/v1/scheduler/manual-cycle?cycle_type=main"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting testing mode status: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get testing mode status: {str(e)}")
+
+@router.post("/testing/immediate-response")
+async def trigger_immediate_ai_response(
+    background_tasks: BackgroundTasks,
+    user_id: str,
+    scheduler: AdvancedSchedulerService = Depends(get_scheduler_service)
+) -> Dict[str, Any]:
+    """
+    🚀 Trigger immediate AI response for a specific user (testing only)
+    
+    This forces an immediate AI engagement cycle for the specified user,
+    regardless of timing constraints. Use for testing specific scenarios.
+    
+    Args:
+        user_id: The user ID to trigger AI response for
+    """
+    try:
+        if not scheduler.proactive_ai.testing_mode:
+            raise HTTPException(
+                status_code=400, 
+                detail="Testing mode must be enabled first. Call POST /scheduler/testing/enable"
+            )
+        
+        # Trigger immediate response for specific user in background
+        async def immediate_user_response():
+            try:
+                opportunities = await scheduler.proactive_ai.check_comprehensive_opportunities(user_id)
+                executed = 0
+                
+                for opportunity in opportunities:
+                    success = await scheduler.proactive_ai.execute_comprehensive_engagement(user_id, opportunity)
+                    if success:
+                        executed += 1
+                        break  # Only execute one per call
+                
+                logger.info(f"🧪 Immediate testing response: {executed} engagements executed for user {user_id}")
+                
+            except Exception as e:
+                logger.error(f"Error in immediate user response for {user_id}: {e}")
+        
+        background_tasks.add_task(immediate_user_response)
+        
+        return {
+            "status": "triggered",
+            "user_id": user_id,
+            "message": f"Immediate AI response triggered for user {user_id}",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "testing_mode": True,
+            "note": "Response will be processed in background - check logs for results"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error triggering immediate AI response: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to trigger immediate response: {str(e)}")
 
 # Auto-start scheduler on module import (for production)
 @router.on_event("startup")

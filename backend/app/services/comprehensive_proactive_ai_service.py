@@ -90,6 +90,9 @@ class ComprehensiveProactiveAIService:
         self.db = db
         self.adaptive_ai = adaptive_ai
         
+        # 🧪 TESTING MODE - Set to True for immediate responses (bypasses all timing delays)
+        self.testing_mode = False
+        
         # Timing configurations
         self.timing_configs = {
             "initial_comment_min": 5,      # 5 minutes minimum
@@ -288,8 +291,8 @@ class ComprehensiveProactiveAIService:
         entry_time = datetime.fromisoformat(entry.created_at.replace('Z', '+00:00'))
         minutes_since_entry = (datetime.now(timezone.utc) - entry_time).total_seconds() / 60
         
-        # Skip very recent entries (less than 5 minutes)
-        if minutes_since_entry < self.timing_configs["initial_comment_min"]:
+        # Skip very recent entries (less than 5 minutes) - UNLESS testing mode
+        if not self.testing_mode and minutes_since_entry < self.timing_configs["initial_comment_min"]:
             return opportunities
         
         # Detect related entries (pattern recognition)
@@ -321,9 +324,10 @@ class ComprehensiveProactiveAIService:
             ))
         
         # Opportunity 2: Collaborative response (if high AI interaction)
+        collaborative_ready = self.testing_mode or minutes_since_entry >= self.timing_configs["collaborative_delay"]
         if (len(entry_responses) >= 1 and 
             profile.ai_interaction_level == AIInteractionLevel.HIGH and
-            minutes_since_entry >= self.timing_configs["collaborative_delay"]):
+            collaborative_ready):
             
             persona = list(available_personas)[0] if available_personas else None
             if persona:
@@ -333,7 +337,7 @@ class ComprehensiveProactiveAIService:
                     reason="collaborative_response",
                     persona=persona,
                     priority=6,
-                    delay_minutes=self.timing_configs["collaborative_delay"],
+                    delay_minutes=0 if self.testing_mode else self.timing_configs["collaborative_delay"],
                     message_context=self._generate_context_message(entry, "collaborative"),
                     related_entries=[e.id for e in related_entries],
                     engagement_strategy="collaborative",
@@ -415,6 +419,10 @@ class ComprehensiveProactiveAIService:
     
     def _calculate_initial_delay(self, profile: UserEngagementProfile, entry: JournalEntryResponse) -> int:
         """Calculate delay for initial comment based on user profile and entry"""
+        # 🧪 TESTING MODE - Return 0 for immediate response
+        if self.testing_mode:
+            return 0
+        
         base_delay = self.timing_configs["initial_comment_min"]
         max_delay = self.timing_configs["initial_comment_max"]
         
@@ -490,16 +498,21 @@ class ComprehensiveProactiveAIService:
         """Apply bombardment prevention logic"""
         if not opportunities:
             return opportunities
-        
+
+        # 🧪 TESTING MODE - Skip bombardment prevention for immediate responses
+        if self.testing_mode:
+            logger.info(f"🧪 Testing mode: Skipping bombardment prevention for user {user_id}")
+            return opportunities
+
         # Get last AI response time
         # CRITICAL: Use service role client to bypass RLS for AI operations
         client = self.db.get_service_client()
         last_response_result = client.table("ai_insights").select("created_at").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
-        
+
         if last_response_result.data:
             last_response_time = datetime.fromisoformat(last_response_result.data[0]["created_at"].replace('Z', '+00:00'))
             minutes_since_last = (datetime.now(timezone.utc) - last_response_time).total_seconds() / 60
-            
+
             # If less than bombardment prevention time, filter opportunities
             if minutes_since_last < self.timing_configs["bombardment_prevention"]:
                 # Only keep highest priority opportunity and delay it
@@ -511,7 +524,7 @@ class ComprehensiveProactiveAIService:
                     )
                     return [top_opportunity]
                 return []
-        
+
         return opportunities
     
     async def _count_todays_ai_responses(self, user_id: str) -> int:
@@ -737,17 +750,51 @@ Reference patterns you've noticed if relevant.
         return self.engagement_analytics
     
     async def update_user_engagement_tracking(self, user_id: str, engagement_type: EngagementType, metadata: Dict[str, Any] = None):
-        """Update user engagement tracking when they interact"""
+        """Update user engagement tracking"""
         try:
-            # TODO: Store engagement events in a dedicated table
-            # This would track reactions, replies, app opens, etc.
-            logger.info(f"User {user_id} engagement: {engagement_type.value}")
-            
-            # Update analytics
-            if engagement_type == EngagementType.REACTION:
-                self.engagement_analytics.user_reactions += 1
-            elif engagement_type == EngagementType.REPLY:
-                self.engagement_analytics.user_responses += 1
-                
+            # TODO: Implement engagement tracking to database
+            # This will help optimize timing and personalization
+            pass
         except Exception as e:
-            logger.error(f"Error updating engagement tracking for user {user_id}: {e}") 
+            logger.error(f"Error updating user engagement tracking: {e}")
+
+    # 🧪 TESTING MODE CONTROLS
+    def enable_testing_mode(self) -> Dict[str, Any]:
+        """Enable testing mode for immediate AI responses"""
+        self.testing_mode = True
+        logger.warning("🧪 TESTING MODE ENABLED - All AI responses will be immediate!")
+        return {
+            "status": "enabled", 
+            "testing_mode": True,
+            "message": "AI responses will now be immediate (bypassing all delays)",
+            "production_timing_preserved": True
+        }
+    
+    def disable_testing_mode(self) -> Dict[str, Any]:
+        """Disable testing mode and restore production timing"""
+        self.testing_mode = False
+        logger.info("🔄 TESTING MODE DISABLED - Restored production timing logic")
+        return {
+            "status": "disabled",
+            "testing_mode": False, 
+            "message": "Restored production timing: 5min-1hour delays with bombardment prevention",
+            "production_timing_restored": True
+        }
+    
+    def get_testing_mode_status(self) -> Dict[str, Any]:
+        """Get current testing mode status"""
+        return {
+            "testing_mode": self.testing_mode,
+            "status": "enabled" if self.testing_mode else "disabled",
+            "production_timing": {
+                "initial_comment_min": self.timing_configs["initial_comment_min"],
+                "initial_comment_max": self.timing_configs["initial_comment_max"],
+                "collaborative_delay": self.timing_configs["collaborative_delay"],
+                "bombardment_prevention": self.timing_configs["bombardment_prevention"]
+            },
+            "testing_behavior": {
+                "all_delays_bypassed": self.testing_mode,
+                "bombardment_prevention_disabled": self.testing_mode,
+                "immediate_responses": self.testing_mode
+            }
+        } 
