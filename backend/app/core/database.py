@@ -1,4 +1,4 @@
-from supabase import create_client, Client
+from supabase import create_client, Client, ClientOptions
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base
@@ -67,16 +67,17 @@ class Database:
                 return
             
             # Create service role client that bypasses RLS
+            options = ClientOptions(
+                schema="public",
+                headers={"X-Client-Info": "pulsecheck-server-service-role"},
+                auto_refresh_token=False,
+                persist_session=False,
+                detect_session_in_url=False
+            )
             self.service_client = create_client(
                 supabase_url=settings.SUPABASE_URL,
                 supabase_key=settings.SUPABASE_SERVICE_ROLE_KEY,
-                options={
-                    'auth': {
-                        'autoRefreshToken': False,
-                        'persistSession': False,
-                        'detectSessionInUrl': False,
-                    }
-                }
+                options=options
             )
             
             # Test service role connection

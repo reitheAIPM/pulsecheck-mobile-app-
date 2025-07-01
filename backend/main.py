@@ -290,25 +290,24 @@ app.add_middleware(DynamicCORSMiddleware)
 # 3. Custom observability middleware for performance monitoring
 app.add_middleware(ObservabilityMiddleware)
 
-# Add debug middleware for comprehensive monitoring
+# o3 Fix: Debug middleware with proper error handling to prevent startup crashes
 try:
     from app.middleware.debug_middleware import DebugMiddleware, debug_store
     app.add_middleware(DebugMiddleware)
     print("✅ Debug middleware loaded successfully")
     print(f"✅ Debug store initialized: {type(debug_store).__name__}")
     print(f"✅ Debug store has {len(debug_store.requests)} requests in memory")
+    sys.stdout.flush()
 except ImportError as e:
-    print(f"⚠️  Debug middleware import failed: {e}")
-    import traceback
-    print(f"⚠️  Traceback: {traceback.format_exc()}")
-    # Continue without debug middleware
-    pass
+    print(f"⚠️  Debug middleware not available (ImportError): {e}")
+    print("   Continuing without debug middleware (non-critical)")
+    sys.stdout.flush()
 except Exception as e:
-    print(f"⚠️  Debug middleware setup failed: {e}")
+    print(f"❌ Debug middleware failed to load: {e}")
+    print("   Continuing without debug middleware")
     import traceback
-    print(f"⚠️  Traceback: {traceback.format_exc()}")
-    # Continue without debug middleware
-    pass
+    print(f"   Traceback: {traceback.format_exc()}")
+    sys.stdout.flush()
 
 # Security middleware
 app.add_middleware(
@@ -957,7 +956,7 @@ def register_routers():
             from app.routers.ai_monitoring import router as ai_monitoring_router
             print("✅ AI monitoring router imported successfully")
             sys.stdout.flush()
-            app.include_router(ai_monitoring_router, prefix="/api/v1", tags=["ai-monitoring"])
+            app.include_router(ai_monitoring_router, tags=["ai-monitoring"])  # o3 Fix: Router already has prefix="/api/v1/ai-monitoring"
             print("✅ AI monitoring router registered")
             sys.stdout.flush()
         except Exception as ai_monitoring_error:
