@@ -513,13 +513,13 @@ class AdaptiveAIService:
             content_length = len(journal_entry.content)
             
             if content_length < 50:
-                insight = "Thank you for sharing your thoughts with Pulse."
-                action = "Take a moment to reflect on your current feelings."
+                insight = "Sometimes the simplest thoughts hold the most truth. Glad you shared this with me."
+                action = "Take a moment to sit with whatever's coming up for you right now."
                 question = "What's one small thing that might help you feel better right now?"
             elif content_length < 200:
-                insight = "I can see you're processing some thoughts and feelings."
-                action = "Consider writing a bit more about what's on your mind."
-                question = "What would you like to explore further?"
+                insight = "I can hear you working through some things here. It's brave to put thoughts into words, even when they're still forming."
+                action = "Keep writing if more comes up - sometimes the important stuff comes out when we least expect it."
+                question = "What's the biggest thing on your mind right now?"
             else:
                 insight = "I appreciate you being so open and sharing what's really on your mind. That takes courage, and I can see you're working through some important thoughts here."
                 action = "Give yourself credit for reflecting - that's huge."
