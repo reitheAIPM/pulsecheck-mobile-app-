@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
-import { ArrowLeft, Send, Lightbulb, Heart, Settings, Mic, MicOff, Image, X, Camera, Save, ChevronUp, ChevronDown, Target } from "lucide-react";
+import { ArrowLeft, Send, Lightbulb, Heart, Settings, Mic, MicOff, Image, X, Camera, Save, ChevronUp, ChevronDown, Target, Type, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Highlighter, Hash, Quote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,6 +78,20 @@ const JournalEntry = () => {
   
   // New UI states for photo-editing-like interface
   const [showMoodPanel, setShowMoodPanel] = useState(false);
+
+  // New state for rich text editing
+  const [showFormattingToolbar, setShowFormattingToolbar] = useState(false);
+  const [showTopicsPanel, setShowTopicsPanel] = useState(false);
+  const [fontSize, setFontSize] = useState(18);
+  const [textColor, setTextColor] = useState('#000000');
+  const [highlightColor, setHighlightColor] = useState('#ffff00');
+  const [fontFamily, setFontFamily] = useState('system-ui');
+  const [isBold, setIsBold] = useState(false);
+  const [isItalic, setIsItalic] = useState(false);
+  const [isUnderlined, setIsUnderlined] = useState(false);
+  const [textAlign, setTextAlign] = useState('left');
+  
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Get current user ID from authenticated session
   const [userId, setUserId] = useState<string>("");
@@ -382,6 +396,179 @@ const JournalEntry = () => {
     .split(/\s+/)
     .filter((word) => word.length > 0).length;
 
+  // Rich text formatting functions
+  const applyBold = () => {
+    setIsBold(!isBold);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
+  const applyItalic = () => {
+    setIsItalic(!isItalic);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
+  const applyUnderline = () => {
+    setIsUnderlined(!isUnderlined);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
+  const insertBulletPoint = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const beforeCursor = content.substring(0, start);
+    const afterCursor = content.substring(end);
+    
+    // Check if we're at the start of a line
+    const lastNewlineIndex = beforeCursor.lastIndexOf('\n');
+    const currentLineStart = lastNewlineIndex === -1 ? 0 : lastNewlineIndex + 1;
+    const currentLine = beforeCursor.substring(currentLineStart);
+    
+    let newContent;
+    let newCursorPos;
+    
+    if (currentLine.trim() === '') {
+      // Empty line, add bullet
+      newContent = beforeCursor + '• ' + afterCursor;
+      newCursorPos = start + 2;
+    } else {
+      // Add bullet on new line
+      newContent = beforeCursor + '\n• ' + afterCursor;
+      newCursorPos = start + 3;
+    }
+    
+    setContent(newContent);
+    
+    // Set cursor position after state update
+    setTimeout(() => {
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+      textarea.focus();
+    }, 0);
+  };
+
+  const insertNumberedList = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const beforeCursor = content.substring(0, start);
+    const afterCursor = content.substring(end);
+    
+    const lastNewlineIndex = beforeCursor.lastIndexOf('\n');
+    const currentLineStart = lastNewlineIndex === -1 ? 0 : lastNewlineIndex + 1;
+    const currentLine = beforeCursor.substring(currentLineStart);
+    
+    let newContent;
+    let newCursorPos;
+    
+    if (currentLine.trim() === '') {
+      newContent = beforeCursor + '1. ' + afterCursor;
+      newCursorPos = start + 3;
+    } else {
+      newContent = beforeCursor + '\n1. ' + afterCursor;
+      newCursorPos = start + 4;
+    }
+    
+    setContent(newContent);
+    
+    setTimeout(() => {
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+      textarea.focus();
+    }, 0);
+  };
+
+  const insertHeading = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const beforeCursor = content.substring(0, start);
+    const afterCursor = content.substring(end);
+    
+    const lastNewlineIndex = beforeCursor.lastIndexOf('\n');
+    const currentLineStart = lastNewlineIndex === -1 ? 0 : lastNewlineIndex + 1;
+    const currentLine = beforeCursor.substring(currentLineStart);
+    
+    let newContent;
+    let newCursorPos;
+    
+    if (currentLine.trim() === '') {
+      newContent = beforeCursor + '# ' + afterCursor;
+      newCursorPos = start + 2;
+    } else {
+      newContent = beforeCursor + '\n# ' + afterCursor;
+      newCursorPos = start + 3;
+    }
+    
+    setContent(newContent);
+    
+    setTimeout(() => {
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+      textarea.focus();
+    }, 0);
+  };
+
+  const insertQuote = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const beforeCursor = content.substring(0, start);
+    const afterCursor = content.substring(end);
+    
+    const lastNewlineIndex = beforeCursor.lastIndexOf('\n');
+    const currentLineStart = lastNewlineIndex === -1 ? 0 : lastNewlineIndex + 1;
+    const currentLine = beforeCursor.substring(currentLineStart);
+    
+    let newContent;
+    let newCursorPos;
+    
+    if (currentLine.trim() === '') {
+      newContent = beforeCursor + '> ' + afterCursor;
+      newCursorPos = start + 2;
+    } else {
+      newContent = beforeCursor + '\n> ' + afterCursor;
+      newCursorPos = start + 3;
+    }
+    
+    setContent(newContent);
+    
+    setTimeout(() => {
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+      textarea.focus();
+    }, 0);
+  };
+
+  // Handle topics inline
+  const handleTopicsToggle = () => {
+    setShowTopicsPanel(!showTopicsPanel);
+    if (!showTopicsPanel && content.trim().length > 20) {
+      detectTopics();
+    }
+  };
+
+  const getTextStyle = () => ({
+    fontSize: `${fontSize}px`,
+    fontFamily: fontFamily,
+    color: textColor,
+    fontWeight: isBold ? 'bold' : 'normal',
+    fontStyle: isItalic ? 'italic' : 'normal',
+    textDecoration: isUnderlined ? 'underline' : 'none',
+    textAlign: textAlign as any,
+    lineHeight: '1.6'
+  });
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Minimal Header - Like photo editing software */}
@@ -415,11 +602,142 @@ const JournalEntry = () => {
       <div className="flex-1 flex relative">
         {/* Full-screen Writing Area */}
         <div className="flex-1 flex flex-col">
+          {/* Rich Text Formatting Toolbar */}
+          {showFormattingToolbar && !isViewMode && (
+            <div className="border-b bg-background/50 backdrop-blur-sm p-2 animate-slide-in-up">
+              <div className="max-w-4xl mx-auto flex items-center gap-2 flex-wrap">
+                {/* Font Family */}
+                <select 
+                  value={fontFamily} 
+                  onChange={(e) => setFontFamily(e.target.value)}
+                  className="px-2 py-1 text-xs border rounded bg-background"
+                >
+                  <option value="system-ui">System</option>
+                  <option value="serif">Serif</option>
+                  <option value="monospace">Mono</option>
+                  <option value="cursive">Script</option>
+                  <option value="fantasy">Display</option>
+                </select>
+
+                {/* Font Size */}
+                <input
+                  type="range"
+                  min="12"
+                  max="32"
+                  value={fontSize}
+                  onChange={(e) => setFontSize(Number(e.target.value))}
+                  className="w-16"
+                />
+                <span className="text-xs w-8">{fontSize}px</span>
+
+                <div className="w-px h-6 bg-border mx-1" />
+
+                {/* Text Formatting */}
+                <Button
+                  variant={isBold ? "default" : "ghost"}
+                  size="sm"
+                  onClick={applyBold}
+                  className="h-8 w-8 p-0"
+                >
+                  <Bold className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={isItalic ? "default" : "ghost"}
+                  size="sm"
+                  onClick={applyItalic}
+                  className="h-8 w-8 p-0"
+                >
+                  <Italic className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={isUnderlined ? "default" : "ghost"}
+                  size="sm"
+                  onClick={applyUnderline}
+                  className="h-8 w-8 p-0"
+                >
+                  <Underline className="w-4 h-4" />
+                </Button>
+
+                <div className="w-px h-6 bg-border mx-1" />
+
+                {/* Text Color */}
+                <div className="flex items-center gap-1">
+                  <input
+                    type="color"
+                    value={textColor}
+                    onChange={(e) => setTextColor(e.target.value)}
+                    className="w-8 h-8 border rounded cursor-pointer"
+                    title="Text Color"
+                  />
+                  <input
+                    type="color"
+                    value={highlightColor}
+                    onChange={(e) => setHighlightColor(e.target.value)}
+                    className="w-8 h-8 border rounded cursor-pointer"
+                    title="Highlight Color"
+                  />
+                </div>
+
+                <div className="w-px h-6 bg-border mx-1" />
+
+                {/* Lists & Structure */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={insertBulletPoint}
+                  className="h-8 w-8 p-0"
+                  title="Bullet Point"
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={insertNumberedList}
+                  className="h-8 w-8 p-0"
+                  title="Numbered List"
+                >
+                  <ListOrdered className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={insertHeading}
+                  className="h-8 w-8 p-0"
+                  title="Heading"
+                >
+                  <Hash className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={insertQuote}
+                  className="h-8 w-8 p-0"
+                  title="Quote"
+                >
+                  <Quote className="w-4 h-4" />
+                </Button>
+
+                <div className="ml-auto">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowFormattingToolbar(false)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex-1 p-6">
             <div className="max-w-4xl mx-auto h-full">
               {/* Writing Area with Floating Controls */}
               <div className="relative h-full">
                 <Textarea
+                  ref={textareaRef}
                   id="journal-content"
                   placeholder="What's on your mind today?
 
@@ -428,48 +746,11 @@ Nothing is off-limits. Write freely about your thoughts, feelings, experiences, 
 Take your time - there's no rush, no judgment, just space for your authentic self..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full h-full min-h-[calc(100vh-200px)] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
-                  style={{ fontSize: "18px", lineHeight: "1.6" }}
+                  className="w-full h-full min-h-[calc(100vh-300px)] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
+                  style={getTextStyle()}
                 />
                 
-                {/* Floating Tool Buttons - Like photo editing tool palette */}
-                <div className="absolute top-4 right-4 flex flex-col gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleVoiceInput}
-                    disabled={isRecording}
-                    className="h-10 w-10 p-0 rounded-full bg-background/80 backdrop-blur-sm border shadow-sm hover:bg-background/90"
-                    title={isRecording ? "Recording..." : "Voice Input"}
-                  >
-                    {isRecording ? (
-                      <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse" />
-                    ) : (
-                      <Mic className="w-4 h-4" />
-                    )}
-                  </Button>
-                  
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-10 w-10 p-0 rounded-full bg-background/80 backdrop-blur-sm border shadow-sm hover:bg-background/90"
-                    title="Add Image"
-                  >
-                    <Camera className="w-4 h-4" />
-                  </Button>
-                  
-                  {!isViewMode && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowFocusAreas(!showFocusAreas)}
-                      className="h-10 w-10 p-0 rounded-full bg-background/80 backdrop-blur-sm border shadow-sm hover:bg-background/90"
-                      title="Focus Areas"
-                    >
-                      <Target className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
+                {/* Clean writing area - tools moved to bottom */}
                 
                 {/* Minimal Writing Encouragement */}
                 {content.length > 0 && content.length < 50 && (
@@ -514,59 +795,163 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
             </div>
           </div>
         )}
+
+        {/* Topics Panel - Inline instead of new page */}
+        {showTopicsPanel && !isViewMode && (
+          <div className="w-80 border-l bg-background/50 backdrop-blur-sm p-4 animate-slide-in-right">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium text-sm">Detected Topics</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowTopicsPanel(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            {detectedTopics.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {detectedTopics.map((topic, index) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    {topic.replace('_', ' ')}
+                  </Badge>
+                ))}
+              </div>
+            ) : content.trim().length > 20 ? (
+              <div className="text-xs text-muted-foreground">
+                <div className="animate-pulse">Analyzing your entry...</div>
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground">
+                Write more to detect topics automatically
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Bottom Action Bar - Like photo editing software bottom panel */}
-      <div className="h-16 border-t bg-background/95 backdrop-blur-md flex items-center justify-between px-6 shrink-0">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={handleBack} size="sm">
-            Cancel
-          </Button>
-          
-          {/* Mood Quick Access - Expandable */}
-          {!isViewMode && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-2"
-              onClick={() => setShowMoodPanel(!showMoodPanel)}
-            >
-              <Heart className="w-4 h-4" />
-              Mood: {mood}/10
+      {/* Bottom Tool Bar - Outside the writing area */}
+      <div className="border-t bg-background/95 backdrop-blur-md p-4">
+        <div className="max-w-4xl mx-auto">
+          {/* Creative Tools Row */}
+          <div className="flex items-center justify-between gap-4 mb-3">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowFormattingToolbar(!showFormattingToolbar)}
+                className="gap-2"
+                title="Formatting Tools"
+              >
+                <Type className="w-4 h-4" />
+                Format
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleVoiceInput}
+                disabled={isRecording}
+                className="gap-2"
+                title={isRecording ? "Recording..." : "Voice Input"}
+              >
+                {isRecording ? (
+                  <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse" />
+                ) : (
+                  <Mic className="w-4 h-4" />
+                )}
+                Voice
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="gap-2"
+                title="Add Image"
+              >
+                <Camera className="w-4 h-4" />
+                Photo
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowFocusAreas(!showFocusAreas)}
+                className="gap-2"
+                title="Focus Areas"
+              >
+                <Target className="w-4 h-4" />
+                Focus
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleTopicsToggle}
+                className="gap-2"
+                title="Topics"
+              >
+                <Hash className="w-4 h-4" />
+                Topics
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {/* Mood Quick Access */}
+              {!isViewMode && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setShowMoodPanel(!showMoodPanel)}
+                >
+                  <Heart className="w-4 h-4" />
+                  Mood: {mood}/10
+                </Button>
+              )}
+              
+              {content.length > 50 && (
+                <span className="text-xs text-muted-foreground flex items-center gap-2">
+                  <Save className={`w-3 h-3 ${autoSaving ? 'animate-spin' : ''}`} />
+                  {autoSaving ? 'Auto-saving...' : lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : 'Draft ready'}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Action Buttons Row */}
+          <div className="flex items-center justify-between">
+            <Button variant="outline" onClick={handleBack} size="sm">
+              Cancel
             </Button>
-          )}
-          
-          {content.length > 50 && (
-            <span className="text-xs text-muted-foreground flex items-center gap-2">
-              <Save className={`w-3 h-3 ${autoSaving ? 'animate-spin' : ''}`} />
-              {autoSaving ? 'Auto-saving...' : lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : 'Draft ready'}
-            </span>
-          )}
+            
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || content.trim().length < 10}
+              size="lg"
+              className="gap-2 min-w-[120px]"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Save Entry
+                </>
+              )}
+            </Button>
+          </div>
         </div>
-        
-        <Button
-          onClick={handleSubmit}
-          disabled={isSubmitting || content.trim().length < 10}
-          size="lg"
-          className="gap-2 min-w-[120px]"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4" />
-              Save Entry
-            </>
-          )}
-        </Button>
       </div>
 
       {/* Floating Mood Panel - Expandable like photo editing properties panel */}
       {showMoodPanel && !isViewMode && (
-        <div className="absolute bottom-20 left-6 w-80 bg-background border rounded-lg shadow-lg p-4 animate-slide-in-up backdrop-blur-sm">
+        <div className="absolute bottom-32 left-6 w-80 bg-background border rounded-lg shadow-lg p-4 animate-slide-in-up backdrop-blur-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-sm">Quick Mood Check</h3>
             <Button
@@ -656,7 +1041,7 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
 
       {/* Minimum character warning - floating */}
       {content.trim().length > 0 && content.trim().length < 10 && (
-        <div className="absolute bottom-20 right-6 bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-lg shadow-sm animate-fade-in">
+        <div className="absolute bottom-32 right-6 bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-lg shadow-sm animate-fade-in">
           Please write at least 10 characters ({content.trim().length}/10)
         </div>
       )}
