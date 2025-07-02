@@ -169,17 +169,51 @@ const Index = () => {
       
       console.log('📥 Received journal entries:', realEntries.length, 'entries');
       
-      // Transform the entries to match the expected format
-      const transformedEntries = realEntries.map(entry => ({
+      // Load AI responses for each entry
+      const entriesWithAI = await Promise.all(
+        realEntries.map(async (entry) => {
+          try {
+            console.log(`🤖 Loading AI response for entry ${entry.id}`);
+            const pulseResponse = await apiService.getPulseResponse(entry.id);
+            
+            // Add AI insights to the entry
+            return {
+              ...entry,
+              ai_insights: [{
+                insight: pulseResponse.insight || pulseResponse.message || "AI response generated",
+                suggested_action: pulseResponse.suggested_actions?.[0] || "",
+                persona_used: "pulse",
+                confidence_score: pulseResponse.confidence_score || 0.7,
+                generated_at: new Date().toISOString()
+              }]
+            };
+          } catch (error) {
+            console.log(`ℹ️ No AI response found for entry ${entry.id}`);
+            // Return entry without AI insights if none exist
+            return entry;
+          }
+        })
+      );
+      
+      console.log('🎉 Loaded AI responses for entries:', entriesWithAI.filter(e => e.ai_insights).length, 'of', entriesWithAI.length);
+      
+      // Transform the entries to match the expected format for the UI
+      const transformedEntries = entriesWithAI.map(entry => ({
         id: entry.id,
         content: entry.content,
         mood: entry.mood_level,
         timestamp: entry.created_at,
-        // AI response will be added later when we implement that feature
+        // Include AI response if it exists
+        aiResponse: entry.ai_insights && entry.ai_insights.length > 0 ? {
+          comments: [entry.ai_insights[0].insight],
+          timestamp: entry.ai_insights[0].generated_at,
+          emoji: "🤖"
+        } : undefined
       }));
+      
       setEntries(transformedEntries);
       
-      if (realEntries.length === 0) {
+      if (entriesWithAI.length === 0) {
         console.log('ℹ️ No journal entries found for user');
         toast({
           title: "No entries yet",
@@ -187,7 +221,16 @@ const Index = () => {
           duration: 3000,
         });
       } else {
-        console.log('✅ Successfully loaded', realEntries.length, 'journal entries');
+        const entriesWithAICount = entriesWithAI.filter(e => e.ai_insights && e.ai_insights.length > 0).length;
+        console.log('✅ Successfully loaded', entriesWithAI.length, 'journal entries with', entriesWithAICount, 'AI responses');
+        
+        if (entriesWithAICount > 0) {
+          toast({
+            title: "AI responses loaded!",
+            description: `Found ${entriesWithAICount} AI responses to your journal entries`,
+            duration: 4000,
+          });
+        }
       }
     } catch (error) {
       console.error('❌ Failed to load journal entries:', error);

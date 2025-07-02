@@ -1,15 +1,15 @@
-import { useState } from "react";
-import { Heart, MessageCircle, Clock, Brain, Share2, MoreHorizontal, Trash2, Copy } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import React, { useState } from 'react';
+import { Calendar, Heart, MessageCircle, MoreHorizontal, Trash2, Copy, Sparkles } from 'lucide-react';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { formatDistanceToNow } from 'date-fns';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,146 +19,107 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { apiService } from "@/services/api";
+} from '@/components/ui/alert-dialog';
+import { apiService } from '@/services/api';
 
-interface JournalEntry {
+interface JournalCardProps {
   id: string;
   content: string;
   mood: number;
   timestamp: string;
+  tags?: string[];
   aiResponse?: {
-    emoji?: string;
     comments: string[];
     timestamp: string;
+    emoji?: string;
   };
+  onDelete?: (id: string) => void;
+  onPulseClick?: (id: string) => void;
 }
 
-interface JournalCardProps {
-  entry: JournalEntry;
-  onPulseClick?: (entryId: string) => void;
-  onEntryDeleted?: (entryId: string) => void;
-}
-
-export function JournalCard({ entry, onPulseClick, onEntryDeleted }: JournalCardProps) {
-  const [liked, setLiked] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  
-  // Delete confirmation dialog state
+export const JournalCard: React.FC<JournalCardProps> = ({
+  id,
+  content,
+  mood,
+  timestamp,
+  tags = [],
+  aiResponse,
+  onDelete,
+  onPulseClick
+}) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [showFullContent, setShowFullContent] = useState(false);
 
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffHours < 1) return "just now";
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return "yesterday";
-    return `${diffDays}d ago`;
+  const getMoodColor = (mood: number) => {
+    if (mood >= 8) return 'bg-green-100 text-green-800 border-green-200';
+    if (mood >= 6) return 'bg-blue-100 text-blue-800 border-blue-200';
+    if (mood >= 4) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    return 'bg-red-100 text-red-800 border-red-200';
   };
 
   const getMoodEmoji = (mood: number) => {
-    if (mood <= 2) return "😔";
-    if (mood <= 4) return "😐";
-    if (mood <= 6) return "🙂";
-    if (mood <= 8) return "😊";
-    return "😄";
+    if (mood >= 8) return '😊';
+    if (mood >= 6) return '🙂';
+    if (mood >= 4) return '😐';
+    return '😔';
   };
 
-  const getMoodColor = (mood: number) => {
-    if (mood <= 2) return "text-red-500 bg-red-50";
-    if (mood <= 4) return "text-orange-500 bg-orange-50";
-    if (mood <= 6) return "text-yellow-500 bg-yellow-50";
-    if (mood <= 8) return "text-green-500 bg-green-50";
-    return "text-blue-500 bg-blue-50";
-  };
-
-  const truncateContent = (content: string, maxLength: number = 280) => {
-    if (content.length <= maxLength) return content;
-    return content.substring(0, maxLength) + "...";
-  };
-
-  const handleLike = () => {
-    setLiked(!liked);
-    // Add haptic feedback for mobile
-    if (navigator.vibrate) {
-      navigator.vibrate(50);
-    }
-  };
-
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: "My Reflection",
-        text: entry.content.substring(0, 100) + "...",
-        url: window.location.href,
-      });
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(entry.content);
-    }
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(entry.content);
-  };
-
-  const handleDeleteEntry = () => {
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = async () => {
+  const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      await apiService.deleteJournalEntry(entry.id);
-      
-      // Call the callback to update parent component
-      if (onEntryDeleted) {
-        onEntryDeleted(entry.id);
+      await apiService.deleteJournalEntry(id);
+      if (onDelete) {
+        onDelete(id);
       }
-      
-      setDeleteDialogOpen(false);
     } catch (error) {
-      console.error('Failed to delete journal entry:', error);
-      alert('Failed to delete entry. Please try again.');
+      console.error('Failed to delete entry:', error);
     } finally {
       setIsDeleting(false);
+      setDeleteDialogOpen(false);
     }
   };
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+    } catch (error) {
+      console.error('Failed to copy content:', error);
+    }
+  };
+
+  const shouldTruncateContent = content.length > 280;
+  const displayContent = shouldTruncateContent && !showFullContent
+    ? content.substring(0, 280) + '...'
+    : content;
+
   return (
-    <Card className="w-full bg-card border hover:border-primary/20 transition-all duration-300 hover:shadow-md group">
-      <CardContent className="p-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-gradient-to-r from-pulse-400 to-pulse-500 animate-pulse"></div>
-            <span className="text-sm font-medium text-calm-700">
-              Your reflection
-            </span>
-            <span className="text-sm text-calm-500 flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {formatTimestamp(entry.timestamp)}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-lg transition-transform hover:scale-110">{getMoodEmoji(entry.mood)}</span>
-            <span className={cn(
-              "text-xs px-2 py-1 rounded-full font-medium transition-colors",
-              getMoodColor(entry.mood)
-            )}>
-              {entry.mood}/10
-            </span>
+    <>
+      <Card className="w-full max-w-2xl mx-auto hover:shadow-md transition-all duration-200 border-l-4 border-l-primary/20">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="text-lg">{getMoodEmoji(mood)}</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-sm">You</span>
+                  <Badge variant="outline" className={`text-xs ${getMoodColor(mood)}`}>
+                    Mood {mood}/10
+                  </Badge>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {formatDistanceToNow(new Date(timestamp), { addSuffix: true })}
+                </span>
+              </div>
+            </div>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <MoreHorizontal className="w-4 h-4" />
-                  <span className="sr-only">More options</span>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -166,120 +127,121 @@ export function JournalCard({ entry, onPulseClick, onEntryDeleted }: JournalCard
                   <Copy className="h-4 w-4 mr-2" />
                   Copy text
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleShare}>
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Share
-                </DropdownMenuItem>
                 <DropdownMenuItem 
-                  onClick={handleDeleteEntry}
+                  onClick={() => setDeleteDialogOpen(true)}
                   className="text-red-600 focus:text-red-600"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete entry
+                  Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
+        </CardHeader>
 
-        {/* Content */}
-        <div className="mb-4">
-          <p className="text-calm-800 leading-relaxed whitespace-pre-wrap cursor-pointer" 
-             onClick={() => setIsExpanded(!isExpanded)}>
-            {isExpanded ? entry.content : truncateContent(entry.content)}
-          </p>
-          {entry.content.length > 280 && (
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="text-sm text-pulse-600 hover:text-pulse-700 font-medium mt-2 transition-colors"
-            >
-              {isExpanded ? "Show less" : "Read more"}
-            </button>
-          )}
-        </div>
-
-        {/* AI Response */}
-        {entry.aiResponse && (
-          <div className="border-l-2 border-primary/30 pl-4 mb-4 bg-muted/30 -ml-1 py-3 rounded-r-md transition-all duration-200 hover:bg-muted/50">
-            <div className="flex items-start gap-3">
-              <Avatar className="w-6 h-6 ring-2 ring-pulse-200 transition-transform hover:scale-110">
-                <AvatarFallback className="bg-gradient-to-br from-pulse-400 to-pulse-500 text-white text-xs">
-                  <Brain className="w-3 h-3" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-medium text-pulse-700">
-                    Pulse
-                  </span>
-                  <span className="text-xs text-calm-500">
-                    {formatTimestamp(entry.aiResponse.timestamp)}
-                  </span>
-                  {entry.aiResponse.emoji && (
-                    <span className="text-sm animate-bounce">{entry.aiResponse.emoji}</span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  {entry.aiResponse.comments.map((comment, index) => (
-                    <p
-                      key={index}
-                      className="text-sm text-calm-700 leading-relaxed"
-                    >
-                      {comment}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex items-center justify-between pt-2">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLike}
-              className={cn(
-                "gap-2 text-calm-600 hover:text-pulse-600 transition-all duration-200 hover:scale-105 active:scale-95",
-                liked && "text-pulse-600",
+        <CardContent>
+          <div className="space-y-4">
+            {/* Journal Content */}
+            <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+              {displayContent}
+              {shouldTruncateContent && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowFullContent(!showFullContent)}
+                  className="p-0 h-auto text-primary hover:text-primary/80 ml-2"
+                >
+                  {showFullContent ? 'Show less' : 'Show more'}
+                </Button>
               )}
-              aria-label={liked ? "Unlike reflection" : "Like reflection"}
-            >
-              <Heart className={cn("w-4 h-4 transition-all duration-200", liked && "fill-current scale-110")} />
-              <span className="text-sm">{liked ? "Liked" : "Reflect"}</span>
-            </Button>
+            </div>
 
-            {entry.aiResponse && (
+            {/* Tags */}
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {tags.map((tag, index) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    #{tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {/* Interaction Buttons */}
+            <div className="flex items-center gap-6 pt-2">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onPulseClick?.(entry.id)}
-                className="gap-2 text-calm-600 hover:text-pulse-600 transition-all duration-200 hover:scale-105 active:scale-95"
-                aria-label="Reply to Pulse"
+                onClick={() => setLiked(!liked)}
+                className={`gap-2 h-8 px-3 ${liked ? 'text-red-500 hover:text-red-600' : 'text-gray-500 hover:text-red-500'}`}
               >
-                <MessageCircle className="w-4 h-4" />
-                <span className="text-sm">Reply to Pulse</span>
+                <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
+                <span className="text-xs">{liked ? 'Liked' : 'Like'}</span>
               </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onPulseClick?.(id)}
+                className="gap-2 h-8 px-3 text-gray-500 hover:text-primary"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span className="text-xs">Pulse</span>
+              </Button>
+            </div>
+
+            {/* AI Response - Social Media Style */}
+            {aiResponse && aiResponse.comments.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="flex items-start gap-3">
+                  {/* AI Avatar */}
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="h-4 w-4 text-blue-600" />
+                  </div>
+                  
+                  {/* AI Response Content */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-sm text-blue-600">Pulse AI</span>
+                      <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                        AI Assistant
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(aiResponse.timestamp), { addSuffix: true })}
+                      </span>
+                    </div>
+                    
+                    <div className="text-sm text-gray-700 leading-relaxed mb-2">
+                      {aiResponse.comments[0]}
+                    </div>
+                    
+                    {/* AI Response Actions */}
+                    <div className="flex items-center gap-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-2 h-7 px-2 text-xs text-gray-500 hover:text-blue-600"
+                      >
+                        <Heart className="h-3 w-3" />
+                        Helpful
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-2 h-7 px-2 text-xs text-gray-500 hover:text-blue-600"
+                      >
+                        <MessageCircle className="h-3 w-3" />
+                        Reply
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleShare}
-              className="gap-2 text-calm-600 hover:text-pulse-600 transition-all duration-200 hover:scale-105 active:scale-95 opacity-0 group-hover:opacity-100"
-              aria-label="Share reflection"
-            >
-              <Share2 className="w-4 h-4" />
-              <span className="text-sm">Share</span>
-            </Button>
           </div>
+        </CardContent>
+      </Card>
 
-
-        </div>
-      </CardContent>
-      
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -287,24 +249,20 @@ export function JournalCard({ entry, onPulseClick, onEntryDeleted }: JournalCard
             <AlertDialogTitle>Delete Journal Entry?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete this journal entry. This action cannot be undone.
-              <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
-                <strong>Entry preview:</strong> {entry.content.substring(0, 100)}
-                {entry.content.length > 100 && '...'}
-              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={confirmDelete}
+              onClick={handleDelete}
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? 'Deleting...' : 'Delete Entry'}
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </>
   );
-}
+};
