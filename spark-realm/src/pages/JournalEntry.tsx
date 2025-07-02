@@ -605,7 +605,7 @@ const JournalEntry = () => {
           {/* Rich Text Formatting Toolbar */}
           {showFormattingToolbar && !isViewMode && (
             <div className="border-b bg-background/50 backdrop-blur-sm p-2 animate-slide-in-up">
-              <div className="max-w-4xl mx-auto flex items-center gap-2 flex-wrap">
+              <div className="max-w-6xl mx-auto flex items-center gap-2 flex-wrap">
                 {/* Font Family */}
                 <select 
                   value={fontFamily} 
@@ -733,7 +733,7 @@ const JournalEntry = () => {
           )}
 
           <div className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto h-full">
+            <div className="max-w-6xl mx-auto h-full">
               {/* Writing Area with Floating Controls */}
               <div className="relative h-full">
                 <Textarea
@@ -746,7 +746,7 @@ Nothing is off-limits. Write freely about your thoughts, feelings, experiences, 
 Take your time - there's no rush, no judgment, just space for your authentic self..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full h-full min-h-[calc(100vh-300px)] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
+                  className="w-full h-full min-h-[calc(100vh-250px)] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
                   style={getTextStyle()}
                 />
                 
@@ -766,7 +766,7 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
         {/* Expandable Side Panels - Like photo editing tool panels */}
         {/* Focus Areas Panel */}
         {showFocusAreas && !isViewMode && (
-          <div className="w-80 border-l bg-background/50 backdrop-blur-sm p-4 animate-slide-in-right">
+          <div className="w-64 border-l bg-background/50 backdrop-blur-sm p-4 animate-slide-in-right">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium text-sm">Focus Areas</h3>
               <Button
@@ -785,7 +785,7 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
                   key={area.id}
                   variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
                   size="sm"
-                  onClick={() => handleFocusAreaToggle(area.id)}
+                  onClick={() => toggleFocusArea(area.id)}
                   className="justify-start gap-2 h-auto py-2 px-3 text-left"
                 >
                   <span className="text-sm">{area.emoji}</span>
@@ -798,7 +798,7 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
 
         {/* Topics Panel - Inline instead of new page */}
         {showTopicsPanel && !isViewMode && (
-          <div className="w-80 border-l bg-background/50 backdrop-blur-sm p-4 animate-slide-in-right">
+          <div className="w-64 border-l bg-background/50 backdrop-blur-sm p-4 animate-slide-in-right">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium text-sm">Detected Topics</h3>
               <Button
@@ -834,7 +834,7 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
 
       {/* Bottom Tool Bar - Outside the writing area */}
       <div className="border-t bg-background/95 backdrop-blur-md p-4">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {/* Creative Tools Row */}
           <div className="flex items-center justify-between gap-4 mb-3">
             <div className="flex items-center gap-2">
@@ -951,7 +951,7 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
 
       {/* Floating Mood Panel - Expandable like photo editing properties panel */}
       {showMoodPanel && !isViewMode && (
-        <div className="absolute bottom-32 left-6 w-80 bg-background border rounded-lg shadow-lg p-4 animate-slide-in-up backdrop-blur-sm">
+        <div className="absolute bottom-32 left-6 w-64 bg-background border rounded-lg shadow-lg p-4 animate-slide-in-up backdrop-blur-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-sm">Quick Mood Check</h3>
             <Button

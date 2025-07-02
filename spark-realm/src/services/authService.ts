@@ -280,22 +280,7 @@ class AuthService {
 
   getAuthToken(): string | null {
     try {
-      // First, try to get token from current Supabase session (most reliable)
-      const session = supabase.auth.getSession();
-      if (session) {
-        session.then(({ data: { session: currentSession } }) => {
-          if (currentSession?.access_token) {
-            // Update localStorage with fresh token if needed
-            localStorage.setItem('auth_tokens', JSON.stringify({
-              access_token: currentSession.access_token,
-              refresh_token: currentSession.refresh_token,
-              expires_at: currentSession.expires_at
-            }));
-          }
-        }).catch(console.error);
-      }
-
-      // Check localStorage for stored tokens
+      // Check localStorage first for stored tokens (faster, no API call)
       const tokens = localStorage.getItem('auth_tokens');
       if (tokens) {
         const parsed = JSON.parse(tokens) as AuthTokens;
@@ -307,7 +292,7 @@ class AuthService {
           return null;
         }
         
-        console.log('✅ Auth token retrieved successfully');
+        console.log('✅ Auth token retrieved from cache');
         return parsed.access_token;
       }
 
