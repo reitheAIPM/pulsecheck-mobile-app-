@@ -160,7 +160,7 @@ async def get_last_ai_action_status(
                 "comment_id": last_ai_comment["id"] if last_ai_comment else None,
                 "persona_used": last_ai_comment.get("persona_used") if last_ai_comment else None,
                 "confidence_score": last_ai_comment.get("confidence_score") if last_ai_comment else None,
-                "response_preview": last_ai_comment["response_text"][:100] + "..." if last_ai_comment and len(last_ai_comment["response_text"]) > 100 else (last_ai_comment["response_text"] if last_ai_comment else None),
+                "response_preview": last_ai_comment["ai_response"][:100] + "..." if last_ai_comment and len(last_ai_comment["ai_response"]) > 100 else (last_ai_comment["ai_response"] if last_ai_comment else None),
                 "created_at": last_ai_comment["created_at"] if last_ai_comment else None
             },
             
