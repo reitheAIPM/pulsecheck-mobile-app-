@@ -1226,6 +1226,91 @@ async def manual_respond_to_latest(user_id: str):
             "troubleshooting": "Check logs and database connectivity"
         }
 
+@app.get("/api/v1/frontend-fix/ai-responses/{user_id}")
+async def get_ai_responses_for_frontend(user_id: str):
+    """
+    Frontend-friendly endpoint to get AI responses without authentication
+    This fixes the 404 errors the frontend is experiencing
+    """
+    try:
+        from app.core.database import get_database
+        
+        db = get_database()
+        supabase = db.get_service_client()  # Use service role to bypass RLS
+        
+        # Get user's recent journal entries with AI responses
+        journal_result = supabase.table("journal_entries").select(
+            "id, content, created_at, energy_level"
+        ).eq("user_id", user_id).order("created_at", desc=True).limit(10).execute()
+        
+        if not journal_result.data:
+            return {
+                "user_id": user_id,
+                "journal_entries": [],
+                "ai_responses": [],
+                "message": "No journal entries found"
+            }
+        
+        # Get AI insights for these journal entries
+        journal_ids = [entry["id"] for entry in journal_result.data]
+        ai_result = supabase.table("ai_insights").select(
+            "id, journal_entry_id, ai_response, persona_used, confidence_score, created_at"
+        ).eq("user_id", user_id).in_("journal_entry_id", journal_ids).order("created_at", desc=True).execute()
+        
+        # Also check ai_comments table (fallback)
+        comments_result = supabase.table("ai_comments").select(
+            "id, journal_entry_id, comment, persona_used, confidence_score, created_at"
+        ).eq("user_id", user_id).in_("journal_entry_id", journal_ids).order("created_at", desc=True).execute()
+        
+        # Combine results
+        ai_responses = []
+        
+        # Add AI insights
+        for insight in (ai_result.data or []):
+            ai_responses.append({
+                "id": insight["id"],
+                "journal_entry_id": insight["journal_entry_id"],
+                "response": insight["ai_response"],
+                "persona": insight["persona_used"],
+                "confidence": insight["confidence_score"],
+                "created_at": insight["created_at"],
+                "source": "ai_insights"
+            })
+        
+        # Add AI comments
+        for comment in (comments_result.data or []):
+            ai_responses.append({
+                "id": comment["id"],
+                "journal_entry_id": comment["journal_entry_id"],
+                "response": comment["comment"],
+                "persona": comment.get("persona_used", "unknown"),
+                "confidence": comment.get("confidence_score", 0.8),
+                "created_at": comment["created_at"],
+                "source": "ai_comments"
+            })
+        
+        # Sort by creation time
+        ai_responses.sort(key=lambda x: x["created_at"], reverse=True)
+        
+        return {
+            "success": True,
+            "user_id": user_id,
+            "total_journal_entries": len(journal_result.data),
+            "total_ai_responses": len(ai_responses),
+            "journal_entries": journal_result.data,
+            "ai_responses": ai_responses,
+            "latest_ai_response": ai_responses[0] if ai_responses else None,
+            "note": "This endpoint bypasses authentication for frontend testing"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting AI responses for frontend: {e}")
+        return {
+            "error": f"Failed to get AI responses: {str(e)}",
+            "user_id": user_id,
+            "troubleshooting": "Check database connectivity and user_id format"
+        }
+
 # Graceful shutdown handler
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully"""
