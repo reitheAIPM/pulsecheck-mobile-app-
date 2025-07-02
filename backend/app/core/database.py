@@ -106,12 +106,13 @@ class Database:
     
     def get_service_client(self) -> Client:
         """Get the service role client for AI operations (bypasses RLS)"""
-        if not self._service_connected:
+        if not self._service_connected or not self.service_client:
             self.connect_service_role()
         
         if not self.service_client:
             # Fallback to anon key client with warning
-            logger.warning("Service role client unavailable, falling back to anon key (RLS applies)")
+            logger.warning("🚨 Service role client unavailable, falling back to anon key (RLS applies)")
+            logger.warning("🚨 This will prevent AI operations from accessing user journal entries")
             return self.get_client()
         
         return self.service_client
