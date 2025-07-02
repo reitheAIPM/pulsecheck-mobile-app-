@@ -27,18 +27,18 @@ const UNIVERSAL_PROMPT = "What's on your mind today? Nothing is off-limits.";
 
 // Focus areas for multi-theme journaling
 const FOCUS_AREAS = [
-  { id: "work_stress", label: "Work Stress", emoji: "💼", description: "Challenges and pressure at work, deadlines, or job-related stress." },
-  { id: "anxiety", label: "Anxiety", emoji: "😰", description: "Feelings of worry, nervousness, or unease about things in your life." },
-  { id: "relationships", label: "Relationships", emoji: "❤️", description: "Thoughts or feelings about friends, family, or romantic partners." },
-  { id: "health", label: "Health & Wellness", emoji: "🏃‍♀️", description: "Physical or mental health, self-care, or wellness routines." },
-  { id: "creativity", label: "Creativity", emoji: "🎨", description: "Creative projects, inspiration, or artistic expression." },
-  { id: "motivation", label: "Motivation", emoji: "💪", description: "Drive, ambition, or struggles with motivation and energy." },
-  { id: "sleep", label: "Sleep", emoji: "😴", description: "Sleep quality, rest, or feeling tired or refreshed." },
-  { id: "purpose", label: "Life Purpose", emoji: "🌟", description: "Questions or thoughts about meaning, direction, or purpose in life." },
-  { id: "loneliness", label: "Loneliness", emoji: "🤗", description: "Feeling alone, isolated, or disconnected from others." },
-  { id: "grief", label: "Grief & Loss", emoji: "🕊️", description: "Coping with loss, sadness, or grief." },
-  { id: "planning", label: "Planning & Goals", emoji: "📋", description: "Setting goals, making plans, or organizing your life." },
-  { id: "reflection", label: "General Reflection", emoji: "💭", description: "General thoughts, self-reflection, or anything on your mind." }
+  { id: "work_stress", label: "Work Stress", emoji: "💼", description: "Challenges and pressure at work, deadlines, career concerns, or job-related stress and anxiety." },
+  { id: "anxiety", label: "Anxiety", emoji: "😰", description: "Feelings of worry, nervousness, panic, or unease about current situations or future events." },
+  { id: "relationships", label: "Relationships", emoji: "❤️", description: "Thoughts and feelings about friends, family, romantic partners, social connections, or relationship challenges." },
+  { id: "health", label: "Health & Wellness", emoji: "🏃‍♀️", description: "Physical health, mental wellness, fitness goals, medical concerns, or self-care routines and habits." },
+  { id: "creativity", label: "Creativity", emoji: "🎨", description: "Creative projects, artistic inspiration, hobbies, creative blocks, or expressing yourself through art." },
+  { id: "motivation", label: "Motivation", emoji: "💪", description: "Drive, ambition, goal-setting, struggles with motivation, procrastination, or finding energy and focus." },
+  { id: "sleep", label: "Sleep", emoji: "😴", description: "Sleep quality, insomnia, rest patterns, feeling tired or refreshed, or sleep-related concerns." },
+  { id: "purpose", label: "Life Purpose", emoji: "🌟", description: "Questions about meaning, life direction, purpose, values, spiritual growth, or finding your path." },
+  { id: "loneliness", label: "Loneliness", emoji: "🤗", description: "Feeling alone, isolated, disconnected from others, or seeking deeper social connections." },
+  { id: "grief", label: "Grief & Loss", emoji: "🕊️", description: "Coping with loss, sadness, grief, mourning, or processing difficult life transitions." },
+  { id: "planning", label: "Planning & Goals", emoji: "📋", description: "Setting goals, making plans, organizing your life, productivity, or working toward future aspirations." },
+  { id: "reflection", label: "General Reflection", emoji: "💭", description: "General thoughts, self-reflection, contemplation, or anything else that's on your mind today." }
 ];
 
 const JournalEntry = () => {
@@ -901,7 +901,7 @@ const JournalEntry = () => {
               </Button>
             </div>
             <TooltipProvider>
-            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-2 md:gap-3">
               {FOCUS_AREAS.map((area) => (
                 <Tooltip key={area.id}>
                   <TooltipTrigger asChild>
@@ -909,14 +909,15 @@ const JournalEntry = () => {
                       variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
                       size="sm"
                       onClick={() => toggleFocusArea(area.id)}
-                      className="justify-center items-center gap-0.5 h-6 py-0 px-1 text-center"
+                      className="flex-col justify-center items-center gap-1 h-16 md:h-20 lg:h-24 p-2 text-center hover:scale-105 transition-transform"
                     >
-                      <span className="text-xs">{area.emoji}</span>
-                      <span className="text-[10px] truncate">{area.label}</span>
+                      <span className="text-xl md:text-2xl lg:text-3xl">{area.emoji}</span>
+                      <span className="text-xs md:text-sm font-medium leading-tight">{area.label}</span>
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-xs text-xs">
-                    {area.description}
+                  <TooltipContent side="top" className="max-w-xs text-sm p-3">
+                    <div className="font-semibold mb-1">{area.emoji} {area.label}</div>
+                    <div>{area.description}</div>
                   </TooltipContent>
                 </Tooltip>
               ))}
@@ -957,10 +958,10 @@ const JournalEntry = () => {
             </div>
             
             {detectedTopics.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-2">
                 {detectedTopics.map((topic, index) => (
-                  <Badge key={index} variant="secondary" className="text-[10px] py-0 px-1">
-                    {topic.replace('_', ' ')}
+                  <Badge key={index} variant="secondary" className="text-sm py-1 px-3 hover:bg-primary/10 transition-colors">
+                    {topic.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                   </Badge>
                 ))}
               </div>

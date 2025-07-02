@@ -89,9 +89,9 @@ export const JournalCard: React.FC<JournalCardProps> = ({
     }
   };
 
-  const shouldTruncateContent = content.length > 280;
+  const shouldTruncateContent = content.length > 800;
   const displayContent = shouldTruncateContent && !showFullContent
-    ? content.substring(0, 280) + '...'
+    ? content.substring(0, 800) + '...'
     : content;
 
   return (
