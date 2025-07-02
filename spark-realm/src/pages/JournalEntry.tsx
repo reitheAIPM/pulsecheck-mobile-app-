@@ -11,6 +11,7 @@ import PersonaSelector from "@/components/PersonaSelector";
 import EmojiReactionSystem from "@/components/EmojiReactionSystem";
 import { apiService, PersonaInfo } from "@/services/api";
 import { authService } from "@/services/authService";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 // Local type for personas with additional UI properties
 type PersonaRecommendation = PersonaInfo & {
@@ -26,18 +27,18 @@ const UNIVERSAL_PROMPT = "What's on your mind today? Nothing is off-limits.";
 
 // Focus areas for multi-theme journaling
 const FOCUS_AREAS = [
-  { id: "work_stress", label: "Work Stress", emoji: "💼" },
-  { id: "anxiety", label: "Anxiety", emoji: "😰" },
-  { id: "relationships", label: "Relationships", emoji: "❤️" },
-  { id: "health", label: "Health & Wellness", emoji: "🏃‍♀️" },
-  { id: "creativity", label: "Creativity", emoji: "🎨" },
-  { id: "motivation", label: "Motivation", emoji: "💪" },
-  { id: "sleep", label: "Sleep", emoji: "😴" },
-  { id: "purpose", label: "Life Purpose", emoji: "🌟" },
-  { id: "loneliness", label: "Loneliness", emoji: "🤗" },
-  { id: "grief", label: "Grief & Loss", emoji: "🕊️" },
-  { id: "planning", label: "Planning & Goals", emoji: "📋" },
-  { id: "reflection", label: "General Reflection", emoji: "💭" }
+  { id: "work_stress", label: "Work Stress", emoji: "💼", description: "Challenges and pressure at work, deadlines, or job-related stress." },
+  { id: "anxiety", label: "Anxiety", emoji: "😰", description: "Feelings of worry, nervousness, or unease about things in your life." },
+  { id: "relationships", label: "Relationships", emoji: "❤️", description: "Thoughts or feelings about friends, family, or romantic partners." },
+  { id: "health", label: "Health & Wellness", emoji: "🏃‍♀️", description: "Physical or mental health, self-care, or wellness routines." },
+  { id: "creativity", label: "Creativity", emoji: "🎨", description: "Creative projects, inspiration, or artistic expression." },
+  { id: "motivation", label: "Motivation", emoji: "💪", description: "Drive, ambition, or struggles with motivation and energy." },
+  { id: "sleep", label: "Sleep", emoji: "😴", description: "Sleep quality, rest, or feeling tired or refreshed." },
+  { id: "purpose", label: "Life Purpose", emoji: "🌟", description: "Questions or thoughts about meaning, direction, or purpose in life." },
+  { id: "loneliness", label: "Loneliness", emoji: "🤗", description: "Feeling alone, isolated, or disconnected from others." },
+  { id: "grief", label: "Grief & Loss", emoji: "🕊️", description: "Coping with loss, sadness, or grief." },
+  { id: "planning", label: "Planning & Goals", emoji: "📋", description: "Setting goals, making plans, or organizing your life." },
+  { id: "reflection", label: "General Reflection", emoji: "💭", description: "General thoughts, self-reflection, or anything on your mind." }
 ];
 
 const JournalEntry = () => {
@@ -95,6 +96,9 @@ const JournalEntry = () => {
 
   // Get current user ID from authenticated session
   const [userId, setUserId] = useState<string>("");
+
+  // Add state to track last selected focus area for info display
+  const [lastSelectedFocusArea, setLastSelectedFocusArea] = useState<string | null>(null);
 
   // Initialize user ID on component mount
   useEffect(() => {
@@ -275,12 +279,17 @@ const JournalEntry = () => {
     }
   };
 
-  // Helper function to toggle focus areas
+  // Update toggleFocusArea to set last selected
   const toggleFocusArea = (areaId: string) => {
     setSelectedFocusAreas(prev => {
       if (prev.includes(areaId)) {
+        // If removing, clear lastSelected if it was this one
+        if (lastSelectedFocusArea === areaId) {
+          setLastSelectedFocusArea(null);
+        }
         return prev.filter(id => id !== areaId);
       } else {
+        setLastSelectedFocusArea(areaId);
         return [...prev, areaId];
       }
     });
@@ -599,9 +608,9 @@ const JournalEntry = () => {
       </header>
 
       {/* Main Writing Canvas - Maximized like photo editing main canvas */}
-      <div className="flex-1 flex relative">
+      <div className="flex-1 flex relative justify-center items-start">
         {/* Full-screen Writing Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col w-full max-w-[1200px] mx-auto">
           {/* Rich Text Formatting Toolbar - More compact */}
           {showFormattingToolbar && !isViewMode && (
             <div className="border-b bg-background/50 backdrop-blur-sm py-1 animate-slide-in-up">
@@ -732,21 +741,17 @@ const JournalEntry = () => {
             </div>
           )}
 
-          <div className="flex-1 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
-            <div className="w-full max-w-none h-full">
+          <div className="flex-1 px-2 sm:px-4 md:px-8 lg:px-12 xl:px-16">
+            <div className="w-full h-full">
               {/* Writing Area with Floating Controls */}
               <div className="relative h-full">
                 <Textarea
                   ref={textareaRef}
                   id="journal-content"
-                  placeholder="What's on your mind today?
-
-Nothing is off-limits. Write freely about your thoughts, feelings, experiences, dreams, or anything that matters to you right now. This is your private space to explore your inner world.
-
-Take your time - there's no rush, no judgment, just space for your authentic self..."
+                  placeholder="What's on your mind today?\n\nNothing is off-limits. Write freely about your thoughts, feelings, experiences, dreams, or anything that matters to you right now. This is your private space to explore your inner world.\n\nTake your time - there's no rush, no judgment, just space for your authentic self..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full h-full min-h-[calc(100vh-250px)] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
+                  className="w-full h-full min-h-[300px] max-h-[600px] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
                   style={getTextStyle()}
                 />
                 
@@ -895,21 +900,42 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
                 <X className="w-3 h-3" />
               </Button>
             </div>
-            
+            <TooltipProvider>
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-1">
               {FOCUS_AREAS.map((area) => (
-                <Button
-                  key={area.id}
-                  variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => toggleFocusArea(area.id)}
-                  className="justify-center items-center gap-0.5 h-6 py-0 px-1 text-center"
-                >
-                  <span className="text-xs">{area.emoji}</span>
-                  <span className="text-[10px] truncate">{area.label}</span>
-                </Button>
+                <Tooltip key={area.id}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => toggleFocusArea(area.id)}
+                      className="justify-center items-center gap-0.5 h-6 py-0 px-1 text-center"
+                    >
+                      <span className="text-xs">{area.emoji}</span>
+                      <span className="text-[10px] truncate">{area.label}</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">
+                    {area.description}
+                  </TooltipContent>
+                </Tooltip>
               ))}
             </div>
+            </TooltipProvider>
+            {/* Persistent info box for selected focus area(s) */}
+            {(selectedFocusAreas.length > 0) && (
+              <div className="mt-2 p-2 rounded bg-muted/40 border text-xs max-w-2xl">
+                {selectedFocusAreas.map(id => {
+                  const area = FOCUS_AREAS.find(a => a.id === id);
+                  return area ? (
+                    <div key={id} className="mb-1 last:mb-0">
+                      <span className="font-semibold mr-1">{area.emoji} {area.label}:</span>
+                      <span>{area.description}</span>
+                    </div>
+                  ) : null;
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
