@@ -96,6 +96,32 @@ except ImportError as e:
 # Global scheduler reference for graceful shutdown
 scheduler_service = None
 
+async def monitor_scheduler_health():
+    """Background task to monitor and restart scheduler if it stops"""
+    global scheduler_service
+    
+    while True:
+        try:
+            await asyncio.sleep(60)  # Check every minute
+            
+            if scheduler_service and scheduler_available:
+                status = scheduler_service.get_scheduler_status()
+                
+                if status.get("status") != "running":
+                    logger.warning("🚨 Scheduler detected as stopped, attempting restart...")
+                    try:
+                        result = await scheduler_service.start_scheduler()
+                        if result.get("status") == "started":
+                            logger.info("✅ Scheduler auto-recovery successful")
+                        else:
+                            logger.error(f"❌ Scheduler auto-recovery failed: {result}")
+                    except Exception as e:
+                        logger.error(f"❌ Scheduler auto-recovery error: {e}")
+                        
+        except Exception as e:
+            logger.error(f"Error in scheduler monitoring: {e}")
+            await asyncio.sleep(300)  # Wait 5 minutes before retrying if there's an error
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager with observability"""
@@ -156,13 +182,42 @@ async def lifespan(app: FastAPI):
             logger.info("🤖 Starting advanced AI scheduler...")
             try:
                 scheduler_service = get_scheduler_service()
-                await scheduler_service.start()
-                logger.info("✅ Advanced AI scheduler started successfully")
+                result = await scheduler_service.start_scheduler()
+                if result.get("status") == "started":
+                    logger.info("✅ Advanced AI scheduler started successfully")
+                    
+                    # Start background scheduler monitoring
+                    asyncio.create_task(monitor_scheduler_health())
+                else:
+                    logger.error(f"⚠️ Scheduler startup failed: {result}")
             except Exception as e:
                 logger.error(f"⚠️ Scheduler startup failed (continuing without scheduler): {e}")
                 # Continue without scheduler to allow Railway deployment to complete
         else:
             logger.info("⚠️ Advanced AI scheduler not available, continuing without background scheduling")
+        
+        # Import comprehensive monitoring routers
+        try:
+            from app.routers.comprehensive_monitoring import router as comprehensive_monitoring_router
+            app.include_router(comprehensive_monitoring_router)
+            logger.info("✅ Comprehensive monitoring router registered")
+            
+            from app.routers.configuration_validation import router as config_validation_router
+            app.include_router(config_validation_router)
+            logger.info("✅ Configuration validation router registered")
+            
+            from app.routers.predictive_monitoring import router as predictive_monitoring_router
+            app.include_router(predictive_monitoring_router)
+            logger.info("✅ Predictive monitoring router registered")
+            
+            from app.routers.auto_resolution import router as auto_resolution_router
+            app.include_router(auto_resolution_router)
+            logger.info("✅ Auto-resolution router registered")
+            
+        except ImportError as e:
+            logger.warning(f"⚠️  Some comprehensive monitoring features not available: {e}")
+        except Exception as e:
+            logger.error(f"❌ Failed to register comprehensive monitoring routers: {e}")
         
         yield
         
@@ -483,14 +538,22 @@ async def health_check():
         health_status = await db.health_check()
         
         # Check scheduler status
-        scheduler_status = "unknown"
-        try:
-            global scheduler_service
-            if scheduler_service:
-                status = scheduler_service.get_status()
+        scheduler_status = "not_available"
+        scheduler_details = "Scheduler service not available"
+        
+        if scheduler_service and scheduler_available:
+            try:
+                status = scheduler_service.get_scheduler_status()
                 scheduler_status = status.get("status", "unknown")
-        except:
-            scheduler_status = "error"
+                scheduler_details = {
+                    "running": status.get("running", False),
+                    "jobs": len(status.get("jobs", [])),
+                    "total_cycles": status.get("metrics", {}).get("total_cycles", 0),
+                    "uptime_hours": status.get("metrics", {}).get("uptime_hours", 0)
+                }
+            except Exception as e:
+                scheduler_status = "error"
+                scheduler_details = str(e)
         
         overall_status = "healthy"
         if health_status.get("status") != "healthy":
@@ -503,7 +566,10 @@ async def health_check():
             "timestamp": health_status.get("timestamp", "unknown"),
             "components": {
                 "database": health_status.get("status", "unknown"),
-                "scheduler": scheduler_status,
+                "scheduler": {
+                    "status": scheduler_status,
+                    "details": scheduler_details
+                },
                 "error_rate": "healthy",
                 "response_time": "healthy",
                 "memory": "healthy",
