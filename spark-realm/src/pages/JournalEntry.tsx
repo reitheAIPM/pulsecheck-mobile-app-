@@ -605,7 +605,7 @@ const JournalEntry = () => {
           {/* Rich Text Formatting Toolbar */}
           {showFormattingToolbar && !isViewMode && (
             <div className="border-b bg-background/50 backdrop-blur-sm p-2 animate-slide-in-up">
-              <div className="max-w-7xl mx-auto flex items-center gap-2 flex-wrap">
+              <div className="w-full flex items-center gap-2 flex-wrap justify-center px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
                 {/* Font Family */}
                 <select 
                   value={fontFamily} 
@@ -732,8 +732,8 @@ const JournalEntry = () => {
             </div>
           )}
 
-          <div className="flex-1 p-6">
-            <div className="max-w-7xl mx-auto h-full">
+          <div className="flex-1 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
+            <div className="w-full max-w-none h-full">
               {/* Writing Area with Floating Controls */}
               <div className="relative h-full">
                 <Textarea
@@ -746,7 +746,7 @@ Nothing is off-limits. Write freely about your thoughts, feelings, experiences, 
 Take your time - there's no rush, no judgment, just space for your authentic self..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full h-full min-h-[calc(100vh-400px)] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
+                  className="w-full h-full min-h-[calc(100vh-300px)] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
                   style={getTextStyle()}
                 />
                 
@@ -767,8 +767,8 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
       </div>
 
       {/* Bottom Tool Bar - Outside the writing area */}
-      <div className="border-t bg-background/95 backdrop-blur-md p-4">
-        <div className="max-w-7xl mx-auto">
+      <div className="border-t bg-background/95 backdrop-blur-md py-4 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
+        <div className="w-full">
           {/* Creative Tools Row - Reorganized for better desktop layout */}
           <div className="flex items-center justify-center gap-3 mb-3">
             <div className="flex items-center gap-2 flex-wrap justify-center">
@@ -881,34 +881,34 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
         </div>
       </div>
 
-      {/* Bottom Slide-up Panels - Focus Areas and Topics */}
-      {/* Focus Areas Panel - Slides up from bottom */}
+      {/* Inline Panels - Match journal width and positioning */}
+      {/* Focus Areas Panel - Inline above toolbar */}
       {showFocusAreas && !isViewMode && (
-        <div className="fixed bottom-20 left-6 right-6 bg-background/95 backdrop-blur-md border border-border rounded-lg shadow-lg animate-slide-in-up z-50 max-h-64">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium text-sm">Focus Areas</h3>
+        <div className="border-t bg-background/50 backdrop-blur-sm animate-slide-in-up">
+          <div className="px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-medium text-xs">Focus Areas</h3>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowFocusAreas(false)}
-                className="h-6 w-6 p-0"
+                className="h-5 w-5 p-0"
               >
                 <X className="w-3 h-3" />
               </Button>
             </div>
             
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-40 overflow-y-auto">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1">
               {FOCUS_AREAS.map((area) => (
                 <Button
                   key={area.id}
                   variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
                   size="sm"
                   onClick={() => toggleFocusArea(area.id)}
-                  className="justify-start gap-1 h-auto py-2 px-2 text-left text-xs"
+                  className="justify-center gap-1 h-auto py-1 px-1 text-center text-xs"
                 >
-                  <span className="text-sm">{area.emoji}</span>
-                  <span className="text-xs">{area.label}</span>
+                  <span className="text-xs">{area.emoji}</span>
+                  <span className="text-xs hidden sm:inline">{area.label}</span>
                 </Button>
               ))}
             </div>
@@ -916,36 +916,36 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
         </div>
       )}
 
-      {/* Topics Panel - Slides up from bottom */}
+      {/* Topics Panel - Inline above toolbar */}
       {showTopicsPanel && !isViewMode && (
-        <div className="fixed bottom-20 left-6 right-6 bg-background/95 backdrop-blur-md border border-border rounded-lg shadow-lg animate-slide-in-up z-50 max-h-48">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium text-sm">Detected Topics</h3>
+        <div className="border-t bg-background/50 backdrop-blur-sm animate-slide-in-up">
+          <div className="px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-medium text-xs">Detected Topics</h3>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowTopicsPanel(false)}
-                className="h-6 w-6 p-0"
+                className="h-5 w-5 p-0"
               >
                 <X className="w-3 h-3" />
               </Button>
             </div>
             
             {detectedTopics.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1">
                 {detectedTopics.map((topic, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs py-1 px-2">
+                  <Badge key={index} variant="secondary" className="text-xs py-0.5 px-1.5">
                     {topic.replace('_', ' ')}
                   </Badge>
                 ))}
               </div>
             ) : content.trim().length > 20 ? (
-              <div className="text-sm text-muted-foreground text-center py-4">
+              <div className="text-xs text-muted-foreground text-center py-2">
                 <div className="animate-pulse">Analyzing your entry...</div>
               </div>
             ) : (
-              <div className="text-sm text-muted-foreground text-center py-4">
+              <div className="text-xs text-muted-foreground text-center py-2">
                 Write more to detect topics automatically
               </div>
             )}
@@ -953,65 +953,67 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
         </div>
       )}
 
-      {/* Floating Mood Panel - Expandable like photo editing properties panel */}
+      {/* Mood Panel - Inline above toolbar */}
       {showMoodPanel && !isViewMode && (
-        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 w-80 bg-background border rounded-lg shadow-lg p-4 animate-slide-in-up backdrop-blur-sm z-40">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-sm">Quick Mood Check</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowMoodPanel(false)}
-              className="h-8 w-8 p-0"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium">Mood</label>
-                <span className="text-xs text-muted-foreground">{mood}/10</span>
-              </div>
-              <Slider
-                value={[mood]}
-                onValueChange={(value) => setMood(value[0])}
-                max={10}
-                min={1}
-                step={1}
-                className="w-full"
-              />
+        <div className="border-t bg-background/50 backdrop-blur-sm animate-slide-in-up">
+          <div className="px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-3">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-xs">Quick Mood Check</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMoodPanel(false)}
+                className="h-5 w-5 p-0"
+              >
+                <X className="w-3 h-3" />
+              </Button>
             </div>
             
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium">Energy</label>
-                <span className="text-xs text-muted-foreground">{energy}/10</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium">Mood</label>
+                  <span className="text-xs text-muted-foreground">{mood}/10</span>
+                </div>
+                <Slider
+                  value={[mood]}
+                  onValueChange={(value) => setMood(value[0])}
+                  max={10}
+                  min={1}
+                  step={1}
+                  className="w-full"
+                />
               </div>
-              <Slider
-                value={[energy]}
-                onValueChange={(value) => setEnergy(value[0])}
-                max={10}
-                min={1}
-                step={1}
-                className="w-full"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium">Stress</label>
-                <span className="text-xs text-muted-foreground">{stress}/10</span>
+              
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium">Energy</label>
+                  <span className="text-xs text-muted-foreground">{energy}/10</span>
+                </div>
+                <Slider
+                  value={[energy]}
+                  onValueChange={(value) => setEnergy(value[0])}
+                  max={10}
+                  min={1}
+                  step={1}
+                  className="w-full"
+                />
               </div>
-              <Slider
-                value={[stress]}
-                onValueChange={(value) => setStress(value[0])}
-                max={10}
-                min={1}
-                step={1}
-                className="w-full"
-              />
+              
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium">Stress</label>
+                  <span className="text-xs text-muted-foreground">{stress}/10</span>
+                </div>
+                <Slider
+                  value={[stress]}
+                  onValueChange={(value) => setStress(value[0])}
+                  max={10}
+                  min={1}
+                  step={1}
+                  className="w-full"
+                />
+              </div>
             </div>
           </div>
         </div>
