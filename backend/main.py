@@ -1251,18 +1251,13 @@ async def get_ai_responses_for_frontend(user_id: str):
                 "message": "No journal entries found"
             }
         
-        # Get AI insights for these journal entries
+        # Get AI insights for these journal entries (only table that exists)
         journal_ids = [entry["id"] for entry in journal_result.data]
         ai_result = supabase.table("ai_insights").select(
             "id, journal_entry_id, ai_response, persona_used, confidence_score, created_at"
         ).eq("user_id", user_id).in_("journal_entry_id", journal_ids).order("created_at", desc=True).execute()
         
-        # Also check ai_comments table (fallback)
-        comments_result = supabase.table("ai_comments").select(
-            "id, journal_entry_id, comment, persona_used, confidence_score, created_at"
-        ).eq("user_id", user_id).in_("journal_entry_id", journal_ids).order("created_at", desc=True).execute()
-        
-        # Combine results
+        # Format AI responses
         ai_responses = []
         
         # Add AI insights
@@ -1275,18 +1270,6 @@ async def get_ai_responses_for_frontend(user_id: str):
                 "confidence": insight["confidence_score"],
                 "created_at": insight["created_at"],
                 "source": "ai_insights"
-            })
-        
-        # Add AI comments
-        for comment in (comments_result.data or []):
-            ai_responses.append({
-                "id": comment["id"],
-                "journal_entry_id": comment["journal_entry_id"],
-                "response": comment["comment"],
-                "persona": comment.get("persona_used", "unknown"),
-                "confidence": comment.get("confidence_score", 0.8),
-                "created_at": comment["created_at"],
-                "source": "ai_comments"
             })
         
         # Sort by creation time
