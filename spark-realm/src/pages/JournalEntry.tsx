@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
-import { ArrowLeft, Send, Lightbulb, Heart, Settings, Mic, MicOff, Image, X, Camera, Save, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowLeft, Send, Lightbulb, Heart, Settings, Mic, MicOff, Image, X, Camera, Save, ChevronUp, ChevronDown, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,6 +75,9 @@ const JournalEntry = () => {
   const [autoSaving, setAutoSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [draftKey, setDraftKey] = useState<string>("");
+  
+  // New UI states for photo-editing-like interface
+  const [showMoodPanel, setShowMoodPanel] = useState(false);
 
   // Get current user ID from authenticated session
   const [userId, setUserId] = useState<string>("");
@@ -380,325 +383,283 @@ const JournalEntry = () => {
     .filter((word) => word.length > 0).length;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBack}
-              className="gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </Button>
-            <div className="flex-1">
-              <h1 className="text-xl font-semibold">
-                {isViewMode ? "Your Reflection" : "New Journal Entry"}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {isViewMode 
-                  ? existingEntry 
-                    ? new Date(existingEntry.created_at).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })
-                    : "Loading entry..."
-                  : "Your space for deep reflection and meaningful thoughts"
-                }
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">
-                {wordCount} words
-              </p>
-            </div>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Minimal Header - Like photo editing software */}
+      <header className="h-12 bg-background/95 backdrop-blur-md border-b flex items-center justify-between px-4 shrink-0">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBack}
+            className="gap-1 h-8"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
+          <div className="text-sm font-medium">
+            {isViewMode ? "Reflection" : "New Entry"}
           </div>
+        </div>
+        
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{wordCount} words</span>
+          {content.trim().length >= 10 ? (
+            <span className="text-green-600 font-medium">✓ Ready</span>
+          ) : (
+            <span>{content.trim().length}/10 min</span>
+          )}
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        
-        {/* MAIN WRITING AREA - Now the primary focus */}
-        <Card className="border-2 shadow-lg">
-          <CardContent className="p-8">
-            <div className="space-y-6">
-              {/* Writing Prompt & Tools */}
-              <div className="flex items-center justify-between border-b pb-4">
-                <div className="flex-1">
-                  <h2 className="text-xl font-medium text-primary mb-1">
-                    What's on your mind today?
-                  </h2>
-                  <p className="text-muted-foreground text-sm">
-                    Nothing is off-limits. Write freely about your thoughts, feelings, experiences, dreams, or anything that matters to you right now.
-                  </p>
-                </div>
-              </div>
-
-              {/* Large, Prominent Text Area with Corner Controls */}
-              <div className="relative">
+      {/* Main Writing Canvas - Maximized like photo editing main canvas */}
+      <div className="flex-1 flex relative">
+        {/* Full-screen Writing Area */}
+        <div className="flex-1 flex flex-col">
+          <div className="flex-1 p-6">
+            <div className="max-w-4xl mx-auto h-full">
+              {/* Writing Area with Floating Controls */}
+              <div className="relative h-full">
                 <Textarea
                   id="journal-content"
-                  placeholder="Start writing here... Let your thoughts flow freely. This is your private space to explore your inner world, process your experiences, and capture what matters to you. Take your time - there's no rush."
+                  placeholder="What's on your mind today?
+
+Nothing is off-limits. Write freely about your thoughts, feelings, experiences, dreams, or anything that matters to you right now. This is your private space to explore your inner world.
+
+Take your time - there's no rush, no judgment, just space for your authentic self..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[400px] border-0 bg-transparent text-foreground placeholder:text-muted-foreground resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 pr-20"
-                  style={{ fontSize: "16px", lineHeight: "1.4" }}
+                  className="w-full h-full min-h-[calc(100vh-200px)] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
+                  style={{ fontSize: "18px", lineHeight: "1.6" }}
                 />
                 
-                {/* Corner Controls - positioned absolutely in top-right */}
-                <div className="absolute top-2 right-2 flex items-center gap-2">
+                {/* Floating Tool Buttons - Like photo editing tool palette */}
+                <div className="absolute top-4 right-4 flex flex-col gap-2">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleVoiceInput}
                     disabled={isRecording}
-                    className="h-8 w-8 p-0 hover:bg-muted/50"
+                    className="h-10 w-10 p-0 rounded-full bg-background/80 backdrop-blur-sm border shadow-sm hover:bg-background/90"
                     title={isRecording ? "Recording..." : "Voice Input"}
                   >
                     {isRecording ? (
                       <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse" />
                     ) : (
-                        <Mic className="w-4 h-4" />
+                      <Mic className="w-4 h-4" />
                     )}
                   </Button>
+                  
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="h-8 w-8 p-0 hover:bg-muted/50"
+                    className="h-10 w-10 p-0 rounded-full bg-background/80 backdrop-blur-sm border shadow-sm hover:bg-background/90"
                     title="Add Image"
                   >
                     <Camera className="w-4 h-4" />
                   </Button>
-                </div>
+                  
+                  {!isViewMode && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowFocusAreas(!showFocusAreas)}
+                      className="h-10 w-10 p-0 rounded-full bg-background/80 backdrop-blur-sm border shadow-sm hover:bg-background/90"
+                      title="Focus Areas"
+                    >
+                      <Target className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
                 
-              {/* Writing Encouragement - clean and separate */}
-              <div className="mt-4">
+                {/* Minimal Writing Encouragement */}
                 {content.length > 0 && content.length < 50 && (
-                  <div className="text-xs text-muted-foreground animate-fade-in text-center py-2">
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-xs text-muted-foreground/60 animate-fade-in">
                     💭 Keep going...
                   </div>
                 )}
-                
-                {content.length >= 50 && content.length < 200 && (
-                  <div className="text-xs text-green-600 animate-fade-in text-center py-2">
-                    ✨ Great start!
-                  </div>
-                )}
-                
-                {content.length >= 200 && (
-                  <div className="text-xs text-blue-600 animate-fade-in text-center py-2">
-                    🎯 Excellent depth!
-                  </div>
-                )}
               </div>
-
-              {/* Voice Input Status */}
-              {showVoiceInput && (
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 animate-fade-in">
-                  <div className="flex items-center gap-3 text-blue-700">
-                    <Mic className="w-5 h-5 animate-pulse" />
-                    <div>
-                      <p className="font-medium">
-                        {isRecording ? "Listening... Speak clearly" : "Voice input completed"}
-                      </p>
-                      <p className="text-sm text-blue-600">
-                        Your voice will be transcribed and added to your journal
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Writing Stats */}
-              <div className="flex items-center justify-between text-sm text-muted-foreground pt-4 border-t">
-                <div className="flex items-center gap-6">
-                  <span className="flex items-center gap-2">
-                    📝 <strong>{wordCount}</strong> words
-                  </span>
-                  <span className="flex items-center gap-2">
-                    📊 <strong>{content.trim().length}</strong> characters
-                  </span>
-                  <span className="flex items-center gap-2">
-                    ⏱️ {Math.ceil(wordCount / 200)} min read
-                  </span>
-                </div>
-                <div className="text-right">
-                  {content.trim().length >= 10 ? (
-                    <span className="text-green-600 font-medium">Ready to save ✓</span>
-                  ) : (
-                    <span>Minimum 10 characters ({content.trim().length}/10)</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Minimum character warning - only shows when needed */}
-              {content.trim().length > 0 && content.trim().length < 10 && (
-                <div className="text-sm text-red-500 mt-2">
-                  Please write at least 10 characters to save your entry ({content.trim().length}/10)
-                </div>
-              )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Focus Areas - Simplified and Secondary */}
-        {!isViewMode && (
-          <Card className="border border-muted">
-            <CardContent className="px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-sm">Focus Areas</p>
-                  <p className="text-xs text-muted-foreground">Help personalize your AI companion</p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowFocusAreas(!showFocusAreas)}
-                  className="gap-2"
-                >
-                  {showFocusAreas ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  {selectedFocusAreas.length > 0 ? `${selectedFocusAreas.length} selected` : 'Select areas'}
-                </Button>
-              </div>
-              
-              {showFocusAreas && (
-                <div className="mt-4 space-y-3">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {FOCUS_AREAS.map((area) => (
-                      <Button
-                        key={area.id}
-                        variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handleFocusAreaToggle(area.id)}
-                        className="justify-start gap-2 h-auto py-2 px-3 min-h-[36px] text-left"
-                      >
-                        <span className="text-sm">{area.emoji}</span>
-                        <span className="text-xs whitespace-nowrap overflow-hidden text-ellipsis">{area.label}</span>
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Mood Check - Compact and Secondary */}
-        {!isViewMode && (
-          <Card className="border border-muted">
-            <CardContent className="px-6 py-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-sm">Quick Mood Check</p>
-                    <p className="text-xs text-muted-foreground">Optional - helps contextualize your entry</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-muted-foreground">Mood</label>
-                      <span className="text-xs text-muted-foreground">{mood}/10</span>
-                    </div>
-                    <Slider
-                      value={[mood]}
-                      onValueChange={(value) => setMood(value[0])}
-                      max={10}
-                      min={1}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-muted-foreground">Energy</label>
-                      <span className="text-xs text-muted-foreground">{energy}/10</span>
-                    </div>
-                    <Slider
-                      value={[energy]}
-                      onValueChange={(value) => setEnergy(value[0])}
-                      max={10}
-                      min={1}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-muted-foreground">Stress</label>
-                      <span className="text-xs text-muted-foreground">{stress}/10</span>
-                    </div>
-                    <Slider
-                      value={[stress]}
-                      onValueChange={(value) => setStress(value[0])}
-                      max={10}
-                      min={1}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Emoji Reactions - Only show after substantial writing */}
-        {showEmojiReactions && content.length > 100 && (
-          <EmojiReactionSystem
-            journalContent={content}
-            detectedTopics={detectedTopics}
-            onReactionSelect={(reaction) => {
-              setSelectedEmoji(reaction);
-              console.log('Selected emoji reaction:', reaction);
-            }}
-            className="animate-fade-in"
-          />
-        )}
-
-        {/* Actions - Prominent Save Button */}
-        <div className="flex items-center justify-between py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={handleBack}>
-              Cancel
-            </Button>
-            {content.length > 50 && (
-              <Button variant="ghost" size="sm" className="gap-2" disabled>
-                <Save className={`w-4 h-4 ${autoSaving ? 'animate-spin' : ''}`} />
-                {autoSaving ? 'Auto-saving...' : lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : 'Draft ready'}
+        {/* Expandable Side Panels - Like photo editing tool panels */}
+        {/* Focus Areas Panel */}
+        {showFocusAreas && !isViewMode && (
+          <div className="w-80 border-l bg-background/50 backdrop-blur-sm p-4 animate-slide-in-right">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium text-sm">Focus Areas</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowFocusAreas(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="w-4 h-4" />
               </Button>
-            )}
+            </div>
+            
+            <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto">
+              {FOCUS_AREAS.map((area) => (
+                <Button
+                  key={area.id}
+                  variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFocusAreaToggle(area.id)}
+                  className="justify-start gap-2 h-auto py-2 px-3 text-left"
+                >
+                  <span className="text-sm">{area.emoji}</span>
+                  <span className="text-xs">{area.label}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Action Bar - Like photo editing software bottom panel */}
+      <div className="h-16 border-t bg-background/95 backdrop-blur-md flex items-center justify-between px-6 shrink-0">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={handleBack} size="sm">
+            Cancel
+          </Button>
+          
+          {/* Mood Quick Access - Expandable */}
+          {!isViewMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2"
+              onClick={() => setShowMoodPanel(!showMoodPanel)}
+            >
+              <Heart className="w-4 h-4" />
+              Mood: {mood}/10
+            </Button>
+          )}
+          
+          {content.length > 50 && (
+            <span className="text-xs text-muted-foreground flex items-center gap-2">
+              <Save className={`w-3 h-3 ${autoSaving ? 'animate-spin' : ''}`} />
+              {autoSaving ? 'Auto-saving...' : lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : 'Draft ready'}
+            </span>
+          )}
+        </div>
+        
+        <Button
+          onClick={handleSubmit}
+          disabled={isSubmitting || content.trim().length < 10}
+          size="lg"
+          className="gap-2 min-w-[120px]"
+        >
+          {isSubmitting ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" />
+              Save Entry
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Floating Mood Panel - Expandable like photo editing properties panel */}
+      {showMoodPanel && !isViewMode && (
+        <div className="absolute bottom-20 left-6 w-80 bg-background border rounded-lg shadow-lg p-4 animate-slide-in-up backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-medium text-sm">Quick Mood Check</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowMoodPanel(false)}
+              className="h-8 w-8 p-0"
+            >
+              <X className="w-4 h-4" />
+            </Button>
           </div>
           
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting || content.trim().length < 10}
-            size="lg"
-            className="gap-2 min-w-[140px]"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                Save Reflection
-              </>
-            )}
-          </Button>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium">Mood</label>
+                <span className="text-xs text-muted-foreground">{mood}/10</span>
+              </div>
+              <Slider
+                value={[mood]}
+                onValueChange={(value) => setMood(value[0])}
+                max={10}
+                min={1}
+                step={1}
+                className="w-full"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium">Energy</label>
+                <span className="text-xs text-muted-foreground">{energy}/10</span>
+              </div>
+              <Slider
+                value={[energy]}
+                onValueChange={(value) => setEnergy(value[0])}
+                max={10}
+                min={1}
+                step={1}
+                className="w-full"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium">Stress</label>
+                <span className="text-xs text-muted-foreground">{stress}/10</span>
+              </div>
+              <Slider
+                value={[stress]}
+                onValueChange={(value) => setStress(value[0])}
+                max={10}
+                min={1}
+                step={1}
+                className="w-full"
+              />
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Voice Input Overlay */}
+      {showVoiceInput && (
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-background border rounded-lg shadow-xl p-6 max-w-md mx-4">
+            <div className="flex items-center gap-3 text-foreground mb-4">
+              <Mic className="w-6 h-6 animate-pulse text-red-500" />
+              <div>
+                <p className="font-medium">
+                  {isRecording ? "Listening... Speak clearly" : "Voice input completed"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Your voice will be transcribed and added to your journal
+                </p>
+              </div>
+            </div>
+            <Button 
+              onClick={() => setShowVoiceInput(false)} 
+              variant="outline" 
+              className="w-full"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Minimum character warning - floating */}
+      {content.trim().length > 0 && content.trim().length < 10 && (
+        <div className="absolute bottom-20 right-6 bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-lg shadow-sm animate-fade-in">
+          Please write at least 10 characters ({content.trim().length}/10)
+        </div>
+      )}
     </div>
   );
 };
