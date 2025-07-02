@@ -602,15 +602,15 @@ const JournalEntry = () => {
       <div className="flex-1 flex relative">
         {/* Full-screen Writing Area */}
         <div className="flex-1 flex flex-col">
-          {/* Rich Text Formatting Toolbar */}
+          {/* Rich Text Formatting Toolbar - More compact */}
           {showFormattingToolbar && !isViewMode && (
-            <div className="border-b bg-background/50 backdrop-blur-sm p-2 animate-slide-in-up">
-              <div className="w-full flex items-center gap-2 flex-wrap justify-center px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
+            <div className="border-b bg-background/50 backdrop-blur-sm py-1 animate-slide-in-up">
+              <div className="w-full flex items-center gap-1 flex-wrap justify-center px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
                 {/* Font Family */}
                 <select 
                   value={fontFamily} 
                   onChange={(e) => setFontFamily(e.target.value)}
-                  className="px-2 py-1 text-xs border rounded bg-background"
+                  className="px-1 py-0.5 text-xs border rounded bg-background"
                 >
                   <option value="system-ui">System</option>
                   <option value="serif">Serif</option>
@@ -626,39 +626,39 @@ const JournalEntry = () => {
                   max="32"
                   value={fontSize}
                   onChange={(e) => setFontSize(Number(e.target.value))}
-                  className="w-16"
+                  className="w-16 h-5"
                 />
-                <span className="text-xs w-8">{fontSize}px</span>
+                <span className="text-xs w-6">{fontSize}</span>
 
-                <div className="w-px h-6 bg-border mx-1" />
+                <div className="w-px h-5 bg-border mx-1" />
 
                 {/* Text Formatting */}
                 <Button
                   variant={isBold ? "default" : "ghost"}
                   size="sm"
                   onClick={applyBold}
-                  className="h-8 w-8 p-0"
+                  className="h-6 w-6 p-0"
                 >
-                  <Bold className="w-4 h-4" />
+                  <Bold className="w-3 h-3" />
                 </Button>
                 <Button
                   variant={isItalic ? "default" : "ghost"}
                   size="sm"
                   onClick={applyItalic}
-                  className="h-8 w-8 p-0"
+                  className="h-6 w-6 p-0"
                 >
-                  <Italic className="w-4 h-4" />
+                  <Italic className="w-3 h-3" />
                 </Button>
                 <Button
                   variant={isUnderlined ? "default" : "ghost"}
                   size="sm"
                   onClick={applyUnderline}
-                  className="h-8 w-8 p-0"
+                  className="h-6 w-6 p-0"
                 >
-                  <Underline className="w-4 h-4" />
+                  <Underline className="w-3 h-3" />
                 </Button>
 
-                <div className="w-px h-6 bg-border mx-1" />
+                <div className="w-px h-5 bg-border mx-1" />
 
                 {/* Text Color */}
                 <div className="flex items-center gap-1">
@@ -666,56 +666,56 @@ const JournalEntry = () => {
                     type="color"
                     value={textColor}
                     onChange={(e) => setTextColor(e.target.value)}
-                    className="w-8 h-8 border rounded cursor-pointer"
+                    className="w-6 h-6 border rounded cursor-pointer"
                     title="Text Color"
                   />
                   <input
                     type="color"
                     value={highlightColor}
                     onChange={(e) => setHighlightColor(e.target.value)}
-                    className="w-8 h-8 border rounded cursor-pointer"
+                    className="w-6 h-6 border rounded cursor-pointer"
                     title="Highlight Color"
                   />
                 </div>
 
-                <div className="w-px h-6 bg-border mx-1" />
+                <div className="w-px h-5 bg-border mx-1" />
 
                 {/* Lists & Structure */}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={insertBulletPoint}
-                  className="h-8 w-8 p-0"
+                  className="h-6 w-6 p-0"
                   title="Bullet Point"
                 >
-                  <List className="w-4 h-4" />
+                  <List className="w-3 h-3" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={insertNumberedList}
-                  className="h-8 w-8 p-0"
+                  className="h-6 w-6 p-0"
                   title="Numbered List"
                 >
-                  <ListOrdered className="w-4 h-4" />
+                  <ListOrdered className="w-3 h-3" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={insertHeading}
-                  className="h-8 w-8 p-0"
+                  className="h-6 w-6 p-0"
                   title="Heading"
                 >
-                  <Hash className="w-4 h-4" />
+                  <Hash className="w-3 h-3" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={insertQuote}
-                  className="h-8 w-8 p-0"
+                  className="h-6 w-6 p-0"
                   title="Quote"
                 >
-                  <Quote className="w-4 h-4" />
+                  <Quote className="w-3 h-3" />
                 </Button>
 
                 <div className="ml-auto">
@@ -723,9 +723,9 @@ const JournalEntry = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowFormattingToolbar(false)}
-                    className="h-8 w-8 p-0"
+                    className="h-6 w-6 p-0"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3 h-3" />
                   </Button>
                 </div>
               </div>
@@ -746,7 +746,7 @@ Nothing is off-limits. Write freely about your thoughts, feelings, experiences, 
 Take your time - there's no rush, no judgment, just space for your authentic self..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full h-full min-h-[calc(100vh-300px)] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
+                  className="w-full h-full min-h-[calc(100vh-250px)] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
                   style={getTextStyle()}
                 />
                 
@@ -762,25 +762,23 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
             </div>
           </div>
         </div>
-
-
       </div>
 
-      {/* Bottom Tool Bar - Outside the writing area */}
-      <div className="border-t bg-background/95 backdrop-blur-md py-4 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
+      {/* Bottom Tool Bar - Outside the writing area, more compact */}
+      <div className="border-t bg-background/95 backdrop-blur-md py-2 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
         <div className="w-full">
-          {/* Creative Tools Row - Reorganized for better desktop layout */}
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <div className="flex items-center gap-2 flex-wrap justify-center">
+          {/* Creative Tools Row - More compact layout */}
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <div className="flex items-center gap-1 flex-wrap justify-center">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowFormattingToolbar(!showFormattingToolbar)}
-                className="gap-1 px-3"
+                className="gap-1 px-2 h-8"
                 title="Formatting Tools"
               >
-                <Type className="w-4 h-4" />
-                Format
+                <Type className="w-3 h-3" />
+                <span className="text-xs">Format</span>
               </Button>
               
               <Button
@@ -788,47 +786,47 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
                 size="sm"
                 onClick={handleVoiceInput}
                 disabled={isRecording}
-                className="gap-1 px-3"
+                className="gap-1 px-2 h-8"
                 title={isRecording ? "Recording..." : "Voice Input"}
               >
                 {isRecording ? (
-                  <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse" />
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                 ) : (
-                  <Mic className="w-4 h-4" />
+                  <Mic className="w-3 h-3" />
                 )}
-                Voice
+                <span className="text-xs">Voice</span>
               </Button>
               
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="gap-1 px-3"
+                className="gap-1 px-2 h-8"
                 title="Add Image"
               >
-                <Camera className="w-4 h-4" />
-                Photo
+                <Camera className="w-3 h-3" />
+                <span className="text-xs">Photo</span>
               </Button>
               
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowFocusAreas(!showFocusAreas)}
-                className="gap-1 px-3"
+                className="gap-1 px-2 h-8"
                 title="Focus Areas"
               >
-                <Target className="w-4 h-4" />
-                Focus
+                <Target className="w-3 h-3" />
+                <span className="text-xs">Focus</span>
               </Button>
 
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleTopicsToggle}
-                className="gap-1 px-3"
+                className="gap-1 px-2 h-8"
                 title="Topics"
               >
-                <Hash className="w-4 h-4" />
-                Topics
+                <Hash className="w-3 h-3" />
+                <span className="text-xs">Topics</span>
               </Button>
 
               {/* Mood Quick Access */}
@@ -836,44 +834,44 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-1 px-3"
+                  className="gap-1 px-2 h-8"
                   onClick={() => setShowMoodPanel(!showMoodPanel)}
                 >
-                  <Heart className="w-4 h-4" />
-                  Mood: {mood}/10
+                  <Heart className="w-3 h-3" />
+                  <span className="text-xs">Mood: {mood}/10</span>
                 </Button>
               )}
               
               {content.length > 50 && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1 px-3">
+                <span className="text-xs text-muted-foreground flex items-center gap-1 px-2">
                   <Save className={`w-3 h-3 ${autoSaving ? 'animate-spin' : ''}`} />
-                  {autoSaving ? 'Auto-saving...' : lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : 'Draft ready'}
+                  {autoSaving ? 'Saving...' : lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : 'Draft'}
                 </span>
               )}
             </div>
           </div>
 
-          {/* Action Buttons Row */}
+          {/* Action Buttons Row - More compact */}
           <div className="flex items-center justify-between">
-            <Button variant="outline" onClick={handleBack} size="sm">
+            <Button variant="outline" onClick={handleBack} size="sm" className="h-8 text-xs">
               Cancel
             </Button>
             
             <Button
               onClick={handleSubmit}
               disabled={isSubmitting || content.trim().length < 10}
-              size="lg"
-              className="gap-2 min-w-[120px]"
+              size="sm"
+              className="gap-1 min-w-[100px] h-8"
             >
               {isSubmitting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Saving...
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs">Saving...</span>
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4" />
-                  Save Entry
+                  <Save className="w-3 h-3" />
+                  <span className="text-xs">Save Entry</span>
                 </>
               )}
             </Button>
@@ -881,12 +879,12 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
         </div>
       </div>
 
-      {/* Inline Panels - Match journal width and positioning */}
+      {/* Inline Panels - More compact and better positioned */}
       {/* Focus Areas Panel - Inline above toolbar */}
       {showFocusAreas && !isViewMode && (
         <div className="border-t bg-background/50 backdrop-blur-sm animate-slide-in-up">
-          <div className="px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-3">
-            <div className="flex items-center justify-between mb-2">
+          <div className="px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-2">
+            <div className="flex items-center justify-between mb-1">
               <h3 className="font-medium text-xs">Focus Areas</h3>
               <Button
                 variant="ghost"
@@ -898,17 +896,17 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
               </Button>
             </div>
             
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1">
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-1">
               {FOCUS_AREAS.map((area) => (
                 <Button
                   key={area.id}
                   variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
                   size="sm"
                   onClick={() => toggleFocusArea(area.id)}
-                  className="justify-center gap-1 h-auto py-1 px-1 text-center text-xs"
+                  className="justify-center items-center gap-0.5 h-6 py-0 px-1 text-center"
                 >
                   <span className="text-xs">{area.emoji}</span>
-                  <span className="text-xs hidden sm:inline">{area.label}</span>
+                  <span className="text-[10px] truncate">{area.label}</span>
                 </Button>
               ))}
             </div>
@@ -916,11 +914,11 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
         </div>
       )}
 
-      {/* Topics Panel - Inline above toolbar */}
+      {/* Topics Panel - Inline above toolbar, more compact */}
       {showTopicsPanel && !isViewMode && (
         <div className="border-t bg-background/50 backdrop-blur-sm animate-slide-in-up">
-          <div className="px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-3">
-            <div className="flex items-center justify-between mb-2">
+          <div className="px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-2">
+            <div className="flex items-center justify-between mb-1">
               <h3 className="font-medium text-xs">Detected Topics</h3>
               <Button
                 variant="ghost"
@@ -935,29 +933,29 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
             {detectedTopics.length > 0 ? (
               <div className="flex flex-wrap gap-1">
                 {detectedTopics.map((topic, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs py-0.5 px-1.5">
+                  <Badge key={index} variant="secondary" className="text-[10px] py-0 px-1">
                     {topic.replace('_', ' ')}
                   </Badge>
                 ))}
               </div>
             ) : content.trim().length > 20 ? (
-              <div className="text-xs text-muted-foreground text-center py-2">
+              <div className="text-xs text-muted-foreground text-center py-1">
                 <div className="animate-pulse">Analyzing your entry...</div>
               </div>
             ) : (
-              <div className="text-xs text-muted-foreground text-center py-2">
-                Write more to detect topics automatically
+              <div className="text-xs text-muted-foreground text-center py-1">
+                Write more to detect topics
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Mood Panel - Inline above toolbar */}
+      {/* Mood Panel - Inline above toolbar, more compact */}
       {showMoodPanel && !isViewMode && (
         <div className="border-t bg-background/50 backdrop-blur-sm animate-slide-in-up">
-          <div className="px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-3">
-            <div className="flex items-center justify-between mb-3">
+          <div className="px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-2">
+            <div className="flex items-center justify-between mb-1">
               <h3 className="font-medium text-xs">Quick Mood Check</h3>
               <Button
                 variant="ghost"
@@ -969,11 +967,11 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
               </Button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-0.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium">Mood</label>
-                  <span className="text-xs text-muted-foreground">{mood}/10</span>
+                  <label className="text-[10px] font-medium">Mood</label>
+                  <span className="text-[10px] text-muted-foreground">{mood}/10</span>
                 </div>
                 <Slider
                   value={[mood]}
@@ -981,14 +979,14 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
                   max={10}
                   min={1}
                   step={1}
-                  className="w-full"
+                  className="w-full h-4"
                 />
               </div>
               
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium">Energy</label>
-                  <span className="text-xs text-muted-foreground">{energy}/10</span>
+                  <label className="text-[10px] font-medium">Energy</label>
+                  <span className="text-[10px] text-muted-foreground">{energy}/10</span>
                 </div>
                 <Slider
                   value={[energy]}
@@ -996,14 +994,14 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
                   max={10}
                   min={1}
                   step={1}
-                  className="w-full"
+                  className="w-full h-4"
                 />
               </div>
               
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium">Stress</label>
-                  <span className="text-xs text-muted-foreground">{stress}/10</span>
+                  <label className="text-[10px] font-medium">Stress</label>
+                  <span className="text-[10px] text-muted-foreground">{stress}/10</span>
                 </div>
                 <Slider
                   value={[stress]}
@@ -1011,7 +1009,7 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
                   max={10}
                   min={1}
                   step={1}
-                  className="w-full"
+                  className="w-full h-4"
                 />
               </div>
             </div>
@@ -1019,25 +1017,25 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
         </div>
       )}
 
-      {/* Voice Input Overlay */}
+      {/* Voice Input Overlay - More compact */}
       {showVoiceInput && (
         <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-background border rounded-lg shadow-xl p-6 max-w-md mx-4">
-            <div className="flex items-center gap-3 text-foreground mb-4">
-              <Mic className="w-6 h-6 animate-pulse text-red-500" />
+          <div className="bg-background border rounded-lg shadow-xl p-4 max-w-xs mx-4">
+            <div className="flex items-center gap-2 text-foreground mb-3">
+              <Mic className="w-5 h-5 animate-pulse text-red-500" />
               <div>
-                <p className="font-medium">
-                  {isRecording ? "Listening... Speak clearly" : "Voice input completed"}
+                <p className="font-medium text-sm">
+                  {isRecording ? "Listening..." : "Voice input completed"}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  Your voice will be transcribed and added to your journal
+                <p className="text-xs text-muted-foreground">
+                  Your voice will be transcribed
                 </p>
               </div>
             </div>
             <Button 
               onClick={() => setShowVoiceInput(false)} 
               variant="outline" 
-              className="w-full"
+              className="w-full h-8 text-xs"
             >
               Close
             </Button>
@@ -1047,7 +1045,7 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
 
       {/* Minimum character warning - floating */}
       {content.trim().length > 0 && content.trim().length < 10 && (
-        <div className="absolute bottom-32 right-6 bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-lg shadow-sm animate-fade-in">
+        <div className="absolute bottom-20 right-6 bg-red-50 border border-red-200 text-red-700 text-xs px-2 py-1 rounded-lg shadow-sm animate-fade-in">
           Please write at least 10 characters ({content.trim().length}/10)
         </div>
       )}
