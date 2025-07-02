@@ -456,9 +456,14 @@ const Index = () => {
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <JournalCard
-                    entry={entry}
+                    id={entry.id}
+                    content={entry.content}
+                    mood={entry.mood}
+                    timestamp={entry.timestamp}
+                    tags={entry.tags}
+                    aiResponse={entry.aiResponse}
+                    onDelete={handleEntryDeleted}
                     onPulseClick={handlePulseClick}
-                    onEntryDeleted={handleEntryDeleted}
                   />
                 </div>
               ))}
