@@ -169,51 +169,44 @@ const Index = () => {
       
       console.log('📥 Received journal entries:', realEntries.length, 'entries');
       
-      // Load AI responses for each entry
-      const entriesWithAI = await Promise.all(
-        realEntries.map(async (entry) => {
-          try {
-            console.log(`🤖 Loading AI response for entry ${entry.id}`);
-            const pulseResponse = await apiService.getPulseResponse(entry.id);
-            
-            // Add AI insights to the entry
-            return {
-              ...entry,
-              ai_insights: [{
-                insight: pulseResponse.insight || pulseResponse.message || "AI response generated",
-                suggested_action: pulseResponse.suggested_actions?.[0] || "",
-                persona_used: "pulse",
-                confidence_score: pulseResponse.confidence_score || 0.7,
-                generated_at: new Date().toISOString()
-              }]
-            };
-          } catch (error) {
-            console.log(`ℹ️ No AI response found for entry ${entry.id}`);
-            // Return entry without AI insights if none exist
-            return entry;
-          }
-        })
-      );
+      // Load AI responses using our bypass endpoint that works
+      let aiResponsesData = null;
+      try {
+        console.log('🤖 Loading AI responses from bypass endpoint...');
+        const response = await fetch(`https://pulsecheck-mobile-app-production.up.railway.app/api/v1/frontend-fix/ai-responses/${userId}`);
+        if (response.ok) {
+          aiResponsesData = await response.json();
+          console.log('✅ AI responses loaded:', aiResponsesData.ai_responses?.length || 0, 'responses');
+        }
+      } catch (error) {
+        console.log('⚠️ Could not load AI responses from bypass endpoint');
+      }
       
-      console.log('🎉 Loaded AI responses for entries:', entriesWithAI.filter(e => e.ai_insights).length, 'of', entriesWithAI.length);
+      // Map AI responses by journal entry ID for quick lookup
+      const aiResponsesByEntryId = {};
+      if (aiResponsesData && aiResponsesData.ai_responses) {
+        aiResponsesData.ai_responses.forEach(aiResp => {
+          aiResponsesByEntryId[aiResp.journal_entry_id] = aiResp;
+        });
+      }
       
       // Transform the entries to match the expected format for the UI
-      const transformedEntries = entriesWithAI.map(entry => ({
+      const transformedEntries = realEntries.map(entry => ({
         id: entry.id,
         content: entry.content,
         mood: entry.mood_level,
         timestamp: entry.created_at,
         // Include AI response if it exists
-        aiResponse: entry.ai_insights && entry.ai_insights.length > 0 ? {
-          comments: [entry.ai_insights[0].insight],
-          timestamp: entry.ai_insights[0].generated_at,
+        aiResponse: aiResponsesByEntryId[entry.id] ? {
+          comments: [aiResponsesByEntryId[entry.id].response],
+          timestamp: aiResponsesByEntryId[entry.id].created_at,
           emoji: "🤖"
         } : undefined
       }));
       
       setEntries(transformedEntries);
       
-      if (entriesWithAI.length === 0) {
+      if (realEntries.length === 0) {
         console.log('ℹ️ No journal entries found for user');
         toast({
           title: "No entries yet",
@@ -221,8 +214,8 @@ const Index = () => {
           duration: 3000,
         });
       } else {
-        const entriesWithAICount = entriesWithAI.filter(e => e.ai_insights && e.ai_insights.length > 0).length;
-        console.log('✅ Successfully loaded', entriesWithAI.length, 'journal entries with', entriesWithAICount, 'AI responses');
+        const entriesWithAICount = transformedEntries.filter(e => e.aiResponse).length;
+        console.log('✅ Successfully loaded', realEntries.length, 'journal entries with', entriesWithAICount, 'AI responses');
         
         if (entriesWithAICount > 0) {
           toast({

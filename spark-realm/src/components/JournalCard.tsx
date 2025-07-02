@@ -191,7 +191,7 @@ export const JournalCard: React.FC<JournalCardProps> = ({
             </div>
 
             {/* AI Response - Social Media Style */}
-            {aiResponse && aiResponse.comments.length > 0 && (
+            {aiResponse && aiResponse.comments && aiResponse.comments.length > 0 && (
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <div className="flex items-start gap-3">
                   {/* AI Avatar */}
