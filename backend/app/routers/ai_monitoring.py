@@ -69,7 +69,8 @@ async def get_last_ai_action_status(
         testing_mode = get_proactive_ai_service() is not None and get_proactive_ai_service().testing_mode
         
         # Check scheduler status
-        scheduler_running = get_scheduler_service() is not None and get_scheduler_service().is_running()
+        scheduler_service = get_scheduler_service()
+        scheduler_running = scheduler_service is not None and scheduler_service.status.value == "running"
         
         # Calculate next scheduled AI action (if scheduler running)
         next_scheduled_at = None
