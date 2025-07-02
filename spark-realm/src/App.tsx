@@ -91,7 +91,7 @@ function App() {
         {user ? (
           // User is authenticated - show main app with all features
           <div className="bg-gradient-to-b from-violet-50 via-blue-50 to-indigo-100">
-            <div className="max-w-lg mx-auto pb-20">
+            <div className="max-w-none pb-20">
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/journal/:id?" element={<JournalEntry />} />

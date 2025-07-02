@@ -126,7 +126,7 @@ const Insights = () => {
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b">
-        <div className="max-w-lg mx-auto px-4 py-4">
+        <div className="max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -153,7 +153,7 @@ const Insights = () => {
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Latest AI Response */}
         {lastAIResponse && (
           <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">

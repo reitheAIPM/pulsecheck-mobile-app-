@@ -180,6 +180,19 @@
   .smooth-scroll {
     scroll-behavior: smooth;
   }
+
+  /* Desktop layout optimizations */
+  .desktop-grid {
+    @apply grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6;
+  }
+  
+  .desktop-max-width {
+    @apply max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl;
+  }
+  
+  .mobile-first-width {
+    @apply w-full max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto;
+  }
 }
 
 @keyframes fadeIn {

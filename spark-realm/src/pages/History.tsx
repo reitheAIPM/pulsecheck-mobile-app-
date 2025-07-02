@@ -207,7 +207,7 @@ const History = () => {
     <div className="min-h-screen bg-background pb-20 md:pb-6">
       {/* Header - Mobile Optimized */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b">
-        <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-2xl xl:max-w-4xl mx-auto px-4 sm:px-6 py-4">
+        <div className="w-full max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -244,7 +244,7 @@ const History = () => {
         </div>
       </header>
 
-      <main className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-2xl xl:max-w-4xl mx-auto px-4 sm:px-6 py-6">
+      <main className="w-full max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {viewMode === 'calendar' ? (
           <div className="space-y-6 lg:space-y-8">
             {/* Calendar Navigation - Mobile Optimized */}

@@ -96,7 +96,7 @@ export const JournalCard: React.FC<JournalCardProps> = ({
 
   return (
     <>
-      <Card className="w-full max-w-2xl mx-auto hover:shadow-md transition-all duration-200 border-l-4 border-l-primary/20">
+      <Card className="w-full max-w-none hover:shadow-md transition-all duration-200 border-l-4 border-l-primary/20">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">

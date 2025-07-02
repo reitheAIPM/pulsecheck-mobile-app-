@@ -311,7 +311,7 @@ const Index = () => {
     <div className="min-h-screen bg-background pb-20 md:pb-6">
       {/* Header - Mobile Optimized */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b">
-        <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-2xl xl:max-w-4xl mx-auto px-4 sm:px-6 py-4">
+        <div className="w-full max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -347,14 +347,14 @@ const Index = () => {
       </header>
 
       {/* Main Content - Responsive Layout */}
-      <main className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-2xl xl:max-w-4xl mx-auto px-4 sm:px-6 py-6">
+      <main className="w-full max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {/* Welcome Message - Mobile Optimized */}
         <div className="text-center mb-6 lg:mb-8">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 md:px-4 md:py-2 rounded-lg text-sm md:text-base font-medium mb-3 md:mb-4 animate-fade-in">
             <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
             Welcome back
           </div>
-          <p className="text-muted-foreground text-sm md:text-base lg:text-lg max-w-sm md:max-w-md mx-auto leading-relaxed">
+          <p className="text-muted-foreground text-sm md:text-base lg:text-lg max-w-sm md:max-w-lg lg:max-w-2xl mx-auto leading-relaxed">
             Take a moment to check in with yourself. How are you feeling today?
           </p>
         </div>
