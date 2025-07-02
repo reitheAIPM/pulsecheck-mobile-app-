@@ -605,7 +605,7 @@ const JournalEntry = () => {
           {/* Rich Text Formatting Toolbar */}
           {showFormattingToolbar && !isViewMode && (
             <div className="border-b bg-background/50 backdrop-blur-sm p-2 animate-slide-in-up">
-              <div className="max-w-6xl mx-auto flex items-center gap-2 flex-wrap">
+              <div className="max-w-7xl mx-auto flex items-center gap-2 flex-wrap">
                 {/* Font Family */}
                 <select 
                   value={fontFamily} 
@@ -733,7 +733,7 @@ const JournalEntry = () => {
           )}
 
           <div className="flex-1 p-6">
-            <div className="max-w-6xl mx-auto h-full">
+            <div className="max-w-7xl mx-auto h-full">
               {/* Writing Area with Floating Controls */}
               <div className="relative h-full">
                 <Textarea
@@ -763,86 +763,20 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
           </div>
         </div>
 
-        {/* Expandable Side Panels - Like photo editing tool panels */}
-        {/* Focus Areas Panel */}
-        {showFocusAreas && !isViewMode && (
-          <div className="w-64 border-l bg-background/50 backdrop-blur-sm p-4 animate-slide-in-right">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-sm">Focus Areas</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowFocusAreas(false)}
-                className="h-8 w-8 p-0"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto">
-              {FOCUS_AREAS.map((area) => (
-                <Button
-                  key={area.id}
-                  variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => toggleFocusArea(area.id)}
-                  className="justify-start gap-2 h-auto py-2 px-3 text-left"
-                >
-                  <span className="text-sm">{area.emoji}</span>
-                  <span className="text-xs">{area.label}</span>
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Topics Panel - Inline instead of new page */}
-        {showTopicsPanel && !isViewMode && (
-          <div className="w-64 border-l bg-background/50 backdrop-blur-sm p-4 animate-slide-in-right">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-sm">Detected Topics</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowTopicsPanel(false)}
-                className="h-8 w-8 p-0"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-            
-            {detectedTopics.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {detectedTopics.map((topic, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
-                    {topic.replace('_', ' ')}
-                  </Badge>
-                ))}
-              </div>
-            ) : content.trim().length > 20 ? (
-              <div className="text-xs text-muted-foreground">
-                <div className="animate-pulse">Analyzing your entry...</div>
-              </div>
-            ) : (
-              <div className="text-xs text-muted-foreground">
-                Write more to detect topics automatically
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Bottom Tool Bar - Outside the writing area */}
       <div className="border-t bg-background/95 backdrop-blur-md p-4">
-        <div className="max-w-6xl mx-auto">
-          {/* Creative Tools Row */}
-          <div className="flex items-center justify-between gap-4 mb-3">
-            <div className="flex items-center gap-2">
+        <div className="max-w-7xl mx-auto">
+          {/* Creative Tools Row - Reorganized for better desktop layout */}
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <div className="flex items-center gap-2 flex-wrap justify-center">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowFormattingToolbar(!showFormattingToolbar)}
-                className="gap-2"
+                className="gap-1 px-3"
                 title="Formatting Tools"
               >
                 <Type className="w-4 h-4" />
@@ -854,7 +788,7 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
                 size="sm"
                 onClick={handleVoiceInput}
                 disabled={isRecording}
-                className="gap-2"
+                className="gap-1 px-3"
                 title={isRecording ? "Recording..." : "Voice Input"}
               >
                 {isRecording ? (
@@ -868,7 +802,7 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="gap-2"
+                className="gap-1 px-3"
                 title="Add Image"
               >
                 <Camera className="w-4 h-4" />
@@ -879,7 +813,7 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowFocusAreas(!showFocusAreas)}
-                className="gap-2"
+                className="gap-1 px-3"
                 title="Focus Areas"
               >
                 <Target className="w-4 h-4" />
@@ -890,21 +824,19 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
                 variant="ghost"
                 size="sm"
                 onClick={handleTopicsToggle}
-                className="gap-2"
+                className="gap-1 px-3"
                 title="Topics"
               >
                 <Hash className="w-4 h-4" />
                 Topics
               </Button>
-            </div>
 
-            <div className="flex items-center gap-4">
               {/* Mood Quick Access */}
               {!isViewMode && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-2"
+                  className="gap-1 px-3"
                   onClick={() => setShowMoodPanel(!showMoodPanel)}
                 >
                   <Heart className="w-4 h-4" />
@@ -913,7 +845,7 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
               )}
               
               {content.length > 50 && (
-                <span className="text-xs text-muted-foreground flex items-center gap-2">
+                <span className="text-xs text-muted-foreground flex items-center gap-1 px-3">
                   <Save className={`w-3 h-3 ${autoSaving ? 'animate-spin' : ''}`} />
                   {autoSaving ? 'Auto-saving...' : lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : 'Draft ready'}
                 </span>
@@ -949,9 +881,81 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
         </div>
       </div>
 
+      {/* Bottom Slide-up Panels - Focus Areas and Topics */}
+      {/* Focus Areas Panel - Slides up from bottom */}
+      {showFocusAreas && !isViewMode && (
+        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t shadow-lg animate-slide-in-up z-50">
+          <div className="max-w-7xl mx-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium text-base">Focus Areas</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowFocusAreas(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 max-h-48 overflow-y-auto">
+              {FOCUS_AREAS.map((area) => (
+                <Button
+                  key={area.id}
+                  variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => toggleFocusArea(area.id)}
+                  className="justify-start gap-2 h-auto py-3 px-4 text-left"
+                >
+                  <span className="text-base">{area.emoji}</span>
+                  <span className="text-sm">{area.label}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Topics Panel - Slides up from bottom */}
+      {showTopicsPanel && !isViewMode && (
+        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t shadow-lg animate-slide-in-up z-50">
+          <div className="max-w-7xl mx-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium text-base">Detected Topics</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowTopicsPanel(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            {detectedTopics.length > 0 ? (
+              <div className="flex flex-wrap gap-3">
+                {detectedTopics.map((topic, index) => (
+                  <Badge key={index} variant="secondary" className="text-sm py-1 px-3">
+                    {topic.replace('_', ' ')}
+                  </Badge>
+                ))}
+              </div>
+            ) : content.trim().length > 20 ? (
+              <div className="text-base text-muted-foreground text-center py-8">
+                <div className="animate-pulse">Analyzing your entry...</div>
+              </div>
+            ) : (
+              <div className="text-base text-muted-foreground text-center py-8">
+                Write more to detect topics automatically
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Floating Mood Panel - Expandable like photo editing properties panel */}
       {showMoodPanel && !isViewMode && (
-        <div className="absolute bottom-32 left-6 w-64 bg-background border rounded-lg shadow-lg p-4 animate-slide-in-up backdrop-blur-sm">
+        <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 w-80 bg-background border rounded-lg shadow-lg p-4 animate-slide-in-up backdrop-blur-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-sm">Quick Mood Check</h3>
             <Button
