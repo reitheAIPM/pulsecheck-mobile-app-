@@ -608,9 +608,9 @@ const JournalEntry = () => {
       </header>
 
       {/* Main Writing Canvas - Maximized like photo editing main canvas */}
-      <div className="flex-1 flex relative justify-center items-start">
+      <div className="flex-1 flex relative">
         {/* Full-screen Writing Area */}
-        <div className="flex-1 flex flex-col w-full max-w-[1200px] mx-auto">
+        <div className="flex-1 flex flex-col w-full">
           {/* Rich Text Formatting Toolbar - More compact */}
           {showFormattingToolbar && !isViewMode && (
             <div className="border-b bg-background/50 backdrop-blur-sm py-1 animate-slide-in-up">
@@ -741,7 +741,7 @@ const JournalEntry = () => {
             </div>
           )}
 
-          <div className="flex-1 px-2 sm:px-4 md:px-8 lg:px-12 xl:px-16">
+          <div className="flex-1 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
             <div className="w-full h-full">
               {/* Writing Area with Floating Controls */}
               <div className="relative h-full">
@@ -751,7 +751,7 @@ const JournalEntry = () => {
                   placeholder="What's on your mind today?\n\nNothing is off-limits. Write freely about your thoughts, feelings, experiences, dreams, or anything that matters to you right now. This is your private space to explore your inner world.\n\nTake your time - there's no rush, no judgment, just space for your authentic self..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full h-full min-h-[300px] max-h-[600px] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
+                  className="w-full h-full min-h-[400px] max-h-[500px] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-4 font-normal rounded-lg border border-border/20"
                   style={getTextStyle()}
                 />
                 
