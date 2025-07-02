@@ -282,15 +282,15 @@ async def respond_to_latest_journal(user_id: str):
         latest_entry = response.data[0]
         journal_id = latest_entry["id"]
         
-        # Check if AI comment already exists
-        existing_comment = supabase.table("ai_comments").select("id").eq("journal_entry_id", journal_id).execute()
+        # Check if AI response already exists in ai_insights table
+        existing_insight = supabase.table("ai_insights").select("id").eq("journal_entry_id", journal_id).execute()
         
-        if existing_comment.data:
+        if existing_insight.data:
             return {
-                "message": "AI comment already exists for this journal entry",
+                "message": "AI response already exists for this journal entry",
                 "journal_id": journal_id,
                 "journal_preview": latest_entry["content"][:100] + "...",
-                "existing_comment_id": existing_comment.data[0]["id"],
+                "existing_insight_id": existing_insight.data[0]["id"],
                 "suggestion": f"Use respond-to-journal/{journal_id} to regenerate"
             }
         

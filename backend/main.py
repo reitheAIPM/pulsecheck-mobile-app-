@@ -1178,34 +1178,34 @@ async def manual_respond_to_latest(user_id: str):
         latest_entry = response.data[0]
         journal_id = latest_entry["id"]
         
-        # Check if AI comment already exists
-        existing_comment = supabase.table("ai_comments").select("id").eq("journal_entry_id", journal_id).execute()
+        # Check if AI response already exists in ai_insights table
+        existing_insight = supabase.table("ai_insights").select("id").eq("journal_entry_id", journal_id).execute()
         
-        if existing_comment.data:
+        if existing_insight.data:
             return {
-                "message": "AI comment already exists for this journal entry",
+                "message": "AI response already exists for this journal entry",
                 "journal_id": journal_id,
                 "journal_preview": latest_entry["content"][:100] + "...",
-                "existing_comment_id": existing_comment.data[0]["id"],
+                "existing_insight_id": existing_insight.data[0]["id"],
                 "suggestion": f"Use respond-to-journal/{journal_id} to regenerate"
             }
         
         # Generate simple AI response (inline implementation)
         ai_response = f"Thank you for sharing your journal entry! I can see you wrote: '{latest_entry['content'][:50]}...'. This is a test AI response generated at {datetime.now(timezone.utc).isoformat()}."
         
-        # Insert AI comment into database
-        ai_comment_data = {
+        # Insert AI response into ai_insights table
+        ai_insight_data = {
             "id": str(uuid.uuid4()),
             "journal_entry_id": journal_id,
             "user_id": user_id,
-            "comment": ai_response,
+            "ai_response": ai_response,
             "persona_used": "test_persona",
             "confidence_score": 0.85,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         
-        comment_response = supabase.table("ai_comments").insert(ai_comment_data).execute()
-        ai_comment = comment_response.data[0] if comment_response.data else ai_comment_data
+        insight_response = supabase.table("ai_insights").insert(ai_insight_data).execute()
+        ai_insight = insight_response.data[0] if insight_response.data else ai_insight_data
         
         return {
             "success": True,
@@ -1213,8 +1213,8 @@ async def manual_respond_to_latest(user_id: str):
             "journal_id": journal_id,
             "journal_created": latest_entry["created_at"],
             "journal_preview": latest_entry["content"][:100] + "...",
-            "ai_comment_id": ai_comment.get("id"),
-            "ai_response_preview": ai_comment.get("comment", "")[:100] + "...",
+            "ai_insight_id": ai_insight.get("id"),
+            "ai_response_preview": ai_insight.get("ai_response", "")[:100] + "...",
             "monitoring_check": f"GET /api/v1/ai-monitoring/last-action/{user_id}"
         }
         
