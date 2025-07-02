@@ -25,10 +25,10 @@ class SubscriptionService:
         self.free_personas = ["pulse"]  # Always free
         self.premium_personas = ["sage", "spark", "anchor"]  # Premium (free during beta)
         
-        # Usage limits (generous during beta)
-        self.free_daily_limit = 10  # Free tier: 10 AI requests per day
-        self.premium_daily_limit = 100  # Premium tier: 100 AI requests per day
-        self.beta_daily_limit = 50  # Beta testers: 50 AI requests per day
+        # Usage limits (generous freemium model)
+        self.free_daily_limit = 15  # Free tier: 15 AI requests per day (generous freemium)
+        self.premium_daily_limit = 999  # Premium tier: Unlimited AI requests per day  
+        self.beta_daily_limit = 999  # Beta testers: Unlimited AI requests per day
     
     def get_user_subscription_status(self, user: UserTable) -> Dict[str, Any]:
         """

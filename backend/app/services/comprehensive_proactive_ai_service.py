@@ -105,15 +105,20 @@ class ComprehensiveProactiveAIService:
         # Daily limits based on user tier and AI interaction level
         self.daily_limits = {
             UserTier.FREE: {
-                AIInteractionLevel.MINIMAL: 2,
-                AIInteractionLevel.MODERATE: 3,
-                AIInteractionLevel.HIGH: 5
+                AIInteractionLevel.MINIMAL: 5,    # Increased from 2 - freemium should be generous
+                AIInteractionLevel.MODERATE: 10,  # Increased from 3 - allow good engagement
+                AIInteractionLevel.HIGH: 15       # Increased from 5 - active users get more
             },
             UserTier.PREMIUM: {
-                AIInteractionLevel.MINIMAL: 3,
-                AIInteractionLevel.MODERATE: 6,
-                AIInteractionLevel.HIGH: 10
+                AIInteractionLevel.MINIMAL: 20,   # Increased from 3 - premium gets much more
+                AIInteractionLevel.MODERATE: 50,  # Increased from 6 - very generous
+                AIInteractionLevel.HIGH: 999      # Unlimited for premium with high interaction
             }
+        }
+        
+        # Testing mode bypass - specific user IDs that bypass all limits
+        self.testing_user_ids = {
+            "6abe6283-5dd2-46d6-995a-d876a06a55f7"  # Your testing account
         }
         
         # Pattern recognition keywords
@@ -251,9 +256,17 @@ class ComprehensiveProactiveAIService:
             daily_limit = self.daily_limits[profile.tier][profile.ai_interaction_level]
             today_responses = await self._count_todays_ai_responses(user_id)
             
-            if today_responses >= daily_limit and profile.ai_interaction_level != AIInteractionLevel.HIGH:
+            # Bypass limits for testing users
+            if user_id in self.testing_user_ids:
+                logger.info(f"Testing user {user_id} bypassing daily limits ({today_responses} responses today)")
+            elif today_responses >= daily_limit and profile.ai_interaction_level != AIInteractionLevel.HIGH:
                 logger.info(f"User {user_id} has reached daily AI response limit ({today_responses}/{daily_limit})")
                 return []
+            elif today_responses >= daily_limit:
+                # Even HIGH level users should respect limits unless they're premium with unlimited
+                if profile.tier != UserTier.PREMIUM or daily_limit != 999:
+                    logger.info(f"User {user_id} has reached daily AI response limit ({today_responses}/{daily_limit})")
+                    return []
             
             opportunities = []
             
@@ -298,68 +311,59 @@ class ComprehensiveProactiveAIService:
         # Detect related entries (pattern recognition)
         related_entries = self._find_related_entries(entry, all_entries)
         
-        # Get available personas (not yet responded)
-        used_personas = {r["persona_used"] for r in entry_responses}
-        available_personas = ["pulse", "sage", "spark", "anchor"] - used_personas
+        # Get available personas based on user tier
+        available_personas = self._get_available_personas_for_user(profile)
+        
+        # Remove personas that already responded to this entry
+        responding_personas = {resp.get("persona_used", "pulse") for resp in entry_responses}
+        available_personas = available_personas - responding_personas
         
         if not available_personas:
             return opportunities
         
-        # Opportunity 1: Initial comment (5min - 1hour)
-        if not entry_responses and minutes_since_entry >= self.timing_configs["initial_comment_min"]:
-            persona = self._select_optimal_persona_for_entry(entry, available_personas)
-            delay = self._calculate_initial_delay(profile, entry)
+        # For premium users with HIGH interaction, allow multiple persona responses
+        if profile.tier == UserTier.PREMIUM and profile.ai_interaction_level == AIInteractionLevel.HIGH:
+            # Generate opportunities for multiple personas (up to 3)
+            persona_opportunities = self._generate_multi_persona_opportunities(
+                entry, related_entries, available_personas, profile, minutes_since_entry
+            )
+            opportunities.extend(persona_opportunities)
+        else:
+            # Standard single persona response
+            optimal_persona = self._select_optimal_persona_for_entry(entry, available_personas)
             
-            opportunities.append(ProactiveOpportunity(
-                entry_id=entry.id,
-                user_id=profile.user_id,
-                reason="initial_comment",
-                persona=persona,
-                priority=8,
-                delay_minutes=delay,
-                message_context=self._generate_context_message(entry, "initial"),
-                related_entries=[e.id for e in related_entries],
-                engagement_strategy="initial",
-                expected_engagement_score=self._predict_engagement_score(entry, persona, profile)
-            ))
-        
-        # Opportunity 2: Collaborative response (if high AI interaction)
-        collaborative_ready = self.testing_mode or minutes_since_entry >= self.timing_configs["collaborative_delay"]
-        if (len(entry_responses) >= 1 and 
-            profile.ai_interaction_level == AIInteractionLevel.HIGH and
-            collaborative_ready):
-            
-            persona = list(available_personas)[0] if available_personas else None
-            if persona:
+            # Initial response opportunity
+            if len(entry_responses) == 0:  # No responses yet
+                delay = self._calculate_initial_delay(profile, entry)
                 opportunities.append(ProactiveOpportunity(
                     entry_id=entry.id,
-                    user_id=profile.user_id,
-                    reason="collaborative_response",
-                    persona=persona,
-                    priority=6,
-                    delay_minutes=0 if self.testing_mode else self.timing_configs["collaborative_delay"],
-                    message_context=self._generate_context_message(entry, "collaborative"),
+                    user_id=entry.user_id,
+                    reason="Initial response to new journal entry",
+                    persona=optimal_persona,
+                    priority=8,
+                    delay_minutes=delay,
+                    message_context=self._generate_context_message(entry, "initial"),
                     related_entries=[e.id for e in related_entries],
-                    engagement_strategy="collaborative",
-                    expected_engagement_score=self._predict_engagement_score(entry, persona, profile)
+                    engagement_strategy="initial",
+                    expected_engagement_score=self._predict_engagement_score(entry, optimal_persona, profile)
                 ))
-        
-        # Opportunity 3: Pattern-based follow-up
-        if len(related_entries) >= 2:
-            persona = self._select_persona_for_pattern(related_entries, available_personas)
-            if persona:
-                opportunities.append(ProactiveOpportunity(
-                    entry_id=entry.id,
-                    user_id=profile.user_id,
-                    reason="pattern_follow_up",
-                    persona=persona,
-                    priority=7,
-                    delay_minutes=30,  # 30 minutes for pattern analysis
-                    message_context=self._generate_pattern_context(entry, related_entries),
-                    related_entries=[e.id for e in related_entries],
-                    engagement_strategy="follow_up",
-                    expected_engagement_score=self._predict_engagement_score(entry, persona, profile) + 1.0  # Bonus for pattern recognition
-                ))
+            
+            # Pattern recognition opportunity
+            if len(related_entries) >= 2 and len(entry_responses) <= 1:
+                pattern_persona = self._select_persona_for_pattern(related_entries, available_personas)
+                if pattern_persona and pattern_persona != optimal_persona:
+                    opportunities.append(ProactiveOpportunity(
+                        entry_id=entry.id,
+                        user_id=entry.user_id,
+                        reason=f"Pattern detected across {len(related_entries) + 1} entries",
+                        persona=pattern_persona,
+                        priority=6,
+                        delay_minutes=self.timing_configs["collaborative_delay"],
+                        message_context=self._generate_pattern_context(entry, related_entries),
+                        related_entries=[e.id for e in related_entries],
+                        engagement_strategy="collaborative",
+                        expected_engagement_score=self._predict_engagement_score(entry, pattern_persona, profile) + 1.0
+                    ))
         
         return opportunities
     
@@ -797,4 +801,89 @@ Reference patterns you've noticed if relevant.
                 "bombardment_prevention_disabled": self.testing_mode,
                 "immediate_responses": self.testing_mode
             }
-        } 
+        }
+    
+    def _get_available_personas_for_user(self, profile: UserEngagementProfile) -> set:
+        """Get available personas based on user tier"""
+        if profile.tier == UserTier.PREMIUM:
+            return {"pulse", "sage", "spark", "anchor"}
+        else:
+            return {"pulse"}
+    
+    def _generate_multi_persona_opportunities(
+        self, 
+        entry: JournalEntryResponse, 
+        related_entries: List[JournalEntryResponse],
+        available_personas: set,
+        profile: UserEngagementProfile,
+        minutes_since_entry: float
+    ) -> List[ProactiveOpportunity]:
+        """Generate multiple persona opportunities for premium users"""
+        opportunities = []
+        
+        # Determine which personas should respond based on content
+        responding_personas = self._select_multiple_personas_for_entry(entry, available_personas)
+        
+        base_delay = self._calculate_initial_delay(profile, entry)
+        
+        for i, persona in enumerate(responding_personas):
+            # Stagger responses by 10-15 minutes for natural conversation feel
+            delay = base_delay + (i * 12)  # 12 minute intervals
+            
+            # Different strategies for different personas
+            if i == 0:
+                strategy = "initial"
+                priority = 9
+                reason = f"Primary {persona} response to journal entry"
+            else:
+                strategy = "collaborative"
+                priority = 7 - i  # Decreasing priority
+                reason = f"Additional {persona} perspective on journal entry"
+            
+            opportunities.append(ProactiveOpportunity(
+                entry_id=entry.id,
+                user_id=entry.user_id,
+                reason=reason,
+                persona=persona,
+                priority=priority,
+                delay_minutes=delay,
+                message_context=self._generate_context_message(entry, strategy),
+                related_entries=[e.id for e in related_entries],
+                engagement_strategy=strategy,
+                expected_engagement_score=self._predict_engagement_score(entry, persona, profile)
+            ))
+        
+        return opportunities
+    
+    def _select_multiple_personas_for_entry(self, entry: JournalEntryResponse, available_personas: set) -> List[str]:
+        """Select multiple personas to respond based on entry content and emotional complexity"""
+        if len(available_personas) <= 1:
+            return list(available_personas)
+        
+        selected_personas = []
+        content_lower = entry.content.lower()
+        
+        # Always include Pulse as primary responder
+        if "pulse" in available_personas:
+            selected_personas.append("pulse")
+        
+        # Add Anchor for high stress/anxiety
+        if entry.stress_level and entry.stress_level >= 7 and "anchor" in available_personas:
+            selected_personas.append("anchor")
+        
+        # Add Spark for low mood/motivation issues
+        if entry.mood_level and entry.mood_level <= 4 and "spark" in available_personas:
+            selected_personas.append("spark")
+        
+        # Add Sage for work/career/big picture thinking
+        if any(keyword in content_lower for keyword in ["work", "career", "future", "goal", "plan"]) and "sage" in available_personas:
+            selected_personas.append("sage")
+        
+        # If we don't have enough personas yet, add based on content complexity
+        if len(selected_personas) < 2 and len(entry.content) > 200:
+            remaining = available_personas - set(selected_personas)
+            if remaining:
+                selected_personas.append(list(remaining)[0])
+        
+        # Limit to 3 personas max to avoid overwhelming
+        return selected_personas[:3] 
