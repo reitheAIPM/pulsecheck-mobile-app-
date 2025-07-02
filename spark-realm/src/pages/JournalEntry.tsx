@@ -746,7 +746,7 @@ Nothing is off-limits. Write freely about your thoughts, feelings, experiences, 
 Take your time - there's no rush, no judgment, just space for your authentic self..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full h-full min-h-[calc(100vh-250px)] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
+                  className="w-full h-full min-h-[calc(100vh-400px)] border-0 bg-transparent text-foreground placeholder:text-muted-foreground/60 resize-none focus:ring-0 focus:outline-none text-lg leading-relaxed p-0 font-normal"
                   style={getTextStyle()}
                 />
                 
@@ -884,31 +884,31 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
       {/* Bottom Slide-up Panels - Focus Areas and Topics */}
       {/* Focus Areas Panel - Slides up from bottom */}
       {showFocusAreas && !isViewMode && (
-        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t shadow-lg animate-slide-in-up z-50">
-          <div className="max-w-7xl mx-auto p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-base">Focus Areas</h3>
+        <div className="fixed bottom-20 left-6 right-6 bg-background/95 backdrop-blur-md border border-border rounded-lg shadow-lg animate-slide-in-up z-50 max-h-64">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-sm">Focus Areas</h3>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowFocusAreas(false)}
-                className="h-8 w-8 p-0"
+                className="h-6 w-6 p-0"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
               </Button>
             </div>
             
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 max-h-48 overflow-y-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-40 overflow-y-auto">
               {FOCUS_AREAS.map((area) => (
                 <Button
                   key={area.id}
                   variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
                   size="sm"
                   onClick={() => toggleFocusArea(area.id)}
-                  className="justify-start gap-2 h-auto py-3 px-4 text-left"
+                  className="justify-start gap-1 h-auto py-2 px-2 text-left text-xs"
                 >
-                  <span className="text-base">{area.emoji}</span>
-                  <span className="text-sm">{area.label}</span>
+                  <span className="text-sm">{area.emoji}</span>
+                  <span className="text-xs">{area.label}</span>
                 </Button>
               ))}
             </div>
@@ -918,34 +918,34 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
 
       {/* Topics Panel - Slides up from bottom */}
       {showTopicsPanel && !isViewMode && (
-        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t shadow-lg animate-slide-in-up z-50">
-          <div className="max-w-7xl mx-auto p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-base">Detected Topics</h3>
+        <div className="fixed bottom-20 left-6 right-6 bg-background/95 backdrop-blur-md border border-border rounded-lg shadow-lg animate-slide-in-up z-50 max-h-48">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-sm">Detected Topics</h3>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowTopicsPanel(false)}
-                className="h-8 w-8 p-0"
+                className="h-6 w-6 p-0"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
               </Button>
             </div>
             
             {detectedTopics.length > 0 ? (
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2">
                 {detectedTopics.map((topic, index) => (
-                  <Badge key={index} variant="secondary" className="text-sm py-1 px-3">
+                  <Badge key={index} variant="secondary" className="text-xs py-1 px-2">
                     {topic.replace('_', ' ')}
                   </Badge>
                 ))}
               </div>
             ) : content.trim().length > 20 ? (
-              <div className="text-base text-muted-foreground text-center py-8">
+              <div className="text-sm text-muted-foreground text-center py-4">
                 <div className="animate-pulse">Analyzing your entry...</div>
               </div>
             ) : (
-              <div className="text-base text-muted-foreground text-center py-8">
+              <div className="text-sm text-muted-foreground text-center py-4">
                 Write more to detect topics automatically
               </div>
             )}
@@ -955,7 +955,7 @@ Take your time - there's no rush, no judgment, just space for your authentic sel
 
       {/* Floating Mood Panel - Expandable like photo editing properties panel */}
       {showMoodPanel && !isViewMode && (
-        <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 w-80 bg-background border rounded-lg shadow-lg p-4 animate-slide-in-up backdrop-blur-sm">
+        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 w-80 bg-background border rounded-lg shadow-lg p-4 animate-slide-in-up backdrop-blur-sm z-40">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-sm">Quick Mood Check</h3>
             <Button

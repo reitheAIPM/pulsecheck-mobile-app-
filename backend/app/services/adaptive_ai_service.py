@@ -521,9 +521,9 @@ class AdaptiveAIService:
                 action = "Consider writing a bit more about what's on your mind."
                 question = "What would you like to explore further?"
             else:
-                insight = "Thank you for sharing such detailed thoughts with Pulse."
-                action = "Take some time to process what you've written."
-                question = "How are you feeling after writing this down?"
+                insight = "I appreciate you being so open and sharing what's really on your mind. That takes courage, and I can see you're working through some important thoughts here."
+                action = "Give yourself credit for reflecting - that's huge."
+                question = "What's standing out to you most as you think about all this?"
             
             return AIInsightResponse(
                 insight=insight,
@@ -547,9 +547,9 @@ class AdaptiveAIService:
             logger.error(f"Fallback response generation failed: {e}")
             # Ultimate fallback
             return AIInsightResponse(
-                insight="Thank you for sharing your thoughts.",
-                suggested_action="Take care of yourself today.",
-                follow_up_question="How are you feeling?",
+                insight="I'm really glad you took time to write this out. Sometimes just getting thoughts down can help clarify things.",
+                suggested_action="Be gentle with yourself today - you're doing important work by reflecting.",
+                follow_up_question="What feels most important to you right now?",
                 confidence_score=0.5,
                 persona_used="pulse",
                 adaptation_level="emergency_fallback",
