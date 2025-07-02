@@ -521,9 +521,9 @@ class AdaptiveAIService:
                 action = "Keep writing if more comes up - sometimes the important stuff comes out when we least expect it."
                 question = "What's the biggest thing on your mind right now?"
             else:
-                insight = "I appreciate you being so open and sharing what's really on your mind. That takes courage, and I can see you're working through some important thoughts here."
-                action = "Give yourself credit for reflecting - that's huge."
-                question = "What's standing out to you most as you think about all this?"
+                insight = "There's something really honest about how you're describing this - I can feel the weight of what you're going through. That whole thing about measuring yourself against other people's timelines? Man, that hits deep."
+                action = "Maybe the 'ideal version' isn't the point - maybe it's about finding your rhythm in this wild city."
+                question = "What would it look like if you gave yourself permission to just... be in transition for a while?"
             
             return AIInsightResponse(
                 insight=insight,
