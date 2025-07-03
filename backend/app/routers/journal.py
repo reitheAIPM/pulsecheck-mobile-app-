@@ -152,6 +152,77 @@ async def ai_diagnostic(db: Database = Depends(get_database)):
             "error_type": type(e).__name__
         }
 
+@router.get("/test-full-ai-flow")
+async def test_full_ai_flow(
+    db: Database = Depends(get_database)
+):
+    """Test the complete AI response generation flow"""
+    try:
+        # Get services
+        pulse_ai = get_pulse_ai_service(db)
+        adaptive_ai = get_adaptive_ai_service(db)
+        
+        # Create test journal entry
+        test_entry = JournalEntryResponse(
+            id="test-123",
+            user_id="test-user",
+            content="Saw L. at the deli today, but I didn't have the energy to stop and chat. The office was chaos with phones ringing and S. yelling. I'm feeling exhausted.",
+            mood_level=3,
+            energy_level=2,
+            stress_level=8,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+            tags=["work_stress"],
+            work_challenges=["office chaos"],
+            gratitude_items=[]
+        )
+        
+        # Test 1: Direct PulseAI response
+        pulse_test = {"status": "not_tested", "response": None, "error": None}
+        try:
+            pulse_response = pulse_ai.generate_pulse_response(test_entry)
+            pulse_test = {
+                "status": "success",
+                "response": pulse_response.message[:100] + "...",
+                "is_fallback": pulse_response.message == "I'm here to listen and support you. Sometimes taking a moment to breathe can help. What's on your mind?",
+                "confidence": pulse_response.confidence_score
+            }
+        except Exception as e:
+            pulse_test = {"status": "error", "error": str(e)}
+        
+        # Test 2: Adaptive AI response
+        adaptive_test = {"status": "not_tested", "response": None, "error": None}
+        try:
+            adaptive_response = await adaptive_ai.generate_adaptive_response(
+                user_id="test-user",
+                journal_entry=test_entry,
+                journal_history=[],
+                persona="auto"
+            )
+            adaptive_test = {
+                "status": "success",
+                "response": adaptive_response.insight[:100] + "...",
+                "persona_used": adaptive_response.persona_used,
+                "topics": adaptive_response.topic_flags
+            }
+        except Exception as e:
+            adaptive_test = {"status": "error", "error": str(e)}
+        
+        return {
+            "test_summary": "Full AI flow test",
+            "openai_configured": pulse_ai.client is not None,
+            "pulse_ai_test": pulse_test,
+            "adaptive_ai_test": adaptive_test,
+            "diagnosis": "Check if responses are fallback messages"
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
 # STANDARDIZED: Use centralized authentication from core.security
 # Local functions removed - using get_current_user_with_fallback and get_current_user from core.security
 
