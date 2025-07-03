@@ -683,6 +683,39 @@ Reference patterns you've noticed if relevant.
             if ai_result.data:
                 logger.info(f"✅ Comprehensive proactive engagement: {opportunity.persona} responded to entry {opportunity.entry_id} (strategy: {opportunity.engagement_strategy})")
                 
+                # Add AI persona reaction/like (30% chance)
+                if __import__('random').random() < 0.3:
+                    try:
+                        # Other personas might like this entry too
+                        liking_personas = []
+                        if opportunity.persona != "pulse" and __import__('random').random() < 0.5:
+                            liking_personas.append("pulse")
+                        if opportunity.persona != "sage" and __import__('random').random() < 0.3:
+                            liking_personas.append("sage")
+                        if opportunity.persona != "spark" and __import__('random').random() < 0.4:
+                            liking_personas.append("spark")
+                        
+                        # Create AI reactions
+                        for persona in liking_personas:
+                            reaction_types = ["like", "love", "insightful"]
+                            reaction_type = __import__('random').choice(reaction_types)
+                            
+                            reaction_data = {
+                                "id": str(__import__('uuid').uuid4()),
+                                "journal_entry_id": opportunity.entry_id,
+                                "ai_insight_id": ai_result.data[0]["id"],
+                                "user_id": user_id,  # Still associated with user for tracking
+                                "reaction_type": reaction_type,
+                                "reaction_by": persona,
+                                "created_at": datetime.now(timezone.utc).isoformat()
+                            }
+                            
+                            client.table("ai_reactions").insert(reaction_data).execute()
+                            logger.info(f"💫 AI persona {persona} reacted with {reaction_type} to entry {opportunity.entry_id}")
+                            
+                    except Exception as e:
+                        logger.warning(f"Failed to add AI reaction: {e}")
+                
                 # Update analytics
                 self.engagement_analytics.total_opportunities += 1
                 self.engagement_analytics.successful_engagements += 1

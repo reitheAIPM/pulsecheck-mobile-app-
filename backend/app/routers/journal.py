@@ -390,6 +390,132 @@ async def submit_pulse_feedback(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error submitting feedback: {str(e)}")
 
+@router.post("/entries/{entry_id}/reaction")
+@limiter.limit("30/minute")  # Rate limit reaction submissions
+async def submit_reaction(
+    request: Request,  # Required for rate limiter
+    entry_id: str,
+    reaction_data: dict,  # {"insight_id": str, "reaction_type": str}
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user_with_fallback)
+):
+    """
+    Submit or update a reaction to an AI insight
+    
+    Reaction types: helpful, not_helpful, like, love, insightful
+    """
+    try:
+        # Validate input
+        insight_id = reaction_data.get("insight_id")
+        reaction_type = reaction_data.get("reaction_type")
+        
+        if not insight_id or not reaction_type:
+            raise HTTPException(status_code=400, detail="insight_id and reaction_type are required")
+        
+        valid_reactions = ["helpful", "not_helpful", "like", "love", "insightful"]
+        if reaction_type not in valid_reactions:
+            raise HTTPException(status_code=400, detail=f"Invalid reaction type. Must be one of: {', '.join(valid_reactions)}")
+        
+        # Use service role client to bypass RLS
+        service_client = db.get_service_client()
+        
+        # Check if reaction already exists
+        existing = service_client.table("ai_reactions").select("id").eq("ai_insight_id", insight_id).eq("user_id", current_user["id"]).eq("reaction_by", "user").execute()
+        
+        reaction_data_to_store = {
+            "journal_entry_id": entry_id,
+            "ai_insight_id": insight_id,
+            "user_id": current_user["id"],
+            "reaction_type": reaction_type,
+            "reaction_by": "user"
+        }
+        
+        if existing.data:
+            # Update existing reaction
+            reaction_id = existing.data[0]["id"]
+            service_client.table("ai_reactions").update({"reaction_type": reaction_type}).eq("id", reaction_id).execute()
+            message = "Reaction updated successfully"
+        else:
+            # Create new reaction
+            reaction_data_to_store["id"] = str(uuid.uuid4())
+            service_client.table("ai_reactions").insert(reaction_data_to_store).execute()
+            message = "Reaction added successfully"
+            reaction_id = reaction_data_to_store["id"]
+        
+        logger.info(f"Reaction stored - User {current_user['id']} reacted {reaction_type} to insight {insight_id}")
+        
+        return {
+            "message": message,
+            "reaction_id": reaction_id,
+            "reaction_type": reaction_type
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error submitting reaction: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error submitting reaction: {str(e)}")
+
+@router.get("/entries/{entry_id}/reactions")
+@limiter.limit("60/minute")  # Rate limit reaction queries
+async def get_reactions(
+    request: Request,  # Required for rate limiter
+    entry_id: str,
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user_with_fallback)
+):
+    """
+    Get all reactions for a journal entry's AI insights
+    """
+    try:
+        # Use authenticated client to respect RLS
+        client = db.get_client()
+        
+        # Get all reactions for this entry
+        reactions_result = client.table("ai_reactions").select("*").eq("journal_entry_id", entry_id).execute()
+        
+        # Group reactions by insight_id
+        reactions_by_insight = {}
+        user_reactions = {}
+        
+        if reactions_result.data:
+            for reaction in reactions_result.data:
+                insight_id = reaction["ai_insight_id"]
+                
+                # Track user's own reactions separately
+                if reaction["user_id"] == current_user["id"] and reaction["reaction_by"] == "user":
+                    user_reactions[insight_id] = reaction["reaction_type"]
+                
+                # Group all reactions by insight
+                if insight_id not in reactions_by_insight:
+                    reactions_by_insight[insight_id] = {
+                        "helpful": 0,
+                        "not_helpful": 0,
+                        "like": 0,
+                        "love": 0,
+                        "insightful": 0,
+                        "ai_likes": []
+                    }
+                
+                if reaction["reaction_by"] == "user":
+                    reactions_by_insight[insight_id][reaction["reaction_type"]] += 1
+                else:
+                    # AI persona reactions
+                    reactions_by_insight[insight_id]["ai_likes"].append({
+                        "persona": reaction["reaction_by"],
+                        "type": reaction["reaction_type"]
+                    })
+        
+        return {
+            "reactions_by_insight": reactions_by_insight,
+            "user_reactions": user_reactions,
+            "total_reactions": len(reactions_result.data) if reactions_result.data else 0
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching reactions: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching reactions: {str(e)}")
+
 @router.post("/entries/{entry_id}/reply")
 @limiter.limit("20/minute")  # Rate limit AI reply submissions
 async def submit_ai_reply(

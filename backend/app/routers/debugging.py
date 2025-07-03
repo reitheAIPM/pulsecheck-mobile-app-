@@ -391,7 +391,7 @@ async def validate_database_schema():
         # Test critical table structures
         critical_tables_expected_columns = {
             'journal_entries': ['id', 'user_id', 'content', 'mood_level', 'energy_level', 'stress_level', 'created_at'],
-            'ai_insights': ['id', 'journal_entry_id', 'persona', 'insight', 'confidence_score', 'generated_at'],
+            'ai_insights': ['id', 'journal_entry_id', 'persona_used', 'ai_response', 'confidence_score', 'created_at'],
             'profiles': ['id', 'email', 'full_name', 'created_at'],
             'user_ai_preferences': ['user_id', 'response_frequency', 'preferred_personas']
         }
