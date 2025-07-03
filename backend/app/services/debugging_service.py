@@ -258,7 +258,7 @@ class DebuggingService:
             from app.services.pulse_ai import PulseAI
             
             # Check if OpenAI is configured
-            if not hasattr(settings, 'openai_api_key') or not settings.openai_api_key:
+            if not hasattr(settings, 'OPENAI_API_KEY') or not settings.OPENAI_API_KEY:
                 return HealthCheckResult(
                     component="ai_service",
                     status="degraded",

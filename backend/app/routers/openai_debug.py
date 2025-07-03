@@ -402,7 +402,7 @@ async def _test_openai_client_health() -> Dict[str, Any]:
             api_key_configured = True
             api_key_source = "environment"
         # Check settings
-        elif hasattr(settings, 'openai_api_key') and settings.openai_api_key:
+        elif hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
             api_key_configured = True  
             api_key_source = "settings"
         
