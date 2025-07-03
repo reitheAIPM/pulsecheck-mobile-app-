@@ -60,7 +60,7 @@ async def trigger_ai_response_for_journal(
             user_id=user_id,
             entry_id=journal_id,
             content=journal_entry.get("content", ""),
-            mood_rating=journal_entry.get("mood_rating"),
+            mood_rating=journal_entry.get("mood_level"),
             energy_level=journal_entry.get("energy_level"),
             stress_level=journal_entry.get("stress_level")
         )
@@ -74,7 +74,7 @@ async def trigger_ai_response_for_journal(
         
         # Select appropriate persona
         selected_persona = persona_service.select_persona_for_context(
-            mood_score=journal_entry.get("mood_rating", 5),
+            mood_score=journal_entry.get("mood_level", 5),
             energy_level=journal_entry.get("energy_level", 5),
             context_tags=analysis.get("themes", []),
             user_preference=preferences.get("preferred_ai_persona")
@@ -87,7 +87,7 @@ async def trigger_ai_response_for_journal(
         As {persona_config['name']}, respond to this journal entry with your characteristic style.
         
         Journal content: {journal_entry.get('content', '')}
-        Mood: {journal_entry.get('mood_rating', 'Unknown')}/10
+        Mood: {journal_entry.get('mood_level', 'Unknown')}/10
         Energy: {journal_entry.get('energy_level', 'Unknown')}/10
         
         Key themes identified: {', '.join(analysis.get('themes', []))}
@@ -218,7 +218,7 @@ async def list_recent_journals(
         
         # Get recent journal entries for this user
         response = supabase.table("journal_entries").select(
-            "id, content, mood_rating, energy_level, created_at"
+            "id, content, mood_level, energy_level, created_at"
         ).eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute()
         
         if not response.data:
@@ -235,7 +235,7 @@ async def list_recent_journals(
             formatted_entries.append({
                 "journal_id": entry["id"],
                 "content_preview": entry["content"][:100] + "..." if len(entry["content"]) > 100 else entry["content"],
-                "mood_rating": entry["mood_rating"],
+                "mood_level": entry["mood_level"],
                 "energy_level": entry["energy_level"],
                 "created_at": entry["created_at"],
                 "test_command": f"POST /api/v1/manual-ai/respond-to-journal/{entry['id']}?user_id={user_id}"
@@ -269,7 +269,7 @@ async def respond_to_latest_journal(user_id: str):
         
         # Find the most recent journal entry for this user
         response = supabase.table("journal_entries").select(
-            "id, content, mood_rating, energy_level, created_at"
+            "id, content, mood_level, energy_level, created_at"
         ).eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
         
         if not response.data:

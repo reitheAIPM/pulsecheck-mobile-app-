@@ -1177,7 +1177,7 @@ async def list_user_journals(user_id: str):
         
         # Get recent journal entries for this user
         response = supabase.table("journal_entries").select(
-            "id, content, mood_rating, energy_level, created_at"
+            "id, content, mood_level, energy_level, created_at"
         ).eq("user_id", user_id).order("created_at", desc=True).limit(10).execute()
         
         if not response.data:
@@ -1194,7 +1194,7 @@ async def list_user_journals(user_id: str):
             formatted_entries.append({
                 "journal_id": entry["id"],
                 "content_preview": entry["content"][:100] + "..." if len(entry["content"]) > 100 else entry["content"],
-                "mood_rating": entry["mood_rating"],
+                "mood_level": entry["mood_level"],
                 "energy_level": entry["energy_level"],
                 "created_at": entry["created_at"]
             })
@@ -1231,7 +1231,7 @@ async def manual_respond_to_latest(user_id: str):
         
         # Find the most recent journal entry for this user
         response = supabase.table("journal_entries").select(
-            "id, content, mood_rating, energy_level, created_at"
+            "id, content, mood_level, energy_level, created_at"
         ).eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
         
         if not response.data:

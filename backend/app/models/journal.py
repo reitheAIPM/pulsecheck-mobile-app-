@@ -116,7 +116,7 @@ class JournalEntriesResponse(BaseModel):
 # AI Feedback Schema
 class AIFeedbackCreate(BaseModel):
     """Schema for submitting AI feedback"""
-    feedback_type: str = Field(..., regex="^(thumbs_up|thumbs_down|report|detailed)$")
+    feedback_type: str = Field(..., pattern="^(thumbs_up|thumbs_down|report|detailed)$")
     feedback_text: Optional[str] = Field(None, max_length=500)
 
 # AI Reply Schema  
