@@ -281,12 +281,12 @@ export const JournalCard: React.FC<JournalCardProps> = ({
                     {showReplyInput && (
                       <div className="mt-3 space-y-2">
                         <div className="flex gap-2">
-                          <Input
+                          <textarea
                             placeholder="Write a reply to the AI..."
                             value={replyText}
                             onChange={(e) => setReplyText(e.target.value)}
-                            className="flex-1 text-sm"
-                            onKeyPress={(e) => {
+                            className="flex-1 text-sm min-h-[80px] p-3 border border-gray-300 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            onKeyDown={(e) => {
                               if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
                                 handleReplySubmit();
@@ -297,13 +297,13 @@ export const JournalCard: React.FC<JournalCardProps> = ({
                             size="sm"
                             onClick={handleReplySubmit}
                             disabled={!replyText.trim() || isSubmittingFeedback}
-                            className="px-3"
+                            className="px-3 self-start"
                           >
                             <Send className="h-3 w-3" />
                           </Button>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          Press Enter to send or click the send button
+                          Press Enter to send, Shift+Enter for new line
                         </div>
                       </div>
                     )}

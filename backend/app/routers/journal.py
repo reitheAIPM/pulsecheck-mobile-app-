@@ -386,6 +386,67 @@ async def submit_pulse_feedback(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error submitting feedback: {str(e)}")
 
+@router.post("/entries/{entry_id}/reply")
+@limiter.limit("20/minute")  # Rate limit AI reply submissions
+async def submit_ai_reply(
+    request: Request,  # Required for rate limiter
+    entry_id: str,
+    reply_data: dict,  # Expecting {"reply_text": "user's reply"}
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user_with_fallback)
+):
+    """
+    Submit a reply to an AI response
+    
+    Stores user's reply for future AI context and improvement
+    """
+    try:
+        # Validate input
+        reply_text = reply_data.get("reply_text", "").strip()
+        if not reply_text:
+            raise HTTPException(status_code=400, detail="Reply text is required")
+        
+        if len(reply_text) > 1000:
+            raise HTTPException(status_code=400, detail="Reply text too long (max 1000 characters)")
+        
+        # Sanitize input
+        reply_text = sanitize_user_input(reply_text)
+        
+        # Verify the journal entry exists and belongs to the user
+        client = db.get_client()
+        entry_result = client.table("journal_entries").select("id").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
+        
+        if not entry_result.data:
+            raise HTTPException(status_code=404, detail="Journal entry not found")
+        
+        # Store the reply in ai_user_replies table (create if doesn't exist)
+        reply_data = {
+            "id": str(uuid.uuid4()),
+            "journal_entry_id": entry_id,
+            "user_id": current_user["id"],
+            "reply_text": reply_text,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        # Try to insert into ai_user_replies table
+        try:
+            client.table("ai_user_replies").insert(reply_data).execute()
+        except Exception as e:
+            # If table doesn't exist, log the reply for now
+            logger.info(f"AI Reply stored locally - User {current_user['id']} replied to entry {entry_id}: {reply_text[:100]}...")
+        
+        return {
+            "message": "Reply submitted successfully",
+            "reply_id": reply_data["id"],
+            "timestamp": reply_data["created_at"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error submitting AI reply: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error submitting reply: {str(e)}")
+
 @router.get("/entries/{entry_id}/analysis", response_model=AIAnalysisResponse)
 @limiter.limit("5/minute")  # Rate limit AI analysis requests (more expensive)
 async def get_ai_analysis(

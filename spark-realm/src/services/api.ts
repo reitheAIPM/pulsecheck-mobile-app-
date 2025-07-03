@@ -609,10 +609,12 @@ class ApiService {
 
   async submitAIFeedback(entryId: string, feedbackType: 'helpful' | 'not_helpful', value: boolean): Promise<any> {
     try {
-      const response = await this.client.post('/api/v1/journal/ai-feedback', {
-        entry_id: entryId,
-        feedback_type: feedbackType,
-        value: value
+      // Map frontend feedback types to backend expected types
+      const backendFeedbackType = value ? 'thumbs_up' : 'thumbs_down';
+      
+      const response = await this.client.post(`/api/v1/journal/entries/${entryId}/feedback`, {
+        feedback_type: backendFeedbackType,
+        feedback_text: feedbackType === 'helpful' ? 'User found response helpful' : 'User found response not helpful'
       });
       return response.data;
     } catch (error) {
@@ -623,8 +625,7 @@ class ApiService {
 
   async submitAIReply(entryId: string, replyText: string): Promise<any> {
     try {
-      const response = await this.client.post('/api/v1/journal/ai-reply', {
-        entry_id: entryId,
+      const response = await this.client.post(`/api/v1/journal/entries/${entryId}/reply`, {
         reply_text: replyText
       });
       return response.data;
