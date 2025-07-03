@@ -19,6 +19,9 @@ curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/sche
 # Database connectivity
 curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/database/comprehensive-status"
 
+# Database client validation (CRITICAL - prevents AI failures)
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/database/client-validation"
+
 # Environment variables check
 curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/environment"
 ```
@@ -77,6 +80,21 @@ Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/
 # Check if testing mode still works regardless of scheduler status
 Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/enable" -Method POST
 ```
+
+### **AI Reports "0 Journal Entries Found" (CRITICAL)**
+**Issue**: AI system reports no journal entries despite data existing in mobile app  
+**Cause**: Using anon client instead of service role client for AI operations  
+**Diagnosis**: Check database client type
+```powershell
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/debug/database/client-validation"
+```
+**Expected Response**: `"service_client_status": "✅ Working"` and `"journal_entries_accessible": true`
+
+**If service client fails:**
+1. Check `SUPABASE_SERVICE_ROLE_KEY` environment variable
+2. Verify `get_service_client()` function exists in database.py
+3. Check RLS policies allow service role access
+4. Test with: `GET /api/v1/debug/database/service-role-test`
 
 ### **System Health Shows "Degraded"**
 **Issue**: Health endpoint returns degraded status  
@@ -188,11 +206,19 @@ Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/
 ## 🚨 **EMERGENCY PROCEDURES**
 
 ### **If AI Responses Stop Working**
-1. Check testing mode status
-2. Verify scheduler is running
-3. Check system health for errors
-4. Try manual cycle trigger
-5. Enable testing mode for immediate debugging
+1. **FIRST**: Check database client validation: `GET /api/v1/debug/database/client-validation`
+2. Check testing mode status
+3. Verify scheduler is running
+4. Check system health for errors
+5. Try manual cycle trigger
+6. Enable testing mode for immediate debugging
+
+### **If AI Reports "0 Journal Entries Found" (CRITICAL)**
+1. **Immediate check**: `GET /api/v1/debug/database/client-validation`
+2. **If service client fails**: Check SUPABASE_SERVICE_ROLE_KEY environment variable
+3. **Verify RLS policies**: `GET /api/v1/debug/database/rls-analysis`
+4. **Check schema**: `GET /api/v1/debug/database/schema-validation`
+5. **Test service role access**: `GET /api/v1/debug/database/service-role-test`
 
 ### **If System Shows Multiple Errors**
 1. Check Railway deployment status
