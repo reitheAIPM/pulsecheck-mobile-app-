@@ -345,8 +345,8 @@ async def get_pulse_response(
 async def submit_pulse_feedback(
     request: Request,  # Required for rate limiter
     entry_id: str,
-    feedback_type: str,  # 'thumbs_up', 'thumbs_down', 'report'
-    feedback_text: Optional[str] = None,
+    feedback_data: dict,  # Changed to accept body data
+    db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user_with_fallback),
     pulse_ai: PulseAI = Depends(get_pulse_ai_service)
 ):
@@ -356,6 +356,10 @@ async def submit_pulse_feedback(
     Helps improve AI quality and provides beta analytics
     """
     try:
+        # Extract feedback data from body
+        feedback_type = feedback_data.get("feedback_type", "")
+        feedback_text = feedback_data.get("feedback_text", "")
+        
         # Validate feedback type
         valid_types = ['thumbs_up', 'thumbs_down', 'report', 'detailed']
         if feedback_type not in valid_types:
@@ -414,13 +418,13 @@ async def submit_ai_reply(
         
         # Verify the journal entry exists and belongs to the user
         client = db.get_client()
-        entry_result = client.table("journal_entries").select("id").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
+        entry_result = client.table("journal_entries").select("id").eq("id", entry_id).eq("user_id", current_user["id"]).execute()
         
         if not entry_result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
         
         # Store the reply in ai_user_replies table (create if doesn't exist)
-        reply_data = {
+        reply_data_to_store = {
             "id": str(uuid.uuid4()),
             "journal_entry_id": entry_id,
             "user_id": current_user["id"],
@@ -430,15 +434,15 @@ async def submit_ai_reply(
         
         # Try to insert into ai_user_replies table
         try:
-            client.table("ai_user_replies").insert(reply_data).execute()
+            client.table("ai_user_replies").insert(reply_data_to_store).execute()
         except Exception as e:
             # If table doesn't exist, log the reply for now
             logger.info(f"AI Reply stored locally - User {current_user['id']} replied to entry {entry_id}: {reply_text[:100]}...")
         
         return {
             "message": "Reply submitted successfully",
-            "reply_id": reply_data["id"],
-            "timestamp": reply_data["created_at"]
+            "reply_id": reply_data_to_store["id"],
+            "timestamp": reply_data_to_store["created_at"]
         }
         
     except HTTPException:
