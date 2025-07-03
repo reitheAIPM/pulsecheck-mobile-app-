@@ -606,6 +606,33 @@ class ApiService {
     
     return response.data;
   }
+
+  async submitAIFeedback(entryId: string, feedbackType: 'helpful' | 'not_helpful', value: boolean): Promise<any> {
+    try {
+      const response = await this.client.post('/api/v1/journal/ai-feedback', {
+        entry_id: entryId,
+        feedback_type: feedbackType,
+        value: value
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to submit AI feedback:', error);
+      throw error;
+    }
+  }
+
+  async submitAIReply(entryId: string, replyText: string): Promise<any> {
+    try {
+      const response = await this.client.post('/api/v1/journal/ai-reply', {
+        entry_id: entryId,
+        reply_text: replyText
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to submit AI reply:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

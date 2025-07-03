@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Calendar, Heart, MessageCircle, MoreHorizontal, Trash2, Copy, Sparkles } from 'lucide-react';
+import { Calendar, Heart, MessageCircle, MoreHorizontal, Trash2, Copy, Sparkles, Send } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { formatDistanceToNow } from 'date-fns';
 import {
   DropdownMenu,
@@ -51,6 +52,10 @@ export const JournalCard: React.FC<JournalCardProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [liked, setLiked] = useState(false);
   const [showFullContent, setShowFullContent] = useState(false);
+  const [aiResponseHelpful, setAiResponseHelpful] = useState(false);
+  const [showReplyInput, setShowReplyInput] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   const getMoodColor = (mood: number) => {
     if (mood >= 8) return 'bg-green-100 text-green-800 border-green-200';
@@ -86,6 +91,36 @@ export const JournalCard: React.FC<JournalCardProps> = ({
       await navigator.clipboard.writeText(content);
     } catch (error) {
       console.error('Failed to copy content:', error);
+    }
+  };
+
+  const handleHelpfulClick = async () => {
+    if (isSubmittingFeedback) return;
+    
+    setIsSubmittingFeedback(true);
+    try {
+      await apiService.submitAIFeedback(id, 'helpful', !aiResponseHelpful);
+      setAiResponseHelpful(!aiResponseHelpful);
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
+
+  const handleReplySubmit = async () => {
+    if (!replyText.trim() || isSubmittingFeedback) return;
+    
+    setIsSubmittingFeedback(true);
+    try {
+      await apiService.submitAIReply(id, replyText.trim());
+      setReplyText("");
+      setShowReplyInput(false);
+      // You might want to trigger a refresh of the journal entry here
+    } catch (error) {
+      console.error('Failed to submit reply:', error);
+    } finally {
+      setIsSubmittingFeedback(false);
     }
   };
 
@@ -220,20 +255,58 @@ export const JournalCard: React.FC<JournalCardProps> = ({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="gap-2 h-7 px-2 text-xs text-gray-500 hover:text-blue-600"
+                        onClick={handleHelpfulClick}
+                        disabled={isSubmittingFeedback}
+                        className={`gap-2 h-7 px-2 text-xs transition-colors ${
+                          aiResponseHelpful 
+                            ? 'text-blue-600 bg-blue-50' 
+                            : 'text-gray-500 hover:text-blue-600'
+                        }`}
                       >
-                        <Heart className="h-3 w-3" />
-                        Helpful
+                        <Heart className={`h-3 w-3 ${aiResponseHelpful ? 'fill-current' : ''}`} />
+                        {aiResponseHelpful ? 'Helpful!' : 'Helpful'}
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => setShowReplyInput(!showReplyInput)}
                         className="gap-2 h-7 px-2 text-xs text-gray-500 hover:text-blue-600"
                       >
                         <MessageCircle className="h-3 w-3" />
                         Reply
                       </Button>
                     </div>
+
+                    {/* Reply Input */}
+                    {showReplyInput && (
+                      <div className="mt-3 space-y-2">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Write a reply to the AI..."
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            className="flex-1 text-sm"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleReplySubmit();
+                              }
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={handleReplySubmit}
+                            disabled={!replyText.trim() || isSubmittingFeedback}
+                            className="px-3"
+                          >
+                            <Send className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Press Enter to send or click the send button
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -901,7 +901,7 @@ const JournalEntry = () => {
               </Button>
             </div>
             <TooltipProvider>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-2 md:gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-6 xl:grid-cols-6 gap-2">
               {FOCUS_AREAS.map((area) => (
                 <Tooltip key={area.id}>
                   <TooltipTrigger asChild>
@@ -909,10 +909,10 @@ const JournalEntry = () => {
                       variant={selectedFocusAreas.includes(area.id) ? "default" : "outline"}
                       size="sm"
                       onClick={() => toggleFocusArea(area.id)}
-                      className="flex-col justify-center items-center gap-1 h-16 md:h-20 lg:h-24 p-2 text-center hover:scale-105 transition-transform"
+                      className="flex-col justify-center items-center gap-1 h-12 md:h-14 p-2 text-center hover:scale-105 transition-transform"
                     >
-                      <span className="text-xl md:text-2xl lg:text-3xl">{area.emoji}</span>
-                      <span className="text-xs md:text-sm font-medium leading-tight">{area.label}</span>
+                      <span className="text-base md:text-lg">{area.emoji}</span>
+                      <span className="text-xs font-medium leading-tight">{area.label}</span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs text-sm p-3">
