@@ -7,7 +7,7 @@ from fastapi import status
 
 from app.models.journal import (
     JournalEntryCreate, JournalEntryResponse, JournalEntriesResponse,
-    JournalStats, JournalEntryUpdate
+    JournalStats, JournalEntryUpdate, AIFeedbackCreate, AIReplyCreate
 )
 from app.models.ai_insights import PulseResponse, AIAnalysisResponse, AIInsightResponse
 from app.services.pulse_ai import PulseAI
@@ -345,7 +345,7 @@ async def get_pulse_response(
 async def submit_pulse_feedback(
     request: Request,  # Required for rate limiter
     entry_id: str,
-    feedback_data: dict,  # Changed to accept body data
+    feedback_data: AIFeedbackCreate,  # Use proper Pydantic model
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user_with_fallback),
     pulse_ai: PulseAI = Depends(get_pulse_ai_service)
@@ -356,9 +356,9 @@ async def submit_pulse_feedback(
     Helps improve AI quality and provides beta analytics
     """
     try:
-        # Extract feedback data from body
-        feedback_type = feedback_data.get("feedback_type", "")
-        feedback_text = feedback_data.get("feedback_text", "")
+        # Extract feedback data from model
+        feedback_type = feedback_data.feedback_type
+        feedback_text = feedback_data.feedback_text or ""
         
         # Validate feedback type
         valid_types = ['thumbs_up', 'thumbs_down', 'report', 'detailed']
@@ -395,7 +395,7 @@ async def submit_pulse_feedback(
 async def submit_ai_reply(
     request: Request,  # Required for rate limiter
     entry_id: str,
-    reply_data: dict,  # Expecting {"reply_text": "user's reply"}
+    reply_data: AIReplyCreate,  # Use proper Pydantic model
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user_with_fallback)
 ):
@@ -406,7 +406,7 @@ async def submit_ai_reply(
     """
     try:
         # Validate input
-        reply_text = reply_data.get("reply_text", "").strip()
+        reply_text = reply_data.reply_text.strip()
         if not reply_text:
             raise HTTPException(status_code=400, detail="Reply text is required")
         

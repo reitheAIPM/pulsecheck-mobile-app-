@@ -111,4 +111,15 @@ class JournalEntriesResponse(BaseModel):
     page: int
     per_page: int
     has_next: bool
-    has_prev: bool 
+    has_prev: bool
+
+# AI Feedback Schema
+class AIFeedbackCreate(BaseModel):
+    """Schema for submitting AI feedback"""
+    feedback_type: str = Field(..., regex="^(thumbs_up|thumbs_down|report|detailed)$")
+    feedback_text: Optional[str] = Field(None, max_length=500)
+
+# AI Reply Schema  
+class AIReplyCreate(BaseModel):
+    """Schema for submitting AI reply"""
+    reply_text: str = Field(..., min_length=1, max_length=1000) 
