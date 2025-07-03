@@ -109,14 +109,14 @@ class PulseAI:
                 r"you should die"
             ],
             "medical_advice": [
-                r"take medication",
+                r"take this medication",
                 r"prescribe",
-                r"diagnose",
-                r"you have",
-                r"you are",
-                r"you're",
+                r"diagnose you with",
+                r"you have depression",
+                r"you have anxiety",
+                r"you are bipolar",
                 r"medical condition",
-                r"mental illness"
+                r"mental illness diagnosis"
             ],
             "inappropriate_tone": [
                 r"fuck you",

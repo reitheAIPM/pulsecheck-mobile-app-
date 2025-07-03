@@ -478,9 +478,9 @@ class AdaptiveAIService:
             
             # Convert PulseResponse to AIInsightResponse
             return AIInsightResponse(
-                insight=pulse_response.insight if hasattr(pulse_response, 'insight') else pulse_response.message,
+                insight=pulse_response.message or "I'm here to support you through this journey.",
                 suggested_action=pulse_response.suggested_actions[0] if pulse_response.suggested_actions else "Take a moment to reflect on your feelings.",
-                follow_up_question=pulse_response.follow_up_question,
+                follow_up_question=pulse_response.follow_up_question or "What's on your mind right now?",
                 confidence_score=pulse_response.confidence_score,
                 persona_used=debug_context.persona or "pulse",
                 adaptation_level="ai_generated",
@@ -492,7 +492,7 @@ class AdaptiveAIService:
                     "interaction_preferences": {"prefers_questions": True, "prefers_validation": True, "prefers_advice": False},
                     "response_preferences": {"length": "medium", "style": "supportive"}
                 },
-                generated_at=datetime.now(timezone.utc).isoformat()
+                generated_at=datetime.now(timezone.utc)
             )
             
         except Exception as e:
@@ -540,7 +540,7 @@ class AdaptiveAIService:
                     "interaction_preferences": {"prefers_questions": True, "prefers_validation": True, "prefers_advice": False},
                     "response_preferences": {"length": "medium", "style": "supportive"}
                 },
-                generated_at=datetime.now(timezone.utc).isoformat()
+                generated_at=datetime.now(timezone.utc)
             )
             
         except Exception as e:
@@ -560,7 +560,7 @@ class AdaptiveAIService:
                     "interaction_preferences": {"prefers_questions": True, "prefers_validation": True, "prefers_advice": False},
                     "response_preferences": {"length": "medium", "style": "supportive"}
                 },
-                generated_at=datetime.now(timezone.utc).isoformat()
+                generated_at=datetime.now(timezone.utc)
             )
     
     def _classify_error(self, error: Exception) -> str:
