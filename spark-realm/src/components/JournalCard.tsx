@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Calendar, Heart, MessageCircle, MoreHorizontal, Trash2, Copy, Sparkles, Send } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Heart, MessageCircle, MoreHorizontal, Trash2, Copy, Sparkles, Send, User } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { apiService } from '@/services/api';
+import { apiService, UserReply } from '@/services/api';
 
 interface JournalCardProps {
   id: string;
@@ -56,6 +56,27 @@ export const JournalCard: React.FC<JournalCardProps> = ({
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [userReplies, setUserReplies] = useState<UserReply[]>([]);
+  const [isLoadingReplies, setIsLoadingReplies] = useState(false);
+
+  // Fetch user replies when component mounts or when aiResponse changes
+  useEffect(() => {
+    if (aiResponse && aiResponse.comments && aiResponse.comments.length > 0) {
+      fetchUserReplies();
+    }
+  }, [id, aiResponse]);
+
+  const fetchUserReplies = async () => {
+    setIsLoadingReplies(true);
+    try {
+      const replies = await apiService.getUserReplies(id);
+      setUserReplies(replies);
+    } catch (error) {
+      console.error('Failed to fetch user replies:', error);
+    } finally {
+      setIsLoadingReplies(false);
+    }
+  };
 
   const getMoodColor = (mood: number) => {
     if (mood >= 8) return 'bg-green-100 text-green-800 border-green-200';
@@ -116,7 +137,8 @@ export const JournalCard: React.FC<JournalCardProps> = ({
       await apiService.submitAIReply(id, replyText.trim());
       setReplyText("");
       setShowReplyInput(false);
-      // You might want to trigger a refresh of the journal entry here
+      // Refresh the replies to show the new one
+      await fetchUserReplies();
     } catch (error) {
       console.error('Failed to submit reply:', error);
     } finally {
@@ -305,6 +327,33 @@ export const JournalCard: React.FC<JournalCardProps> = ({
                         <div className="text-xs text-muted-foreground">
                           Press Enter to send, Shift+Enter for new line
                         </div>
+                      </div>
+                    )}
+                    
+                    {/* User Replies Thread */}
+                    {userReplies.length > 0 && (
+                      <div className="mt-4 space-y-3">
+                        {userReplies.map((reply) => (
+                          <div key={reply.id} className="flex items-start gap-3 pl-4 border-l-2 border-gray-200">
+                            {/* User Avatar */}
+                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                              <User className="h-4 w-4 text-gray-600" />
+                            </div>
+                            
+                            {/* Reply Content */}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium text-sm">You</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}
+                                </span>
+                              </div>
+                              <div className="text-sm text-gray-700 leading-relaxed">
+                                {reply.reply_text}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
