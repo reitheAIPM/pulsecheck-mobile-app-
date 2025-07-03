@@ -416,14 +416,14 @@ async def submit_ai_reply(
         # Sanitize input
         reply_text = sanitize_user_input(reply_text)
         
-        # Verify the journal entry exists and belongs to the user
-        client = db.get_client()
-        entry_result = client.table("journal_entries").select("id").eq("id", entry_id).eq("user_id", current_user["id"]).execute()
+        # Verify the journal entry exists and belongs to the user using service role client
+        service_client = db.get_service_client()
+        entry_result = service_client.table("journal_entries").select("id").eq("id", entry_id).eq("user_id", current_user["id"]).execute()
         
         if not entry_result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
         
-        # Store the reply in ai_user_replies table (create if doesn't exist)
+        # Store the reply in ai_user_replies table using service role client
         reply_data_to_store = {
             "id": str(uuid.uuid4()),
             "journal_entry_id": entry_id,
@@ -432,12 +432,13 @@ async def submit_ai_reply(
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         
-        # Try to insert into ai_user_replies table
+        # Insert into ai_user_replies table using service role client
         try:
-            client.table("ai_user_replies").insert(reply_data_to_store).execute()
+            service_client.table("ai_user_replies").insert(reply_data_to_store).execute()
+            logger.info(f"AI Reply stored successfully - User {current_user['id']} replied to entry {entry_id}: {reply_text[:100]}...")
         except Exception as e:
-            # If table doesn't exist, log the reply for now
-            logger.info(f"AI Reply stored locally - User {current_user['id']} replied to entry {entry_id}: {reply_text[:100]}...")
+            logger.error(f"Failed to store AI reply: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to store reply")
         
         return {
             "message": "Reply submitted successfully",

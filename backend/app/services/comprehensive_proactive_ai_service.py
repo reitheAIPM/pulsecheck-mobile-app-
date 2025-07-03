@@ -540,7 +540,9 @@ class ComprehensiveProactiveAIService:
             
             result = client.table("ai_insights").select("id", count="exact").eq("user_id", user_id).gte("created_at", today_start).execute()
             
-            return result.count or 0
+            # FIX: Ensure count is always an integer (Supabase returns string)
+            count_value = result.count or 0
+            return int(count_value) if isinstance(count_value, str) else count_value
             
         except Exception as e:
             logger.error(f"Error counting today's AI responses for user {user_id}: {e}")
