@@ -935,6 +935,29 @@ def register_routers():
             # Continue without debug router rather than failing completely
             pass
 
+        # Debugging router with database client validation (NEW)
+        print("🔄 Attempting to import debugging router...")
+        sys.stdout.flush()
+        try:
+            from app.routers.debugging import router as debugging_router
+            print("✅ Debugging module imported successfully")
+            sys.stdout.flush()
+            
+            print("🔄 Registering debugging router...")
+            sys.stdout.flush()
+            app.include_router(debugging_router, prefix="/api/v1", tags=["debugging"])
+            print("✅ Debugging router registered successfully!")
+            routers_registered += 1
+            sys.stdout.flush()
+            
+        except Exception as debugging_error:
+            print(f"❌ Debugging router import/registration failed: {debugging_error}")
+            print(f"❌ Debugging router traceback: {traceback.format_exc()}")
+            routers_failed += 1
+            sys.stdout.flush()
+            # Continue without debugging router rather than failing completely
+            pass
+
         # OpenAI Debug router
         print("🔄 Importing OpenAI debug router...")
         sys.stdout.flush()
