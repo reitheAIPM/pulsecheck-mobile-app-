@@ -302,7 +302,7 @@ class AdaptiveAIService:
             personalized_prompt = self._create_personalized_prompt(persona, adaptive_context, journal_entry, additional_context)
             
             base_response = await self._generate_ai_response_with_fallback(
-                journal_entry.content, personalized_prompt, debug_context
+                journal_entry, personalized_prompt, debug_context
             )
             ai_time = (datetime.now() - ai_start).total_seconds() * 1000
             
@@ -455,26 +455,13 @@ class AdaptiveAIService:
             logger.error(f"Persona selection failed, using default: {e}")
             return "pulse"  # Default fallback
     
-    async def _generate_ai_response_with_fallback(self, content: str, personalized_prompt: str, debug_context: AIDebugContext) -> AIInsightResponse:
+    async def _generate_ai_response_with_fallback(self, journal_entry: JournalEntryResponse, personalized_prompt: str, debug_context: AIDebugContext) -> AIInsightResponse:
         """
         Generate AI response with comprehensive error handling and fallback
         """
         try:
-            # Create a journal entry for the PulseAI service
-            from app.models.journal import JournalEntryResponse
-            temp_entry = JournalEntryResponse(
-                id="temp",
-                user_id=debug_context.user_id,
-                content=content,
-                mood_level=5,  # Default neutral values
-                energy_level=5,
-                stress_level=5,
-                created_at=datetime.now(),
-                updated_at=datetime.now()
-            )
-            
-            # Use the correct PulseAI method
-            pulse_response = self.pulse_ai_service.generate_pulse_response(temp_entry)
+            # Use the ACTUAL journal entry with real mood/energy/stress data
+            pulse_response = self.pulse_ai_service.generate_pulse_response(journal_entry)
             
             # Convert PulseResponse to AIInsightResponse
             return AIInsightResponse(
