@@ -1,4 +1,4 @@
-import openai
+from openai import OpenAI
 from typing import List, Dict, Any, Optional, Tuple
 import json
 import logging
@@ -54,8 +54,7 @@ class PulseAI:
         
         if openai_api_key:
             try:
-                openai.api_key = openai_api_key
-                self.client = openai.OpenAI(api_key=openai_api_key)
+                self.client = OpenAI(api_key=openai_api_key)
                 self.api_key_configured = True
                 logger.info("✅ OpenAI client initialized successfully")
             except Exception as e:
