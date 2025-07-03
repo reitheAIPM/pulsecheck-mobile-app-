@@ -196,6 +196,11 @@ def get_database() -> Database:
         _db_instance.connect_service_role()  # Initialize service role for AI operations
     return _db_instance
 
+def get_supabase_service_client() -> Client:
+    """Get the service role Supabase client that bypasses RLS for AI operations"""
+    db = get_database()
+    return db.get_service_client()
+
 # Export a global supabase client for direct use
 supabase: Optional[Client] = None
 

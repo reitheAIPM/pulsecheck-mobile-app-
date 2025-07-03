@@ -1120,7 +1120,8 @@ async def debug_database_access(user_id: str):
         from app.core.database import get_database
         
         db = get_database()
-        supabase = db.get_client()
+        # Use service role client to bypass RLS
+        supabase = db.get_service_client()
         
         # Test 1: Raw table query
         try:
@@ -1173,7 +1174,8 @@ async def list_user_journals(user_id: str):
         from app.core.database import get_database
         
         db = get_database()
-        supabase = db.get_client()
+        # Use service role client to bypass RLS
+        supabase = db.get_service_client()
         
         # Get recent journal entries for this user
         response = supabase.table("journal_entries").select(
@@ -1227,7 +1229,8 @@ async def manual_respond_to_latest(user_id: str):
         from datetime import datetime, timezone
         
         db = get_database()
-        supabase = db.get_client()
+        # Use service role client to bypass RLS
+        supabase = db.get_service_client()
         
         # Find the most recent journal entry for this user
         response = supabase.table("journal_entries").select(
