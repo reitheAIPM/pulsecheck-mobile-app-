@@ -91,4 +91,31 @@
   - ✅ Added `GET /entries/{entry_id}/replies` endpoint with proper auth
   - ✅ Endpoint queries `ai_user_replies` table with RLS
   - ✅ Returns replies in chronological order
-- **Status**: DEPLOYING TO RAILWAY 
+- **Status**: ✅ DEPLOYED TO RAILWAY - READY FOR TESTING
+- **Deployment**: Railway build successful, backend responding correctly
+- **Next Steps**: Test reply functionality in production app
+
+### **ATTEMPT 15: AI Scheduler Investigation**
+- **Date**: 2025-07-03 21:50  
+- **Issue**: AI responses still appearing as fallback/generic
+- **Findings**: 
+  - ❌ AI scheduler endpoints returning 404 (`/api/v1/ai-admin/scheduler/status`)
+  - ❌ Manual cycle endpoint not found (`/api/v1/ai-admin/manual-cycle`)  
+  - ✅ Backend basic connectivity working
+  - ✅ OpenAI integration was fixed in previous attempts
+- **Hypothesis**: AI scheduler may be disabled or not running after Railway restarts
+- **Status**: ROOT CAUSE FOUND
+
+### **ATTEMPT 16: Critical AI Response Flow Issue**
+- **Date**: 2025-07-03 22:00
+- **Root Cause Analysis**:
+  - PulseAI service is correctly implemented with proper OpenAI initialization
+  - Journal creation calls `adaptive_ai.generate_adaptive_response()` 
+  - This calls `pulse_ai_service.generate_pulse_response()`
+  - PulseAI checks if `self.client` exists, if not, returns fallback
+  - **KEY ISSUE**: OpenAI client may not be initializing due to missing/invalid API key in Railway
+- **Evidence**:
+  - PulseAI has extensive logging for OpenAI initialization
+  - Falls back to `_create_smart_fallback_response()` when client is None
+  - Generic messages match fallback response patterns
+- **Status**: DEPLOYING FIX 

@@ -71,7 +71,7 @@ async def test_journal_router():
 
 @router.get("/test-ai")
 async def test_ai_response():
-    """Test AI response generation - requires real authentication"""
+    """Test endpoint to verify router is working"""
     try:
         # Don't use mock data - require real journal entries
         return {
@@ -98,6 +98,58 @@ async def test_ai_response():
             "error": str(e),
             "error_type": type(e).__name__,
             "status": "error"
+        }
+
+@router.get("/ai-diagnostic")
+async def ai_diagnostic(db: Database = Depends(get_database)):
+    """Diagnostic endpoint to check AI service status"""
+    try:
+        # Get PulseAI service
+        pulse_ai = get_pulse_ai_service(db)
+        
+        # Check OpenAI configuration
+        import os
+        openai_key_exists = bool(os.getenv('OPENAI_API_KEY'))
+        key_length = len(os.getenv('OPENAI_API_KEY', ''))
+        
+        diagnostic_info = {
+            "openai_client_initialized": pulse_ai.client is not None,
+            "api_key_configured": pulse_ai.api_key_configured,
+            "openai_key_in_env": openai_key_exists,
+            "openai_key_length": key_length,
+            "model": pulse_ai.model,
+            "max_tokens": pulse_ai.max_tokens,
+            "beta_service_enabled": pulse_ai.beta_service is not None
+        }
+        
+        # Try a simple OpenAI test if client exists
+        openai_test_result = None
+        if pulse_ai.client:
+            try:
+                # Simple test to verify OpenAI connectivity
+                test_response = pulse_ai.client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": "Say 'AI is working' in 3 words"}],
+                    max_tokens=10
+                )
+                openai_test_result = "✅ OpenAI API is working"
+            except Exception as e:
+                openai_test_result = f"❌ OpenAI API error: {str(e)}"
+        else:
+            openai_test_result = "❌ OpenAI client not initialized"
+        
+        return {
+            "status": "diagnostic complete",
+            "diagnostic_info": diagnostic_info,
+            "openai_test_result": openai_test_result,
+            "recommendation": "Check Railway environment variables for OPENAI_API_KEY" if not openai_key_exists else "API key exists, check logs for initialization errors"
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "error_type": type(e).__name__
         }
 
 # STANDARDIZED: Use centralized authentication from core.security
