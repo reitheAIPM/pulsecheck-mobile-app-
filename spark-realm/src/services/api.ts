@@ -220,6 +220,14 @@ export interface BetaToggleResponse {
   error?: string;
 }
 
+export interface UserReply {
+  id: string;
+  journal_entry_id: string;
+  user_id: string;
+  reply_text: string;
+  created_at: string;
+}
+
 class ApiService {
   private client: AxiosInstance;
   private baseURL: string;
@@ -632,6 +640,16 @@ class ApiService {
     } catch (error) {
       console.error('Failed to submit AI reply:', error);
       throw error;
+    }
+  }
+
+  async getUserReplies(entryId: string): Promise<UserReply[]> {
+    try {
+      const response = await this.client.get(`/api/v1/journal/entries/${entryId}/replies`);
+      return response.data.replies || [];
+    } catch (error) {
+      console.error('Failed to get user replies:', error);
+      return [];
     }
   }
 }

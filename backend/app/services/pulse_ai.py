@@ -46,8 +46,8 @@ class PulseAI:
         
         # Check for OpenAI API key in multiple places
         openai_api_key = None
-        if hasattr(settings, 'openai_api_key') and settings.openai_api_key:
-            openai_api_key = settings.openai_api_key
+        if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
+            openai_api_key = settings.OPENAI_API_KEY
         else:
             # Try environment variable directly
             openai_api_key = os.getenv('OPENAI_API_KEY')
