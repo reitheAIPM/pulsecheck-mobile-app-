@@ -74,4 +74,21 @@
 ### **⚠️ REMAINING CHECKS**
 - Verify AI responses are no longer fallback messages for test account
 - Confirm replies persist when switching between tabs
-- Check if "Helpful" button state persists across navigation 
+- Check if "Helpful" button state persists across navigation
+
+## 🚨 NEW ISSUE DISCOVERED
+
+### **ATTEMPT 14: Backend Reply Endpoint 404 Issue**
+- **Date**: 2025-07-03 21:42
+- **Issue**: GET `/api/v1/journal/entries/{id}/replies` returning 404
+- **Evidence**: User logs show:
+  - ✅ POST reply submission works (200 status)
+  - ❌ GET reply fetching fails (404 status)
+  - ❌ AI responses still appear generic/fallback
+- **Root Cause**: Backend missing GET endpoint for replies
+- **Actions Taken**:
+  - ✅ Added `AIReplyResponse` and `AIRepliesResponse` models
+  - ✅ Added `GET /entries/{entry_id}/replies` endpoint with proper auth
+  - ✅ Endpoint queries `ai_user_replies` table with RLS
+  - ✅ Returns replies in chronological order
+- **Status**: DEPLOYING TO RAILWAY 

@@ -122,4 +122,18 @@ class AIFeedbackCreate(BaseModel):
 # AI Reply Schema  
 class AIReplyCreate(BaseModel):
     """Schema for submitting AI reply"""
-    reply_text: str = Field(..., min_length=1, max_length=1000) 
+    reply_text: str = Field(..., min_length=1, max_length=1000)
+
+# AI Reply Response Schema
+class AIReplyResponse(BaseModel):
+    """Schema for AI reply API responses"""
+    id: str
+    journal_entry_id: str
+    user_id: str
+    reply_text: str
+    created_at: datetime
+
+# AI Replies List Response
+class AIRepliesResponse(BaseModel):
+    """Schema for list of AI replies"""
+    replies: List[AIReplyResponse] 

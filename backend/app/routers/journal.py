@@ -7,7 +7,7 @@ from fastapi import status
 
 from app.models.journal import (
     JournalEntryCreate, JournalEntryResponse, JournalEntriesResponse,
-    JournalStats, JournalEntryUpdate, AIFeedbackCreate, AIReplyCreate
+    JournalStats, JournalEntryUpdate, AIFeedbackCreate, AIReplyCreate, AIReplyResponse, AIRepliesResponse
 )
 from app.models.ai_insights import PulseResponse, AIAnalysisResponse, AIInsightResponse
 from app.services.pulse_ai import PulseAI
@@ -577,6 +577,60 @@ async def submit_ai_reply(
     except Exception as e:
         logger.error(f"Error submitting AI reply: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error submitting reply: {str(e)}")
+
+@router.get("/entries/{entry_id}/replies", response_model=AIRepliesResponse)
+@limiter.limit("60/minute")  # Rate limit reply retrieval
+async def get_ai_replies(
+    request: Request,  # Required for rate limiter
+    entry_id: str,
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user_with_fallback)
+):
+    """
+    Get all user replies for a specific journal entry
+    """
+    try:
+        # Get JWT token from request headers for RLS authentication
+        auth_header = request.headers.get('Authorization')
+        jwt_token = None
+        if auth_header and auth_header.startswith('Bearer '):
+            jwt_token = auth_header.split(' ')[1]
+        
+        # Use authenticated client for RLS
+        if jwt_token:
+            from supabase import create_client
+            import os
+            client = create_client(
+                os.getenv("SUPABASE_URL"),
+                os.getenv("SUPABASE_ANON_KEY")
+            )
+            client.postgrest.auth(jwt_token)
+        else:
+            # Fallback to service role client
+            client = db.get_client()
+        
+        # Verify journal entry exists and belongs to user
+        entry_result = client.table("journal_entries").select("id").eq("id", entry_id).eq("user_id", current_user["id"]).single().execute()
+        
+        if not entry_result.data:
+            raise HTTPException(status_code=404, detail="Journal entry not found")
+        
+        # Get all replies for this entry
+        replies_result = client.table("ai_user_replies").select("*").eq("journal_entry_id", entry_id).eq("user_id", current_user["id"]).order("created_at", desc=False).execute()
+        
+        # Convert to response models
+        replies = []
+        if replies_result.data:
+            for reply in replies_result.data:
+                replies.append(AIReplyResponse(**reply))
+        
+        return AIRepliesResponse(replies=replies)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching AI replies: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching replies: {str(e)}")
 
 @router.get("/entries/{entry_id}/analysis", response_model=AIAnalysisResponse)
 @limiter.limit("5/minute")  # Rate limit AI analysis requests (more expensive)
