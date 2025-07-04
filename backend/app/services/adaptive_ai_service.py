@@ -62,21 +62,24 @@ class AdaptiveAIService:
         self.pattern_analyzer = pattern_analyzer
         self.preferences_service = UserPreferencesService()
         
-        # AI debugging and monitoring
+        # Test account that bypasses all limits and fallbacks
+        self.test_user_id = "6abe6283-5dd2-46d6-995a-d876a06a55f7"
+        
+        # AI debugging instrumentation
         self.debug_contexts: List[AIDebugContext] = []
-        self.performance_baselines = {
-            "topic_classification_ms": 50.0,
-            "persona_selection_ms": 100.0,
-            "pattern_analysis_ms": 200.0,
-            "ai_response_generation_ms": 2000.0,
-            "total_response_time_ms": 2500.0
-        }
-        self.error_patterns = {
-            "topic_classification_failure": 0,
-            "persona_selection_failure": 0,
+        self.error_patterns: Dict[str, int] = {
+            "openai_api_error": 0,
             "pattern_analysis_failure": 0,
-            "ai_service_failure": 0,
-            "database_connection_failure": 0
+            "persona_selection_failure": 0,
+            "topic_classification_failure": 0,
+            "ai_service_failure": 0
+        }
+        self.performance_baselines = {
+            "topic_classification_ms": 50,
+            "pattern_analysis_ms": 200,
+            "persona_selection_ms": 20,
+            "ai_response_generation_ms": 3000,
+            "total_response_time_ms": 4000
         }
         
         # Team-oriented persona definitions (no expertise areas)
@@ -509,6 +512,16 @@ class AdaptiveAIService:
         Generate intelligent fallback response when AI service fails
         """
         try:
+            # TEST ACCOUNT: Never use fallbacks for test account
+            if journal_entry.user_id == self.test_user_id:
+                logger.info(f"🚀 TEST ACCOUNT: Forcing real AI response instead of fallback for user {journal_entry.user_id}")
+                # Force retry with simplified approach
+                try:
+                    return await self._force_real_ai_response(journal_entry, persona, debug_context)
+                except Exception as force_error:
+                    logger.error(f"TEST ACCOUNT: Forced AI response failed: {force_error}")
+                    # Continue to retry logic below
+            
             # 🚀 NEW: Check if user has premium override to disable fallbacks
             try:
                 from app.core.database import get_database
@@ -598,6 +611,58 @@ class AdaptiveAIService:
                 pattern_insights={},
                 generated_at=datetime.now(timezone.utc)
             )
+    
+    async def _force_real_ai_response(self, journal_entry: JournalEntryResponse, persona: str, debug_context: AIDebugContext) -> AIInsightResponse:
+        """
+        Force a real AI response for test account - never use fallbacks
+        """
+        try:
+            # Create a minimal personalized prompt for the persona
+            persona_prompts = {
+                "pulse": f"You are Pulse, an empathetic AI companion. Respond to this journal entry with genuine care and understanding:\n\n{journal_entry.content}",
+                "sage": f"You are Sage, a wise AI that sees patterns and offers perspective. Respond to this journal entry with insight and wisdom:\n\n{journal_entry.content}",
+                "spark": f"You are Spark, an energetic AI that inspires action and motivation. Respond to this journal entry with enthusiasm and actionable advice:\n\n{journal_entry.content}",
+                "anchor": f"You are Anchor, a grounding AI that provides stability and practical guidance. Respond to this journal entry with calm, practical advice:\n\n{journal_entry.content}"
+            }
+            
+            prompt = persona_prompts.get(persona, persona_prompts["pulse"])
+            
+            # Use direct OpenAI call with minimal context
+            user_context = {
+                "personalized_prompt": prompt,
+                "persona": persona,
+                "force_real_response": True,
+                "test_account": True
+            }
+            
+            pulse_response = self.pulse_ai_service.generate_pulse_response(
+                journal_entry=journal_entry,
+                user_context=user_context
+            )
+            
+            # Convert to AIInsightResponse
+            return AIInsightResponse(
+                insight=pulse_response.message or f"As {persona}, I want you to know I'm here with you in this moment.",
+                suggested_action=pulse_response.suggested_actions[0] if pulse_response.suggested_actions else "Take a moment to breathe and acknowledge what you're feeling.",
+                follow_up_question=pulse_response.follow_up_question or "What's the most important thing for you to focus on right now?",
+                confidence_score=pulse_response.confidence_score,
+                persona_used=persona,
+                adaptation_level="forced_real_response",
+                topic_flags=debug_context.topics_detected or [],
+                pattern_insights={
+                    "writing_style": "authentic",
+                    "common_topics": debug_context.topics_detected or [],
+                    "mood_trends": {"mood": journal_entry.mood_level or 5, "energy": journal_entry.energy_level or 5, "stress": journal_entry.stress_level or 5},
+                    "interaction_preferences": {"prefers_questions": True, "prefers_validation": True, "prefers_advice": True},
+                    "response_preferences": {"length": "medium", "style": "personalized"}
+                },
+                generated_at=datetime.now(timezone.utc)
+            )
+            
+        except Exception as e:
+            logger.error(f"Force real AI response failed: {e}")
+            # Re-raise to prevent fallback
+            raise
     
     def _classify_error(self, error: Exception) -> str:
         """Classify error for AI debugging"""

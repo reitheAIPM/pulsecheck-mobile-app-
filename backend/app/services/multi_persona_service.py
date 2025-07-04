@@ -25,6 +25,9 @@ class MultiPersonaService:
     def __init__(self, db: Database):
         self.db = db
         
+        # Test account that bypasses all limits
+        self.test_user_id = "6abe6283-5dd2-46d6-995a-d876a06a55f7"
+        
         # Persona response rules based on interaction level
         self.response_rules = {
             "quiet": {"min": 1, "max": 1, "delay_between": 0},
@@ -45,6 +48,11 @@ class MultiPersonaService:
         Returns list of persona names that should respond
         """
         try:
+            # TEST ACCOUNT BYPASS: Always return all 4 personas for test account
+            if user_id == self.test_user_id:
+                logger.info(f"🚀 TEST ACCOUNT DETECTED: Returning all 4 personas for user {user_id}")
+                return ["pulse", "sage", "spark", "anchor"]
+            
             # Get user preferences if not provided
             if not user_preferences:
                 client = self.db.get_service_client()
@@ -271,6 +279,29 @@ class MultiPersonaService:
         Returns persona name or None
         """
         try:
+            # TEST ACCOUNT BYPASS: Always respond to test account comments
+            if user_id == self.test_user_id:
+                # Get all personas that haven't responded yet
+                responded_personas = {r["ai_persona"] for r in existing_responses if r.get("is_ai_response")}
+                all_personas = {"pulse", "sage", "spark", "anchor"}
+                available_personas = all_personas - responded_personas
+                
+                if available_personas:
+                    # Select next persona to respond based on conversation flow
+                    if not responded_personas:  # First response
+                        return "pulse"
+                    elif "pulse" in responded_personas and "sage" not in responded_personas:
+                        return "sage"
+                    elif "sage" in responded_personas and "spark" not in responded_personas:
+                        return "spark"
+                    elif "spark" in responded_personas and "anchor" not in responded_personas:
+                        return "anchor"
+                    else:
+                        # All personas have responded once, allow them to respond again
+                        return random.choice(list(all_personas))
+                
+                logger.info(f"🚀 TEST ACCOUNT: Selected persona for reply conversation")
+            
             # Don't respond to own comments
             if commenting_user_id != user_id:
                 return None

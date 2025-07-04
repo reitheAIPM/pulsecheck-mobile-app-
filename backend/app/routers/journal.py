@@ -706,7 +706,8 @@ async def submit_ai_reply(
     entry_id: str,
     reply_data: AIReplyCreate,  # Use proper Pydantic model
     db: Database = Depends(get_database),
-    current_user: dict = Depends(get_current_user_with_fallback)
+    current_user: dict = Depends(get_current_user_with_fallback),
+    adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
 ):
     """
     Submit a reply to an AI response

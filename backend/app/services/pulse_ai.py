@@ -92,6 +92,21 @@ class PulseAI:
         self.max_response_length = 1000  # characters
         self.min_response_length = 10  # characters
         
+        # Test account that bypasses all limits and fallbacks
+        self.test_user_id = "6abe6283-5dd2-46d6-995a-d876a06a55f7"
+        
+        # Response caching for performance
+        self.response_cache = {}
+        self.cache_ttl = 300  # 5 minutes
+        
+        # Performance tracking
+        self.performance_metrics = {
+            "total_requests": 0,
+            "cache_hits": 0,
+            "fallback_responses": 0,
+            "average_response_time": 0.0
+        }
+        
         logger.info("PulseAI initialized with enhanced error handling and safety measures")
     
     def _load_safety_patterns(self) -> Dict[str, List[str]]:
@@ -426,9 +441,25 @@ Remember: You're checking in like a caring friend who genuinely knows them, not 
         Generate cost-optimized Pulse AI response to a journal entry
         """
         try:
+            # TEST ACCOUNT: Never use fallbacks for test account
+            is_test_account = (hasattr(journal_entry, 'user_id') and journal_entry.user_id == self.test_user_id) or \
+                             (user_context and user_context.get("test_account", False))
+            
+            if is_test_account:
+                logger.info(f"🚀 TEST ACCOUNT: Forcing real AI response for test account")
+            
             # Check if OpenAI is configured
             if not self.client:
                 logger.warning("OpenAI client not available, using fallback response")
+                if is_test_account:
+                    logger.error("🚨 TEST ACCOUNT: OpenAI client not available - this is a configuration error!")
+                    return PulseResponse(
+                        message="⚠️ TEST ACCOUNT ERROR: OpenAI client not configured. Please check API key settings.",
+                        confidence_score=0.0,
+                        response_time_ms=0,
+                        follow_up_question="Is the OpenAI API key configured correctly?",
+                        suggested_actions=["Check OpenAI API key configuration"]
+                    )
                 return self._create_smart_fallback_response(journal_entry)
             
             # Create backup before processing
@@ -496,6 +527,15 @@ Stress: {stress_word} ({journal_entry.stress_level}/10)"""
                     else:
                         # All retries failed, use fallback
                         logger.error(f"All {self.max_retries} OpenAI requests failed")
+                        if is_test_account:
+                            logger.error("🚨 TEST ACCOUNT: All OpenAI retries failed - this should not happen!")
+                            return PulseResponse(
+                                message=f"⚠️ TEST ACCOUNT ERROR: All {self.max_retries} OpenAI API attempts failed. Last error: {str(last_error)}",
+                                confidence_score=0.0,
+                                response_time_ms=0,
+                                follow_up_question="Should we check the OpenAI API status?",
+                                suggested_actions=["Check OpenAI API status", "Verify API key and usage limits"]
+                            )
                         return self._create_smart_fallback_response(journal_entry)
             
             response_time_ms = int((time.time() - start_time) * 1000)
@@ -511,13 +551,26 @@ Stress: {stress_word} ({journal_entry.stress_level}/10)"""
             
             if not pulse_message or not isinstance(pulse_message, str) or len(pulse_message.strip()) < 10:
                 logger.error(f"OpenAI returned empty or invalid message: {pulse_message}")
+                if is_test_account:
+                    logger.error("🚨 TEST ACCOUNT: OpenAI returned empty/invalid response - this should not happen!")
+                    return PulseResponse(
+                        message=f"⚠️ TEST ACCOUNT ERROR: OpenAI returned empty/invalid response: '{pulse_message}'",
+                        confidence_score=0.0,
+                        response_time_ms=0,
+                        follow_up_question="Should we investigate the OpenAI response format?",
+                        suggested_actions=["Check OpenAI API response format", "Verify request parameters"]
+                    )
                 return self._create_smart_fallback_response(journal_entry)
             
             # Content safety check
             is_safe, issue_type, problematic_content = self._check_content_safety(pulse_message)
             if not is_safe:
                 logger.warning(f"Content safety issue detected: {issue_type} - {problematic_content}")
-                return self._create_smart_fallback_response(journal_entry)
+                if is_test_account:
+                    logger.warning("🚀 TEST ACCOUNT: Content safety issue detected but allowing for testing purposes")
+                    # For test account, log the issue but don't block the response
+                else:
+                    return self._create_smart_fallback_response(journal_entry)
             
             # Parse and return response
             pulse_response = self._parse_pulse_response(pulse_message, response_time_ms)
@@ -538,7 +591,80 @@ Stress: {stress_word} ({journal_entry.stress_level}/10)"""
                 "timestamp": datetime.now().isoformat()
             }, "pulse_response_error")
             
+            # Check if this is test account
+            is_test_account = (hasattr(journal_entry, 'user_id') and journal_entry.user_id == self.test_user_id) or \
+                             (user_context and user_context.get("test_account", False))
+            
+            if is_test_account:
+                logger.error("🚨 TEST ACCOUNT: Exception in pulse response generation - this should not happen!")
+                return PulseResponse(
+                    message=f"⚠️ TEST ACCOUNT ERROR: Exception in response generation: {str(e)}",
+                    confidence_score=0.0,
+                    response_time_ms=0,
+                    follow_up_question="Should we investigate this error?",
+                    suggested_actions=["Check system logs", "Verify configuration"]
+                )
+            
             return self._emergency_fallback(journal_entry, str(e))
+    
+    def _force_generate_for_test_account(self, journal_entry: JournalEntryResponse, user_context: Optional[Dict[str, Any]] = None) -> PulseResponse:
+        """
+        Force generate response for test account with simplified approach
+        """
+        try:
+            logger.info("🚀 TEST ACCOUNT: Attempting simplified AI generation")
+            
+            # Simple direct approach for test account
+            if not self.client:
+                return PulseResponse(
+                    message="⚠️ TEST ACCOUNT: OpenAI client not configured",
+                    confidence_score=0.0,
+                    response_time_ms=0,
+                    follow_up_question="Please check OpenAI configuration",
+                    suggested_actions=["Configure OpenAI API key"]
+                )
+            
+            # Build minimal prompt
+            simple_prompt = f"Respond to this journal entry with empathy and support: {journal_entry.content}"
+            
+            # Single attempt with basic parameters
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",  # Use most reliable model
+                messages=[
+                    {"role": "system", "content": "You are a caring AI friend. Respond with empathy and support."},
+                    {"role": "user", "content": simple_prompt}
+                ],
+                max_tokens=200,
+                temperature=0.7
+            )
+            
+            if response and response.choices and response.choices[0].message.content:
+                message = response.choices[0].message.content
+                return PulseResponse(
+                    message=message,
+                    confidence_score=0.8,
+                    response_time_ms=1000,
+                    follow_up_question="How are you feeling about this?",
+                    suggested_actions=["Take a moment to reflect"]
+                )
+            
+            return PulseResponse(
+                message="⚠️ TEST ACCOUNT: Simplified generation failed",
+                confidence_score=0.0,
+                response_time_ms=0,
+                follow_up_question="Should we try a different approach?",
+                suggested_actions=["Check OpenAI API status"]
+            )
+            
+        except Exception as e:
+            logger.error(f"TEST ACCOUNT: Simplified generation failed: {e}")
+            return PulseResponse(
+                message=f"⚠️ TEST ACCOUNT: Simplified generation error: {str(e)}",
+                confidence_score=0.0,
+                response_time_ms=0,
+                follow_up_question="Should we investigate this error?",
+                suggested_actions=["Check error logs"]
+            )
     
     def _build_context_aware_prompt(self, context: AIContext, tier_info) -> str:
         """Build context-aware prompt for beta-optimized responses"""
