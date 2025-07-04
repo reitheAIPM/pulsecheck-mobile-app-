@@ -460,8 +460,28 @@ class AdaptiveAIService:
         Generate AI response with comprehensive error handling and fallback
         """
         try:
-            # Use the ACTUAL journal entry with real mood/energy/stress data
-            pulse_response = self.pulse_ai_service.generate_pulse_response(journal_entry)
+            # 🚀 FIX: Use the personalized prompt instead of ignoring it!
+            # The old code was ignoring the personalized prompt and just using generic PulseAI
+            
+            # Create a custom journal entry with the personalized prompt for the AI service
+            custom_entry = JournalEntryResponse(
+                id=journal_entry.id,
+                user_id=journal_entry.user_id,
+                content=f"{personalized_prompt}\n\nUser's journal entry: {journal_entry.content}",
+                mood_level=journal_entry.mood_level,
+                energy_level=journal_entry.energy_level,
+                stress_level=journal_entry.stress_level,
+                sleep_hours=journal_entry.sleep_hours,
+                work_hours=journal_entry.work_hours,
+                tags=journal_entry.tags,
+                work_challenges=journal_entry.work_challenges,
+                gratitude_items=journal_entry.gratitude_items,
+                created_at=journal_entry.created_at,
+                updated_at=journal_entry.updated_at
+            )
+            
+            # Now use the personalized prompt with the AI service
+            pulse_response = self.pulse_ai_service.generate_pulse_response(custom_entry)
             
             # Convert PulseResponse to AIInsightResponse
             return AIInsightResponse(
