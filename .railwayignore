@@ -1,0 +1,42 @@
+# Railway Ignore File - Exclude large directories from builds
+
+# Documentation directories (huge and not needed for app)
+platform-docs/
+ai/
+archive/
+personal/
+
+# Development tools
+.vscode/
+.vercel/
+.git/
+node_modules/
+.venv/
+
+# Test files
+tests/
+scripts/
+*.test
+*_test.*
+test_*.py
+test_*.ps1
+
+# Backup and temporary files
+*.backup
+*.bak
+tmp/
+temp/
+*.debug
+debug_*
+
+# Mobile app (if not needed for backend)
+PulseCheckMobile/
+
+# Only build backend and spark-realm
+!backend/
+!spark-realm/
+!supabase/
+!railway.toml
+!requirements.txt
+!Procfile
+!.nixpacks.toml 
