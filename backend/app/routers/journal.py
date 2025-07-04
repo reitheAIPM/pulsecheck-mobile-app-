@@ -689,6 +689,61 @@ async def submit_ai_reply(
             logger.error(f"Failed to store AI reply: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to store reply")
         
+        # 🚀 NEW: Trigger AI response to user's comment
+        try:
+            # Import AI services
+            from ..services.pulse_ai import PulseAI
+            from ..services.persona_service import PersonaService
+            
+            # Get the journal entry for context
+            journal_result = service_client.table("journal_entries").select("*").eq("id", entry_id).single().execute()
+            journal_entry = journal_result.data
+            
+            # Initialize AI services
+            pulse_ai = PulseAI()
+            persona_service = PersonaService(db)
+            
+            # Select appropriate persona (same as initial response or rotate)
+            selected_persona = "pulse"  # Default, can be enhanced with rotation logic
+            
+            # Get persona config
+            persona_config = persona_service.get_persona_config(selected_persona)
+            
+            # Generate AI response to user's comment
+            prompt = f"""
+            As {persona_config['name']}, respond to this user's comment on your previous response.
+            
+            Original journal entry: {journal_entry.get('content', '')[:200]}...
+            User's comment to you: {reply_text}
+            
+            Respond naturally like a friend would in a conversation. Reference their comment specifically.
+            Be supportive and engaging. Keep it conversational and friendly.
+            
+            Personality traits:
+            - {persona_config['personality']}
+            - {persona_config['communication_style']}
+            """
+            
+            ai_response = await pulse_ai.generate_response(prompt, temperature=persona_config['temperature'])
+            
+            # Store the AI response to the user's comment
+            ai_reply_data = {
+                "id": str(uuid.uuid4()),
+                "journal_entry_id": entry_id,
+                "user_id": current_user["id"],
+                "reply_text": ai_response,
+                "is_ai_response": True,  # Mark as AI response
+                "ai_persona": selected_persona,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            service_client.table("ai_user_replies").insert(ai_reply_data).execute()
+            logger.info(f"AI automatically responded to user's comment in entry {entry_id}")
+            
+        except Exception as e:
+            logger.error(f"Failed to generate AI response to user comment: {str(e)}")
+            # Don't fail the whole request if AI response generation fails
+        
         return {
             "message": "Reply submitted successfully",
             "reply_id": reply_data_to_store["id"],

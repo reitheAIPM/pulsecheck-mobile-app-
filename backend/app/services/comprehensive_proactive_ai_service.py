@@ -328,6 +328,13 @@ class ComprehensiveProactiveAIService:
                 entry, related_entries, available_personas, profile, minutes_since_entry
             )
             opportunities.extend(persona_opportunities)
+        # 🚀 NEW: Enable multi-persona for testing account
+        elif profile.user_id in self.testing_user_ids:
+            # Generate opportunities for multiple personas for testing
+            persona_opportunities = self._generate_multi_persona_opportunities(
+                entry, related_entries, available_personas, profile, minutes_since_entry
+            )
+            opportunities.extend(persona_opportunities)
         else:
             # Standard single persona response
             optimal_persona = self._select_optimal_persona_for_entry(entry, available_personas)

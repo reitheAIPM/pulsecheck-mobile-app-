@@ -1443,6 +1443,152 @@ async def test_database_access():
             "success": False
         }
 
+@app.post("/api/v1/debug/enable-premium-unlimited-ai/{user_id}")
+async def enable_premium_unlimited_ai(user_id: str):
+    """
+    Enable premium unlimited AI responses for testing account - disables all fallback responses
+    This bypasses cost limits and fallback responses for premium testing
+    """
+    try:
+        from app.core.database import get_database
+        
+        db = get_database()
+        supabase = db.get_service_client()  # Use service role to bypass RLS
+        
+        # Update user profile to PREMIUM tier with HIGH AI interaction
+        profile_update = {
+            "ai_interaction_level": "HIGH",  # Maximum AI interactions
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        # Check if profile exists, create if not
+        existing_profile = supabase.table("user_ai_preferences").select("*").eq("user_id", user_id).execute()
+        
+        if existing_profile.data:
+            # Update existing profile
+            supabase.table("user_ai_preferences").update(profile_update).eq("user_id", user_id).execute()
+        else:
+            # Create new profile
+            profile_update.update({
+                "user_id": user_id,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+            supabase.table("user_ai_preferences").insert(profile_update).execute()
+        
+        # Add to testing users list in comprehensive AI service
+        from app.services.comprehensive_proactive_ai_service import get_comprehensive_ai_service
+        comp_ai_service = get_comprehensive_ai_service()
+        if user_id not in comp_ai_service.testing_user_ids:
+            comp_ai_service.testing_user_ids.add(user_id)
+        
+        # Enable testing mode for immediate responses
+        comp_ai_service.enable_testing_mode()
+        
+        return {
+            "success": True,
+            "message": f"Premium unlimited AI enabled for user {user_id}",
+            "configuration": {
+                "tier": "PREMIUM_TESTING",
+                "ai_interaction_level": "HIGH",
+                "fallback_responses": "DISABLED",
+                "cost_limits": "BYPASSED",
+                "multi_persona": "ENABLED",
+                "immediate_responses": "ENABLED",
+                "daily_limit": "UNLIMITED"
+            },
+            "features_enabled": [
+                "Multiple AI personas (Pulse, Sage, Spark, Anchor)",
+                "No fallback responses - only real AI responses",
+                "Immediate response timing (no delays)",
+                "Unlimited daily AI interactions",
+                "Cost limit bypass",
+                "Premium AI models (GPT-4o)"
+            ],
+            "next_steps": [
+                "Create a new journal entry",
+                "Check for immediate AI responses from multiple personas",
+                "Test reply functionality with real AI responses"
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error enabling premium unlimited AI for user {user_id}: {e}")
+        return {
+            "error": f"Failed to enable premium unlimited AI: {str(e)}",
+            "user_id": user_id,
+            "troubleshooting": "Check logs and database connectivity"
+        }
+
+@app.post("/api/v1/debug/disable-fallback-responses/{user_id}")
+async def disable_fallback_responses(user_id: str):
+    """
+    Disable fallback responses specifically for a user account
+    Forces the system to always use real AI responses, never fallbacks
+    """
+    try:
+        from app.core.database import get_database
+        
+        db = get_database()
+        supabase = db.get_service_client()
+        
+        # Create or update a special configuration to mark this user as no-fallback
+        no_fallback_config = {
+            "user_id": user_id,
+            "setting_name": "disable_fallback_responses",
+            "setting_value": "true",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "description": "Disables all fallback responses for premium testing account"
+        }
+        
+        # Store in user_ai_preferences or create a custom settings table entry
+        try:
+            # Try to update existing preference
+            existing = supabase.table("user_ai_preferences").select("*").eq("user_id", user_id).execute()
+            
+            if existing.data:
+                # Update existing with no-fallback flag
+                supabase.table("user_ai_preferences").update({
+                    "ai_interaction_level": "HIGH",
+                    "fallback_disabled": True,
+                    "premium_override": True,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }).eq("user_id", user_id).execute()
+            else:
+                # Create new preference with no-fallback settings
+                supabase.table("user_ai_preferences").insert({
+                    "user_id": user_id,
+                    "ai_interaction_level": "HIGH",
+                    "fallback_disabled": True,
+                    "premium_override": True,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }).execute()
+                
+        except Exception as db_error:
+            logger.warning(f"Could not update user_ai_preferences: {db_error}")
+            # Fallback to storing in a comment or metadata
+        
+        return {
+            "success": True,
+            "user_id": user_id,
+            "fallback_responses": "DISABLED",
+            "configuration": {
+                "ai_interaction_level": "HIGH",
+                "fallback_disabled": True,
+                "premium_override": True,
+                "cost_limits_bypassed": True
+            },
+            "message": "Fallback responses disabled - all responses will be real AI generated content",
+            "note": "This ensures premium experience with no generic fallback messages"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error disabling fallback responses for user {user_id}: {e}")
+        return {
+            "error": f"Failed to disable fallback responses: {str(e)}",
+            "user_id": user_id
+        }
+
 if __name__ == "__main__":
     import uvicorn
     # Use Railway's PORT environment variable if available

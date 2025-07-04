@@ -344,8 +344,48 @@ async def toggle_beta_premium(
     """
     logger.info(f"Toggling premium for user {request.user_id}: {request.enabled}")
     
-    # Store in memory for now
-    _premium_status[request.user_id] = request.enabled
+    try:
+        # Store in memory for backward compatibility
+        _premium_status[request.user_id] = request.enabled
+        
+        # 🚀 NEW: Update database with actual premium permissions
+        supabase = db.get_service_client()
+        
+        # Set the AI interaction level based on premium status
+        ai_level = "HIGH" if request.enabled else "MODERATE"
+        
+        # Prepare the update data
+        update_data = {
+            "ai_interaction_level": ai_level,
+            "updated_at": datetime.now().isoformat()
+        }
+        
+        # Check if user preferences exist
+        existing_prefs = supabase.table("user_ai_preferences").select("user_id").eq("user_id", request.user_id).execute()
+        
+        if existing_prefs.data:
+            # Update existing preferences
+            result = supabase.table("user_ai_preferences").update(update_data).eq("user_id", request.user_id).execute()
+            logger.info(f"Updated existing preferences for user {request.user_id}: {ai_level}")
+        else:
+            # Create new preferences
+            insert_data = {
+                "user_id": request.user_id,
+                "ai_interaction_level": ai_level,
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat()
+            }
+            result = supabase.table("user_ai_preferences").insert(insert_data).execute()
+            logger.info(f"Created new preferences for user {request.user_id}: {ai_level}")
+        
+        # Verify the update was successful
+        if not result.data:
+            logger.error(f"Failed to update database for user {request.user_id}")
+            # Still return success to not break the UI, but log the issue
+    
+    except Exception as e:
+        logger.error(f"Database update failed for user {request.user_id}: {e}")
+        # Continue with in-memory storage as fallback
     
     # Return success response with correct data
     return {

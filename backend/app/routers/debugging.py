@@ -152,7 +152,7 @@ async def clear_debug_history():
         )
     except Exception as e:
         logger.error(f"Failed to clear debug history: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) 
 
 # ==========================================
 # DATABASE CLIENT VALIDATION ENDPOINTS

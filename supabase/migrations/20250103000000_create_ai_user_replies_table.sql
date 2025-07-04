@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS ai_user_replies (
     journal_entry_id UUID NOT NULL REFERENCES journal_entries(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     reply_text TEXT NOT NULL,
+    is_ai_response BOOLEAN DEFAULT FALSE,
+    ai_persona TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

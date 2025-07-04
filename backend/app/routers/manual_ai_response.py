@@ -32,8 +32,8 @@ async def trigger_ai_response_for_journal(
     db: Database = Depends(get_database)
 ) -> Dict[str, Any]:
     """
-    Manually trigger an AI response for a specific journal entry.
-    This bypasses the scheduler for immediate testing.
+    Manually trigger AI response for a journal entry
+    Enhanced to support multiple personas for testing accounts
     """
     try:
         logger.info(f"Manual AI response requested for journal {journal_id} by user {user_id}")
@@ -65,74 +65,137 @@ async def trigger_ai_response_for_journal(
             stress_level=journal_entry.get("stress_level")
         )
         
-        # Select persona and generate response
-        logger.info("Selecting persona and generating response...")
-        
         # Get user preferences
         prefs_result = client.table("user_preferences").select("*").eq("user_id", user_id).single().execute()
         preferences = prefs_result.data if prefs_result.data else {}
         
-        # Select appropriate persona
-        selected_persona = persona_service.select_persona_for_context(
-            mood_score=journal_entry.get("mood_level", 5),
-            energy_level=journal_entry.get("energy_level", 5),
-            context_tags=analysis.get("themes", []),
-            user_preference=preferences.get("preferred_ai_persona")
-        )
+        # 🚀 NEW: Multi-persona response for testing account
+        testing_user_id = "6abe6283-5dd2-46d6-995a-d876a06a55f7"
         
-        # Generate AI comment
-        persona_config = persona_service.get_persona_config(selected_persona)
+        if user_id == testing_user_id:
+            # Generate responses from multiple personas
+            personas_to_use = ["pulse", "sage", "spark", "anchor"]
+            ai_responses = []
+            
+            for persona in personas_to_use:
+                # Get persona config
+                persona_config = persona_service.get_persona_config(persona)
+                
+                # Generate AI comment for this persona
+                prompt = f"""
+                As {persona_config['name']}, respond to this journal entry with your characteristic style.
+                
+                Journal content: {journal_entry.get('content', '')}
+                Mood: {journal_entry.get('mood_level', 'Unknown')}/10
+                Energy: {journal_entry.get('energy_level', 'Unknown')}/10
+                Stress: {journal_entry.get('stress_level', 'Unknown')}/10
+                
+                Key themes identified: {', '.join(analysis.get('themes', []))}
+                
+                Personality traits to embody:
+                - {persona_config['personality']}
+                - Communication style: {persona_config['communication_style']}
+                - Focus areas: {', '.join(persona_config['focus_areas'])}
+                
+                Provide a supportive, engaging response that feels natural and helpful.
+                Make sure your response is unique and reflects your persona's perspective.
+                """
+                
+                response = await pulse_ai.generate_response(prompt, temperature=persona_config['temperature'])
+                
+                # Store the AI comment
+                comment_data = {
+                    "journal_entry_id": journal_id,
+                    "user_id": user_id,
+                    "comment_text": response,
+                    "ai_persona": persona,
+                    "confidence_score": 0.95,
+                    "themes_identified": analysis.get("themes", []),
+                    "emotional_tone": analysis.get("emotional_state", "neutral"),
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                comment_result = client.table("ai_comments").insert(comment_data).execute()
+                
+                if comment_result.data:
+                    ai_responses.append({
+                        "id": comment_result.data[0]["id"],
+                        "text": response,
+                        "persona": persona,
+                        "persona_name": persona_config['name']
+                    })
+            
+            return {
+                "success": True,
+                "message": f"Multi-persona AI responses generated successfully ({len(ai_responses)} personas)",
+                "journal_id": journal_id,
+                "ai_responses": ai_responses,
+                "analysis": analysis,
+                "note": "Multi-persona response for testing account"
+            }
         
-        prompt = f"""
-        As {persona_config['name']}, respond to this journal entry with your characteristic style.
-        
-        Journal content: {journal_entry.get('content', '')}
-        Mood: {journal_entry.get('mood_level', 'Unknown')}/10
-        Energy: {journal_entry.get('energy_level', 'Unknown')}/10
-        
-        Key themes identified: {', '.join(analysis.get('themes', []))}
-        
-        Personality traits to embody:
-        - {persona_config['personality']}
-        - Communication style: {persona_config['communication_style']}
-        - Focus areas: {', '.join(persona_config['focus_areas'])}
-        
-        Provide a supportive, engaging response that feels natural and helpful.
-        """
-        
-        response = await pulse_ai.generate_response(prompt, temperature=persona_config['temperature'])
-        
-        # Store the AI comment
-        comment_data = {
-            "journal_entry_id": journal_id,
-            "user_id": user_id,
-            "comment_text": response,
-            "ai_persona": selected_persona,
-            "confidence_score": 0.95,
-            "themes_identified": analysis.get("themes", []),
-            "emotional_tone": analysis.get("emotional_state", "neutral"),
-            "created_at": datetime.now(timezone.utc).isoformat()
-        }
-        
-        comment_result = client.table("ai_comments").insert(comment_data).execute()
-        
-        if not comment_result.data:
-            raise HTTPException(status_code=500, detail="Failed to save AI comment")
-        
-        return {
-            "success": True,
-            "message": "AI response generated successfully",
-            "journal_id": journal_id,
-            "ai_comment": {
-                "id": comment_result.data[0]["id"],
-                "text": response,
-                "persona": selected_persona,
-                "themes": analysis.get("themes", []),
-                "created_at": comment_data["created_at"]
-            },
-            "analysis": analysis,
-            "note": "This was a manually triggered response. Automatic responses require the scheduler to be running."
-        }
+        else:
+            # Single persona response for regular users
+            selected_persona = persona_service.select_persona_for_context(
+                mood_score=journal_entry.get("mood_level", 5),
+                energy_level=journal_entry.get("energy_level", 5),
+                context_tags=analysis.get("themes", []),
+                user_preference=preferences.get("preferred_ai_persona")
+            )
+            
+            # Generate AI comment
+            persona_config = persona_service.get_persona_config(selected_persona)
+            
+            prompt = f"""
+            As {persona_config['name']}, respond to this journal entry with your characteristic style.
+            
+            Journal content: {journal_entry.get('content', '')}
+            Mood: {journal_entry.get('mood_level', 'Unknown')}/10
+            Energy: {journal_entry.get('energy_level', 'Unknown')}/10
+            
+            Key themes identified: {', '.join(analysis.get('themes', []))}
+            
+            Personality traits to embody:
+            - {persona_config['personality']}
+            - Communication style: {persona_config['communication_style']}
+            - Focus areas: {', '.join(persona_config['focus_areas'])}
+            
+            Provide a supportive, engaging response that feels natural and helpful.
+            """
+            
+            response = await pulse_ai.generate_response(prompt, temperature=persona_config['temperature'])
+            
+            # Store the AI comment
+            comment_data = {
+                "journal_entry_id": journal_id,
+                "user_id": user_id,
+                "comment_text": response,
+                "ai_persona": selected_persona,
+                "confidence_score": 0.95,
+                "themes_identified": analysis.get("themes", []),
+                "emotional_tone": analysis.get("emotional_state", "neutral"),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            comment_result = client.table("ai_comments").insert(comment_data).execute()
+            
+            if not comment_result.data:
+                raise HTTPException(status_code=500, detail="Failed to save AI comment")
+            
+            return {
+                "success": True,
+                "message": "AI response generated successfully",
+                "journal_id": journal_id,
+                "ai_comment": {
+                    "id": comment_result.data[0]["id"],
+                    "text": response,
+                    "persona": selected_persona,
+                    "themes": analysis.get("themes", []),
+                    "created_at": comment_data["created_at"]
+                },
+                "analysis": analysis,
+                "note": "This was a manually triggered response. Automatic responses require the scheduler to be running."
+            }
         
     except HTTPException:
         raise

@@ -122,6 +122,9 @@ CREATE POLICY "Users can update own profile"
 -- 6. PERFORMANCE MONITORING FUNCTIONS
 -- ========================================
 
+-- Drop existing function to avoid return type conflicts
+DROP FUNCTION IF EXISTS check_rls_performance();
+
 -- Function to check RLS policy performance
 CREATE OR REPLACE FUNCTION check_rls_performance()
 RETURNS TABLE (
@@ -173,6 +176,9 @@ ANALYZE user_ai_preferences;
 -- ========================================
 -- 8. SECURITY AUDIT FUNCTION
 -- ========================================
+
+-- Drop existing function to avoid return type conflicts
+DROP FUNCTION IF EXISTS audit_security_config();
 
 CREATE OR REPLACE FUNCTION audit_security_config()
 RETURNS TABLE (

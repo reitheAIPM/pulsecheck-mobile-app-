@@ -131,6 +131,8 @@ class AIReplyResponse(BaseModel):
     journal_entry_id: str
     user_id: str
     reply_text: str
+    is_ai_response: bool = False
+    ai_persona: Optional[str] = None
     created_at: datetime
 
 # AI Replies List Response
