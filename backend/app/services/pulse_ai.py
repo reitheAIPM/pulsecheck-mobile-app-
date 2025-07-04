@@ -444,13 +444,41 @@ Remember: You're checking in like a caring friend who genuinely knows them, not 
             start_time = time.time()
             last_error = None
             
+            # Determine which system prompt to use
+            system_prompt = self.personality_prompt  # Default Pulse personality
+            user_prompt = prompt  # The journal entry content
+            
+            # If we have a personalized prompt from multi-persona system, use it as system prompt
+            if user_context and "personalized_prompt" in user_context:
+                persona = user_context.get("persona", "pulse")
+                logger.info(f"Using personalized system prompt for {persona} persona")
+                
+                # Extract the persona-specific prompt as system prompt
+                system_prompt = user_context["personalized_prompt"]
+                
+                # Build simpler user prompt with just the journal content
+                mood_word = self._mood_to_word(journal_entry.mood_level)
+                energy_word = self._energy_to_word(journal_entry.energy_level)
+                stress_word = self._stress_to_word(journal_entry.stress_level)
+                
+                user_prompt = f"""Today's check-in:
+{journal_entry.content}
+
+Mood: {mood_word} ({journal_entry.mood_level}/10)
+Energy: {energy_word} ({journal_entry.energy_level}/10)
+Stress: {stress_word} ({journal_entry.stress_level}/10)"""
+                
+                topics = user_context.get("topics", [])
+                if topics:
+                    user_prompt += f"\nTopics: {', '.join(topics)}"
+            
             for attempt in range(self.max_retries):
                 try:
                     response = self.client.chat.completions.create(
                         model=self.model,
                         messages=[
-                            {"role": "system", "content": self.personality_prompt},
-                            {"role": "user", "content": prompt}
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
                         ],
                         max_tokens=self.max_tokens,
                         temperature=self.temperature
@@ -542,28 +570,8 @@ Generate a supportive, personalized response as Pulse. Focus on the user's curre
             energy_word = self._energy_to_word(journal_entry.energy_level)
             stress_word = self._stress_to_word(journal_entry.stress_level)
             
-            # Check if we have a personalized prompt from multi-persona system
-            if user_context and "personalized_prompt" in user_context:
-                # Use personalized prompt for specific persona responses
-                personalized_prompt = user_context["personalized_prompt"]
-                persona = user_context.get("persona", "pulse")
-                topics = user_context.get("topics", [])
-                
-                # Build enhanced prompt with persona-specific context
-                prompt = f"""{personalized_prompt}
-
-Today's check-in:
-{journal_entry.content}
-
-Mood: {mood_word} ({journal_entry.mood_level}/10)
-Energy: {energy_word} ({journal_entry.energy_level}/10)
-Stress: {stress_word} ({journal_entry.stress_level}/10)"""
-                
-                if topics:
-                    prompt += f"\nTopics: {', '.join(topics)}"
-                    
-                logger.info(f"Using personalized prompt for {persona} persona with {len(topics)} topics")
-                return prompt
+            # Note: Personalized prompts are now handled in generate_pulse_response
+            # This method just builds the basic journal entry prompt
             
             # Ultra-efficient prompt format (reduces token usage by ~40%)
             prompt = f"""Today's check-in:
