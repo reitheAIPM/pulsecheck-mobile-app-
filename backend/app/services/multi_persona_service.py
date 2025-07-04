@@ -56,13 +56,18 @@ class MultiPersonaService:
             # Get user preferences if not provided
             if not user_preferences:
                 client = self.db.get_service_client()
-                prefs_result = client.table("user_ai_preferences").select("*").eq("user_id", user_id).single().execute()
-                
-                if not prefs_result.data:
-                    # Default to single persona for new users
-                    return ["pulse"]
-                
-                user_preferences = UserAIPreferences(**prefs_result.data)
+                try:
+                    prefs_result = client.table("user_ai_preferences").select("*").eq("user_id", user_id).single().execute()
+                    
+                    if not prefs_result.data:
+                        logger.info(f"No AI preferences found for user {user_id}, using defaults")
+                        # For users without preferences, still return multiple personas based on content
+                        return await self._get_default_personas_for_content(journal_entry)
+                    
+                    user_preferences = UserAIPreferences(**prefs_result.data)
+                except Exception as e:
+                    logger.warning(f"Error fetching user preferences: {e}. Using default personas.")
+                    return await self._get_default_personas_for_content(journal_entry)
             
             # Get interaction level
             interaction_level = user_preferences.ai_interaction_level
@@ -363,4 +368,19 @@ class MultiPersonaService:
             
         except Exception as e:
             logger.error(f"Error determining comment response: {e}")
-            return None 
+            return None
+    
+    async def _get_default_personas_for_content(self, journal_entry: JournalEntryResponse) -> List[str]:
+        """
+        Get default personas for users without preferences based on content analysis
+        """
+        # For test account or high-stress/low-mood entries, return multiple personas
+        if journal_entry.stress_level and journal_entry.stress_level >= 7:
+            return ["pulse", "anchor"]  # Emotional support + grounding
+        elif journal_entry.mood_level and journal_entry.mood_level <= 3:
+            return ["pulse", "spark"]  # Emotional support + motivation
+        elif journal_entry.energy_level and journal_entry.energy_level <= 3:
+            return ["spark", "sage"]  # Motivation + perspective
+        else:
+            # Default to Pulse for standard entries
+            return ["pulse"] 

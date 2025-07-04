@@ -309,6 +309,7 @@ async def create_journal_entry(
         # 🔥 NEW: Automatically generate AI persona response after journal creation
         try:
             logger.info(f"Generating automatic AI persona response for entry {journal_entry_response.id}")
+            logger.info(f"User ID: {current_user['id']}, Test User ID: 6abe6283-5dd2-46d6-995a-d876a06a55f7")
             
             # Use service role client for AI operations to bypass RLS
             service_client = db.get_service_client()
@@ -328,6 +329,11 @@ async def create_journal_entry(
             )
             
             logger.info(f"Generating responses from {len(responding_personas)} personas: {responding_personas}")
+            
+            # CRITICAL: Ensure we have personas to respond
+            if not responding_personas:
+                logger.error(f"No personas selected for user {current_user['id']}! Forcing at least one.")
+                responding_personas = ["pulse"]  # Fallback to at least one persona
             
             # Generate AI responses from each selected persona
             ai_responses = []
@@ -842,7 +848,7 @@ async def get_ai_replies(
     current_user: dict = Depends(get_current_user_with_fallback)
 ):
     """
-    Get all user replies for a specific journal entry
+    Get all AI persona responses and user replies for a specific journal entry
     """
     try:
         # Get JWT token from request headers for RLS authentication
@@ -870,14 +876,38 @@ async def get_ai_replies(
         if not entry_result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
         
-        # Get all replies for this entry
+        # CRITICAL FIX: Get AI insights (persona responses) first
+        ai_insights_result = client.table("ai_insights").select("*").eq("journal_entry_id", entry_id).eq("user_id", current_user["id"]).order("created_at", desc=False).execute()
+        
+        # Then get user replies
         replies_result = client.table("ai_user_replies").select("*").eq("journal_entry_id", entry_id).eq("user_id", current_user["id"]).order("created_at", desc=False).execute()
         
-        # Convert to response models
+        # Convert AI insights to reply format
         replies = []
+        
+        # Add AI persona responses first
+        if ai_insights_result.data:
+            for insight in ai_insights_result.data:
+                reply = AIReplyResponse(
+                    id=insight["id"],
+                    journal_entry_id=insight["journal_entry_id"],
+                    user_id=insight["user_id"],
+                    reply_text=insight["ai_response"],
+                    is_ai_response=True,
+                    ai_persona=insight.get("persona_used", "pulse"),
+                    created_at=datetime.fromisoformat(insight["created_at"].replace('Z', '+00:00'))
+                )
+                replies.append(reply)
+        
+        # Then add user replies
         if replies_result.data:
-            for reply in replies_result.data:
-                replies.append(AIReplyResponse(**reply))
+            for reply_data in replies_result.data:
+                replies.append(AIReplyResponse(**reply_data))
+        
+        # Sort by created_at to maintain conversation order
+        replies.sort(key=lambda x: x.created_at)
+        
+        logger.info(f"Returning {len(replies)} total replies for entry {entry_id} (AI + user)")
         
         return AIRepliesResponse(replies=replies)
         
