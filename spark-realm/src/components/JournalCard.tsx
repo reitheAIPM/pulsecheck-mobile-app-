@@ -381,7 +381,7 @@ export const JournalCard: React.FC<JournalCardProps> = ({
                                 </span>
                               </div>
                               
-                              <div className={`text-xs leading-relaxed ${
+                              <div className={`text-sm leading-relaxed ${
                                 reply.is_ai_response ? 'text-blue-700' : 'text-gray-700'
                               }`}>
                                 {reply.reply_text}

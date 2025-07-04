@@ -303,46 +303,70 @@ async def create_journal_entry(
             history_result = service_client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(10).execute()
             journal_history = [JournalEntryResponse(**entry) for entry in history_result.data] if history_result.data else []
             
-            # Generate adaptive AI response with automatic persona selection
-            ai_response = await adaptive_ai.generate_adaptive_response(
+            # 🚀 NEW: Use MultiPersonaService to determine how many personas should respond
+            from ..services.multi_persona_service import MultiPersonaService
+            multi_persona_service = MultiPersonaService(db)
+            
+            # Determine which personas should respond
+            responding_personas = await multi_persona_service.determine_responding_personas(
                 user_id=current_user["id"],
-                journal_entry=journal_entry_response,
-                journal_history=journal_history,
-                persona="auto"  # Let the system choose the best persona
+                journal_entry=journal_entry_response
             )
             
-            # Store AI response in database for retrieval using service role client
-            # Using correct ai_insights table schema: id, journal_entry_id, user_id, ai_response, persona_used, topic_flags, confidence_score, created_at
-            ai_insight_data = {
-                "id": str(uuid.uuid4()),
-                "journal_entry_id": journal_entry_response.id,
-                "user_id": current_user["id"],
-                "ai_response": ai_response.insight,
-                "persona_used": ai_response.persona_used,
-                "topic_flags": ai_response.topic_flags,
-                "confidence_score": ai_response.confidence_score,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }
+            logger.info(f"Generating responses from {len(responding_personas)} personas: {responding_personas}")
             
-            # Insert AI response into ai_insights table using service role
-            ai_result = service_client.table("ai_insights").insert(ai_insight_data).execute()
+            # Generate AI responses from each selected persona
+            ai_responses = []
+            for persona in responding_personas:
+                try:
+                    # Generate adaptive AI response for this persona
+                    ai_response = await adaptive_ai.generate_adaptive_response(
+                        user_id=current_user["id"],
+                        journal_entry=journal_entry_response,
+                        journal_history=journal_history,
+                        persona=persona  # Specific persona instead of "auto"
+                    )
+                    
+                    # Store AI response in database
+                    ai_insight_data = {
+                        "id": str(uuid.uuid4()),
+                        "journal_entry_id": journal_entry_response.id,
+                        "user_id": current_user["id"],
+                        "ai_response": ai_response.insight,
+                        "persona_used": ai_response.persona_used,
+                        "topic_flags": ai_response.topic_flags,
+                        "confidence_score": ai_response.confidence_score,
+                        "created_at": datetime.now(timezone.utc).isoformat()
+                    }
+                    
+                    # Insert AI response into ai_insights table using service role
+                    ai_result = service_client.table("ai_insights").insert(ai_insight_data).execute()
+                    
+                    if ai_result.data:
+                        logger.info(f"✅ AI response generated for entry {journal_entry_response.id} from {persona} persona")
+                        ai_responses.append(ai_response)
+                    else:
+                        logger.warning(f"Failed to store AI response from {persona} for entry {journal_entry_response.id}")
+                        
+                except Exception as persona_error:
+                    logger.error(f"Failed to generate {persona} response: {persona_error}")
+                    continue
             
-            if ai_result.data:
-                logger.info(f"✅ Automatic AI response generated for entry {journal_entry_response.id} using {ai_response.persona_used} persona")
-                
-                # Update the journal entry response to include AI insights
+            # Update the journal entry response to include first AI response (for backward compatibility)
+            if ai_responses:
+                first_response = ai_responses[0]
                 journal_entry_response.ai_insights = {
-                    "insight": ai_response.insight,
-                    "persona_used": ai_response.persona_used,
-                    "confidence_score": ai_response.confidence_score,
-                    "suggested_action": ai_response.suggested_action,
-                    "follow_up_question": ai_response.follow_up_question,
-                    "topic_flags": ai_response.topic_flags,
-                    "adaptation_level": ai_response.adaptation_level
+                    "insight": first_response.insight,
+                    "persona_used": first_response.persona_used,
+                    "confidence_score": first_response.confidence_score,
+                    "suggested_action": first_response.suggested_action,
+                    "follow_up_question": first_response.follow_up_question,
+                    "topic_flags": first_response.topic_flags,
+                    "adaptation_level": first_response.adaptation_level,
+                    "total_responses": len(ai_responses),
+                    "responding_personas": responding_personas
                 }
                 journal_entry_response.ai_generated_at = datetime.now(timezone.utc)
-            else:
-                logger.warning(f"Failed to store AI response for entry {journal_entry_response.id}")
                 
         except Exception as ai_error:
             # Don't fail the journal creation if AI response fails
@@ -691,54 +715,70 @@ async def submit_ai_reply(
         
         # 🚀 NEW: Trigger AI response to user's comment
         try:
-            # Import AI services
-            from ..services.pulse_ai import PulseAI
-            from ..services.persona_service import PersonaService
+            # Use MultiPersonaService to determine if AI should respond
+            from ..services.multi_persona_service import MultiPersonaService
+            multi_persona_service = MultiPersonaService(db)
             
-            # Get the journal entry for context
-            journal_result = service_client.table("journal_entries").select("*").eq("id", entry_id).single().execute()
-            journal_entry = journal_result.data
+            # Get existing replies to avoid duplicate responses
+            existing_replies = service_client.table("ai_user_replies").select("*").eq("journal_entry_id", entry_id).order("created_at").execute()
             
-            # Initialize AI services
-            pulse_ai = PulseAI()
-            persona_service = PersonaService(db)
+            # Check if an AI persona should respond to this comment
+            selected_persona = await multi_persona_service.should_persona_respond_to_comment(
+                user_id=current_user["id"],
+                journal_entry_id=entry_id,
+                commenting_user_id=current_user["id"],
+                comment_text=reply_text,
+                existing_responses=existing_replies.data or []
+            )
             
-            # Select appropriate persona (same as initial response or rotate)
-            selected_persona = "pulse"  # Default, can be enhanced with rotation logic
-            
-            # Get persona config
-            persona_config = persona_service.get_persona_config(selected_persona)
-            
-            # Generate AI response to user's comment
-            prompt = f"""
-            As {persona_config['name']}, respond to this user's comment on your previous response.
-            
-            Original journal entry: {journal_entry.get('content', '')[:200]}...
-            User's comment to you: {reply_text}
-            
-            Respond naturally like a friend would in a conversation. Reference their comment specifically.
-            Be supportive and engaging. Keep it conversational and friendly.
-            
-            Personality traits:
-            - {persona_config['personality']}
-            - {persona_config['communication_style']}
-            """
-            
-            ai_response = await pulse_ai.generate_response(prompt, temperature=persona_config['temperature'])
-            
-            # Store the AI response to the user's comment
-            ai_reply_data = {
-                "id": str(uuid.uuid4()),
-                "journal_entry_id": entry_id,
-                "user_id": current_user["id"],
-                "reply_text": ai_response,
-                "is_ai_response": True,  # Mark as AI response
-                "ai_persona": selected_persona,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }
-            
-            service_client.table("ai_user_replies").insert(ai_reply_data).execute()
-            logger.info(f"AI automatically responded to user's comment in entry {entry_id}")
+            if selected_persona:
+                # Get the journal entry for context
+                journal_result = service_client.table("journal_entries").select("*").eq("id", entry_id).single().execute()
+                
+                if journal_result.data:
+                    journal_entry = JournalEntryResponse(**journal_result.data)
+                    
+                    # Get previous AI responses for context
+                    ai_responses = service_client.table("ai_insights").select("*").eq("journal_entry_id", entry_id).execute()
+                    previous_ai_text = ""
+                    if ai_responses.data:
+                        for resp in ai_responses.data:
+                            if resp["persona_used"] == selected_persona:
+                                previous_ai_text = resp["ai_response"]
+                                break
+                    
+                    # Generate conversational AI response using adaptive AI
+                    conversational_context = f"""
+This is a conversation thread. The user is replying to your previous response.
+Previous AI response from {selected_persona}: {previous_ai_text[:200]}...
+User's reply: {reply_text}
+
+Respond naturally and conversationally. Reference their comment specifically.
+Keep it brief and friendly - this is a back-and-forth conversation, not a full analysis.
+"""
+                    
+                    # Generate response using the selected persona
+                    ai_response = await adaptive_ai.generate_adaptive_response(
+                        user_id=current_user["id"],
+                        journal_entry=journal_entry,
+                        journal_history=[],  # Don't need full history for replies
+                        persona=selected_persona,
+                        additional_context=conversational_context
+                    )
+                    
+                    # Store the AI response to the user's comment
+                    ai_reply_data = {
+                        "id": str(uuid.uuid4()),
+                        "journal_entry_id": entry_id,
+                        "user_id": current_user["id"],
+                        "reply_text": ai_response.insight,
+                        "is_ai_response": True,
+                        "ai_persona": selected_persona,
+                        "created_at": datetime.now(timezone.utc).isoformat()
+                    }
+                    
+                    service_client.table("ai_user_replies").insert(ai_reply_data).execute()
+                    logger.info(f"AI persona {selected_persona} responded to user's comment in entry {entry_id}")
             
         except Exception as e:
             logger.error(f"Failed to generate AI response to user comment: {str(e)}")
