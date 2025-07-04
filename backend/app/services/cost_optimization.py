@@ -267,12 +267,30 @@ class CostOptimizationService:
                 "operation": "_clean_cache"
             })
     
-    def check_cost_limits(self, estimated_cost: float = 0.0) -> Tuple[bool, str]:
+    def check_cost_limits(self, estimated_cost: float = 0.0, user_id: str = None) -> Tuple[bool, str]:
         """
         Check if request would exceed cost limits
         Returns: (can_proceed, reason_if_not)
         """
         try:
+            # 🚀 NEW: Check for premium override users who bypass cost limits
+            if user_id:
+                try:
+                    from app.core.database import get_database
+                    db = get_database()
+                    supabase = db.get_service_client()
+                    
+                    # Check if user has premium HIGH interaction level (bypasses cost limits)
+                    user_prefs = supabase.table("user_ai_preferences").select("ai_interaction_level").eq("user_id", user_id).execute()
+                    
+                    if user_prefs.data and user_prefs.data[0].get("ai_interaction_level") == "HIGH":
+                        logger.info(f"Premium HIGH user {user_id} bypassing cost limits")
+                        return True, "Premium HIGH - unlimited AI access"
+                        
+                except Exception as check_error:
+                    logger.warning(f"Could not check premium override for user {user_id}: {check_error}")
+                    # Continue with normal cost checking
+            
             # Check daily limit
             if self.daily_metrics.total_cost + estimated_cost > self.daily_cost_limit:
                 return False, f"Daily cost limit exceeded (${self.daily_cost_limit})"
@@ -293,13 +311,34 @@ class CostOptimizationService:
     def select_optimal_model(
         self, 
         complexity: RequestComplexity,
-        estimated_tokens: int = 200
+        estimated_tokens: int = 200,
+        user_id: str = None
     ) -> Tuple[AIModel, str]:
         """
         Select optimal AI model based on complexity and cost constraints
         Returns: (model, reason)
         """
         try:
+            # 🚀 NEW: Check for premium override users who always get premium models
+            if user_id:
+                try:
+                    from app.core.database import get_database
+                    db = get_database()
+                    supabase = db.get_service_client()
+                    
+                    # Check if user has premium HIGH interaction level (gets best models)
+                    user_prefs = supabase.table("user_ai_preferences").select("ai_interaction_level").eq("user_id", user_id).execute()
+                    
+                    if user_prefs.data and user_prefs.data[0].get("ai_interaction_level") == "HIGH":
+                        # Premium HIGH users always get the best model
+                        preferred_model = self.complexity_rules[complexity]["preferred_model"]
+                        logger.info(f"Premium HIGH user {user_id} getting premium model: {preferred_model.value}")
+                        return preferred_model, f"Premium HIGH - using {preferred_model.value} for {complexity.value} request"
+                        
+                except Exception as check_error:
+                    logger.warning(f"Could not check premium override for user {user_id}: {check_error}")
+                    # Continue with normal model selection
+            
             preferred_model = self.complexity_rules[complexity]["preferred_model"]
             max_tokens = self.complexity_rules[complexity]["max_tokens"]
             
@@ -307,7 +346,7 @@ class CostOptimizationService:
             estimated_cost = (estimated_tokens / 1000) * self.model_costs[preferred_model]
             
             # Check if we can afford the preferred model
-            can_proceed, reason = self.check_cost_limits(estimated_cost)
+            can_proceed, reason = self.check_cost_limits(estimated_cost, user_id)
             
             if can_proceed:
                 return preferred_model, f"Using {preferred_model.value} for {complexity.value} request"
@@ -315,7 +354,7 @@ class CostOptimizationService:
             # Try cheaper alternative
             if preferred_model == AIModel.GPT_4O:
                 mini_cost = (estimated_tokens / 1000) * self.model_costs[AIModel.GPT_4O_MINI]
-                can_proceed_mini, _ = self.check_cost_limits(mini_cost)
+                can_proceed_mini, _ = self.check_cost_limits(mini_cost, user_id)
                 
                 if can_proceed_mini:
                     return AIModel.GPT_4O_MINI, "Using GPT-4o-mini for cost optimization"

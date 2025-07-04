@@ -496,6 +496,47 @@ class AdaptiveAIService:
         Generate intelligent fallback response when AI service fails
         """
         try:
+            # 🚀 NEW: Check if user has premium override to disable fallbacks
+            try:
+                from app.core.database import get_database
+                db = get_database()
+                supabase = db.get_service_client()
+                
+                # Check if user has premium HIGH interaction level (disables fallbacks)
+                user_prefs = supabase.table("user_ai_preferences").select("ai_interaction_level").eq("user_id", journal_entry.user_id).execute()
+                
+                if user_prefs.data and user_prefs.data[0].get("ai_interaction_level") == "HIGH":
+                    # For premium HIGH users, retry the AI service with different approach instead of fallback
+                    logger.info(f"Premium user {journal_entry.user_id} has HIGH interaction level - retrying AI service instead of fallback")
+                    
+                    # Try a simplified prompt for the AI service
+                    try:
+                        simplified_response = self.pulse_ai_service.generate_pulse_response(journal_entry)
+                        return AIInsightResponse(
+                            insight=simplified_response.message or "I understand you're working through something here. Thank you for sharing this with me.",
+                            suggested_action=simplified_response.suggested_actions[0] if simplified_response.suggested_actions else "Take a moment to breathe and be gentle with yourself.",
+                            follow_up_question=simplified_response.follow_up_question or "What's the most important thing you need right now?",
+                            confidence_score=simplified_response.confidence_score,
+                            persona_used=persona,
+                            adaptation_level="premium_override",
+                            topic_flags=debug_context.topics_detected or [],
+                            pattern_insights={
+                                "writing_style": "supportive",
+                                "common_topics": debug_context.topics_detected or [],
+                                "mood_trends": {"mood": journal_entry.mood_level or 5, "energy": journal_entry.energy_level or 5, "stress": journal_entry.stress_level or 5},
+                                "interaction_preferences": {"prefers_questions": True, "prefers_validation": True, "prefers_advice": False},
+                                "response_preferences": {"length": "medium", "style": "empathetic"}
+                            },
+                            generated_at=datetime.now(timezone.utc)
+                        )
+                    except Exception as retry_error:
+                        logger.error(f"Premium override AI retry also failed: {retry_error}")
+                        # Continue to normal fallback as last resort
+                        
+            except Exception as check_error:
+                logger.warning(f"Could not check premium override settings: {check_error}")
+                # Continue with normal fallback logic
+            
             # Create fallback response based on entry content and persona
             content_length = len(journal_entry.content)
             
@@ -538,15 +579,10 @@ class AdaptiveAIService:
                 suggested_action="Be gentle with yourself today - you're doing important work by reflecting.",
                 follow_up_question="What feels most important to you right now?",
                 confidence_score=0.5,
-                persona_used="pulse",
+                persona_used=persona,
                 adaptation_level="emergency_fallback",
-                pattern_insights={
-                    "writing_style": "balanced",
-                    "common_topics": [],
-                    "mood_trends": {"mood": 5, "energy": 5, "stress": 5},
-                    "interaction_preferences": {"prefers_questions": True, "prefers_validation": True, "prefers_advice": False},
-                    "response_preferences": {"length": "medium", "style": "supportive"}
-                },
+                topic_flags=[],
+                pattern_insights={},
                 generated_at=datetime.now(timezone.utc)
             )
     
