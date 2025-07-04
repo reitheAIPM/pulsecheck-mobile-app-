@@ -243,7 +243,9 @@ async def create_journal_entry(
     """
     try:
         # Input validation and sanitization
+        logger.info(f"Creating journal entry for user {current_user.get('id', 'unknown')}")
         content = sanitize_user_input(validate_input_length(entry.content, 10000, "content"))
+        logger.info(f"Content validation passed, length: {len(content)}")
         
         # Get JWT token from request headers for RLS authentication
         auth_header = request.headers.get('Authorization')
@@ -282,15 +284,27 @@ async def create_journal_entry(
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
         
+        logger.info(f"Journal entry data prepared: {entry_data}")
+        
         # Insert into Supabase using sync client
         result = client.table("journal_entries").insert(entry_data).execute()
         
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create journal entry")
         
+        logger.info(f"Journal entry inserted successfully: {result.data[0]['id']}")
+        
         # Convert to response model (map database column names to model field names)
         created_entry = result.data[0]
-        journal_entry_response = JournalEntryResponse(**created_entry)
+        logger.info(f"Creating JournalEntryResponse from: {created_entry}")
+        
+        try:
+            journal_entry_response = JournalEntryResponse(**created_entry)
+            logger.info(f"JournalEntryResponse created successfully")
+        except Exception as model_error:
+            logger.error(f"Failed to create JournalEntryResponse: {model_error}")
+            logger.error(f"Data from database: {created_entry}")
+            raise
         
         # 🔥 NEW: Automatically generate AI persona response after journal creation
         try:
@@ -378,6 +392,8 @@ async def create_journal_entry(
     except Exception as e:
         # Log the exception for debugging
         logger.error(f"Error creating journal entry for user {current_user.get('id', 'unknown')}: {e}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        logger.error(f"Exception details: {str(e)}")
         
         # Handle specific RLS errors
         if hasattr(e, 'message') and 'row-level security policy' in str(e):
@@ -386,7 +402,27 @@ async def create_journal_entry(
                 detail="Authentication required to create journal entry"
             )
         
-        raise HTTPException(status_code=500, detail=f"Error creating journal entry: {str(e)}")
+        # Handle Pydantic validation errors more specifically
+        if "ValidationError" in str(type(e)):
+            logger.error(f"Pydantic validation error: {e}")
+            raise HTTPException(
+                status_code=422, 
+                detail={
+                    "error": "Validation failed",
+                    "message": str(e),
+                    "type": "validation_error"
+                }
+            )
+        
+        # Default error with full details for debugging
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "error": "Error creating journal entry",
+                "message": str(e),
+                "type": type(e).__name__
+            }
+        )
 
 @router.get("/entries/{entry_id}/ai-insights")
 @limiter.limit("30/minute")  # Rate limit AI insights requests
