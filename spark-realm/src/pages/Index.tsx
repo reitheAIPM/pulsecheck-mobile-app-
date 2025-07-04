@@ -25,6 +25,7 @@ const Index = () => {
   
   // Get authenticated user ID
   const [userId, setUserId] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   
   useEffect(() => {
     const getUserId = async () => {
@@ -35,9 +36,11 @@ const Index = () => {
       if (user) {
         console.log('✅ User authenticated:', user.id, user.email);
         setUserId(user.id);
+        setCurrentUser(user);
       } else {
         console.log('❌ No authenticated user found:', error);
         setUserId(null);
+        setCurrentUser(null);
       }
     };
     getUserId();
@@ -462,6 +465,7 @@ const Index = () => {
                     timestamp={entry.timestamp}
                     tags={entry.tags}
                     aiResponse={entry.aiResponse}
+                    currentUser={currentUser}
                     onDelete={handleEntryDeleted}
                     onPulseClick={handlePulseClick}
                   />

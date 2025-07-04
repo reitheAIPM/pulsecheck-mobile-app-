@@ -22,6 +22,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { apiService, UserReply } from '@/services/api';
+import { toast } from '@/hooks/use-toast';
+import { authService } from '@/services/authService';
 
 interface JournalCardProps {
   id: string;
@@ -34,6 +36,14 @@ interface JournalCardProps {
     timestamp: string;
     emoji?: string;
   };
+  currentUser?: {
+    id: string;
+    email: string;
+    user_metadata?: {
+      full_name?: string;
+      name?: string;
+    };
+  };
   onDelete?: (id: string) => void;
   onPulseClick?: (id: string) => void;
 }
@@ -45,6 +55,7 @@ export const JournalCard: React.FC<JournalCardProps> = ({
   timestamp,
   tags = [],
   aiResponse,
+  currentUser,
   onDelete,
   onPulseClick
 }) => {
@@ -341,7 +352,8 @@ export const JournalCard: React.FC<JournalCardProps> = ({
                                 <Sparkles className="h-3 w-3 text-blue-600" />
                               ) : (
                                 <span className="text-xs font-medium text-gray-600">
-                                  {currentUser?.user_metadata?.full_name?.charAt(0) || 'U'}
+                                  {currentUser?.user_metadata?.full_name?.charAt(0) || 
+                                   currentUser?.user_metadata?.name?.charAt(0) || 'U'}
                                 </span>
                               )}
                             </div>

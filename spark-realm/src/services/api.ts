@@ -226,6 +226,8 @@ export interface UserReply {
   user_id: string;
   reply_text: string;
   created_at: string;
+  is_ai_response?: boolean;
+  ai_persona?: string;
 }
 
 class ApiService {
