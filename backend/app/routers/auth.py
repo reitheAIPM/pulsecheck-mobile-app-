@@ -302,12 +302,28 @@ async def get_subscription_status(
     """
     Get subscription status for a user
     """
-    # For now, always return beta tester status with all personas
-    # This is a temporary fix to unblock frontend testing
     logger.info(f"Getting subscription status for user: {user_id}")
     
-    # Check if user has premium enabled from memory
-    is_premium_enabled = _premium_status.get(user_id, False)
+    # Get premium status from database instead of memory
+    try:
+        supabase = db.get_service_client()
+        
+        # Check user's AI preferences for premium status
+        prefs_result = supabase.table("user_ai_preferences").select("ai_interaction_level").eq("user_id", user_id).execute()
+        
+        # User has premium if interaction level is HIGH
+        is_premium_enabled = False
+        if prefs_result.data:
+            ai_level = prefs_result.data[0].get("ai_interaction_level", "MODERATE")
+            is_premium_enabled = ai_level == "HIGH"
+        
+        logger.info(f"User {user_id} premium status from database: {is_premium_enabled}")
+        
+    except Exception as e:
+        logger.error(f"Failed to check premium status for user {user_id}: {e}")
+        # Fallback to in-memory check
+        is_premium_enabled = _premium_status.get(user_id, False)
+        logger.info(f"Using fallback premium status for user {user_id}: {is_premium_enabled}")
     
     return {
         "tier": "free",
@@ -348,40 +364,52 @@ async def toggle_beta_premium(
         # Store in memory for backward compatibility
         _premium_status[request.user_id] = request.enabled
         
-        # 🚀 NEW: Update database with actual premium permissions
+        # 🚀 FIXED: Properly update database with complete premium preferences
         supabase = db.get_service_client()
         
         # Set the AI interaction level based on premium status
         ai_level = "HIGH" if request.enabled else "MODERATE"
         
-        # Prepare the update data
-        update_data = {
-            "ai_interaction_level": ai_level,
-            "updated_at": datetime.now().isoformat()
-        }
-        
         # Check if user preferences exist
-        existing_prefs = supabase.table("user_ai_preferences").select("user_id").eq("user_id", request.user_id).execute()
+        existing_prefs = supabase.table("user_ai_preferences").select("*").eq("user_id", request.user_id).execute()
         
         if existing_prefs.data:
-            # Update existing preferences
+            # Update existing preferences with complete premium settings
+            update_data = {
+                "ai_interaction_level": ai_level,
+                "multi_persona_enabled": request.enabled,
+                "preferred_personas": ["pulse", "sage", "spark", "anchor"] if request.enabled else ["pulse"],
+                "updated_at": datetime.now().isoformat()
+            }
             result = supabase.table("user_ai_preferences").update(update_data).eq("user_id", request.user_id).execute()
-            logger.info(f"Updated existing preferences for user {request.user_id}: {ai_level}")
+            logger.info(f"Updated existing preferences for user {request.user_id}: {ai_level}, multi_persona: {request.enabled}")
         else:
-            # Create new preferences
+            # Create new preferences with complete premium settings
             insert_data = {
                 "user_id": request.user_id,
                 "ai_interaction_level": ai_level,
+                "multi_persona_enabled": request.enabled,
+                "preferred_personas": ["pulse", "sage", "spark", "anchor"] if request.enabled else ["pulse"],
+                "response_frequency": "immediate",
+                "premium_enabled": request.enabled,
+                "blocked_personas": [],
+                "max_response_length": "medium",
+                "tone_preference": "balanced",
+                "proactive_checkins": True,
+                "pattern_analysis_enabled": True,
+                "celebration_mode": True,
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat()
             }
             result = supabase.table("user_ai_preferences").insert(insert_data).execute()
-            logger.info(f"Created new preferences for user {request.user_id}: {ai_level}")
+            logger.info(f"Created new preferences for user {request.user_id}: {ai_level}, multi_persona: {request.enabled}")
         
         # Verify the update was successful
         if not result.data:
             logger.error(f"Failed to update database for user {request.user_id}")
             # Still return success to not break the UI, but log the issue
+        else:
+            logger.info(f"✅ Premium toggle persisted successfully for user {request.user_id}")
     
     except Exception as e:
         logger.error(f"Database update failed for user {request.user_id}: {e}")

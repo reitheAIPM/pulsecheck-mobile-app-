@@ -542,6 +542,29 @@ Generate a supportive, personalized response as Pulse. Focus on the user's curre
             energy_word = self._energy_to_word(journal_entry.energy_level)
             stress_word = self._stress_to_word(journal_entry.stress_level)
             
+            # Check if we have a personalized prompt from multi-persona system
+            if user_context and "personalized_prompt" in user_context:
+                # Use personalized prompt for specific persona responses
+                personalized_prompt = user_context["personalized_prompt"]
+                persona = user_context.get("persona", "pulse")
+                topics = user_context.get("topics", [])
+                
+                # Build enhanced prompt with persona-specific context
+                prompt = f"""{personalized_prompt}
+
+Today's check-in:
+{journal_entry.content}
+
+Mood: {mood_word} ({journal_entry.mood_level}/10)
+Energy: {energy_word} ({journal_entry.energy_level}/10)
+Stress: {stress_word} ({journal_entry.stress_level}/10)"""
+                
+                if topics:
+                    prompt += f"\nTopics: {', '.join(topics)}"
+                    
+                logger.info(f"Using personalized prompt for {persona} persona with {len(topics)} topics")
+                return prompt
+            
             # Ultra-efficient prompt format (reduces token usage by ~40%)
             prompt = f"""Today's check-in:
 {journal_entry.content}
