@@ -247,7 +247,28 @@ class ComprehensiveProactiveAIService:
             if not entries_result.data:
                 return []
             
-            entries = [JournalEntryResponse(**entry) for entry in entries_result.data]
+            # Convert database entries to JournalEntryResponse objects with proper datetime handling
+            entries = []
+            for entry_data in entries_result.data:
+                # Handle datetime conversion for fields that might be strings
+                if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
+                    entry_data['updated_at'] = entry_data.get('created_at', datetime.now().isoformat())
+                
+                # Convert string datetimes to datetime objects if needed
+                if isinstance(entry_data.get('created_at'), str):
+                    entry_data['created_at'] = datetime.fromisoformat(entry_data['created_at'].replace('Z', '+00:00'))
+                if isinstance(entry_data.get('updated_at'), str):
+                    entry_data['updated_at'] = datetime.fromisoformat(entry_data['updated_at'].replace('Z', '+00:00'))
+                
+                # Ensure numeric fields are integers
+                for field in ['mood_level', 'energy_level', 'stress_level']:
+                    if field in entry_data and entry_data[field] is not None:
+                        try:
+                            entry_data[field] = int(entry_data[field])
+                        except (ValueError, TypeError):
+                            entry_data[field] = 5  # Default to neutral
+                
+                entries.append(JournalEntryResponse(**entry_data))
             
             # Get existing AI responses
             ai_responses = await self._get_existing_ai_responses(user_id, [entry.id for entry in entries])
