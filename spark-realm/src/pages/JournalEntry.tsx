@@ -392,15 +392,18 @@ const JournalEntry = () => {
       
       // Extract detailed error message from the API response
       let errorMessage = 'Failed to save journal entry. Please try again.';
+      let errorDetails = '';
       
       if (error?.response?.data) {
         const errorData = error.response.data;
+        console.error('Error response data:', errorData);
         
         // Handle different error formats from the backend
         if (errorData.detail) {
           // If detail is an object (our new format)
           if (typeof errorData.detail === 'object') {
-            errorMessage = errorData.detail.message || errorData.detail.error || JSON.stringify(errorData.detail);
+            errorMessage = errorData.detail.message || errorData.detail.error || 'Validation error';
+            errorDetails = JSON.stringify(errorData.detail, null, 2);
           } else {
             errorMessage = errorData.detail;
           }
@@ -408,13 +411,17 @@ const JournalEntry = () => {
           errorMessage = errorData.message;
         } else if (errorData.error) {
           errorMessage = errorData.error;
+        } else {
+          errorDetails = JSON.stringify(errorData, null, 2);
         }
       } else if (error?.message) {
         errorMessage = error.message;
       }
       
       // Show the full error message to help debug
-      alert(`Error: ${errorMessage}\n\nStatus: ${error?.response?.status || 'Unknown'}`);
+      const fullError = `Error: ${errorMessage}\n\nStatus: ${error?.response?.status || 'Unknown'}${errorDetails ? '\n\nDetails:\n' + errorDetails : ''}`;
+      console.error('Full error:', fullError);
+      alert(fullError);
     } finally {
       setIsSubmitting(false);
     }

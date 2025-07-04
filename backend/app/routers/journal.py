@@ -1531,3 +1531,62 @@ async def classify_journal_topics(
         logger.error(f"Error in topic classification: {e}")
         # Return empty topics array on error to prevent frontend failures
         return {"topics": []}
+
+@router.post("/test-create-entry")
+async def test_create_journal_entry(
+    entry: JournalEntryCreate,
+    db: Database = Depends(get_database)
+):
+    """
+    Test endpoint to diagnose journal creation issues
+    Returns detailed validation information
+    """
+    response = {
+        "input_received": {
+            "content": entry.content,
+            "content_length": len(entry.content) if entry.content else 0,
+            "mood_level": entry.mood_level,
+            "energy_level": entry.energy_level,
+            "stress_level": entry.stress_level,
+            "tags": entry.tags,
+            "work_challenges": entry.work_challenges,
+            "gratitude_items": entry.gratitude_items
+        },
+        "validation_results": {
+            "content_valid": len(entry.content) >= 10 and len(entry.content) <= 2000 if entry.content else False,
+            "mood_valid": 1 <= entry.mood_level <= 10 if entry.mood_level is not None else False,
+            "energy_valid": 1 <= entry.energy_level <= 10 if entry.energy_level is not None else False,
+            "stress_valid": 1 <= entry.stress_level <= 10 if entry.stress_level is not None else False
+        },
+        "model_validation": "pending"
+    }
+    
+    try:
+        # Test creating the response model
+        test_entry_data = {
+            "id": str(uuid.uuid4()),
+            "user_id": "test-user-id",
+            "content": entry.content,
+            "mood_level": int(entry.mood_level) if entry.mood_level is not None else None,
+            "energy_level": int(entry.energy_level) if entry.energy_level is not None else None,
+            "stress_level": int(entry.stress_level) if entry.stress_level is not None else None,
+            "sleep_hours": entry.sleep_hours,
+            "work_hours": entry.work_hours,
+            "tags": entry.tags or [],
+            "work_challenges": entry.work_challenges or [],
+            "gratitude_items": entry.gratitude_items or [],
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+        
+        # Try to create the response model
+        test_response = JournalEntryResponse(**test_entry_data)
+        response["model_validation"] = "passed"
+        response["model_created"] = True
+        
+    except Exception as e:
+        response["model_validation"] = "failed"
+        response["model_error"] = str(e)
+        response["model_error_type"] = type(e).__name__
+    
+    return response
