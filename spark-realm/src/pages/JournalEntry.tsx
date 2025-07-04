@@ -389,8 +389,32 @@ const JournalEntry = () => {
       }
     } catch (error) {
       console.error('Failed to create journal entry:', error);
-      // Show error to user (you could add a toast notification here)
-      alert('Failed to save journal entry. Please try again.');
+      
+      // Extract detailed error message from the API response
+      let errorMessage = 'Failed to save journal entry. Please try again.';
+      
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        
+        // Handle different error formats from the backend
+        if (errorData.detail) {
+          // If detail is an object (our new format)
+          if (typeof errorData.detail === 'object') {
+            errorMessage = errorData.detail.message || errorData.detail.error || JSON.stringify(errorData.detail);
+          } else {
+            errorMessage = errorData.detail;
+          }
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Show the full error message to help debug
+      alert(`Error: ${errorMessage}\n\nStatus: ${error?.response?.status || 'Unknown'}`);
     } finally {
       setIsSubmitting(false);
     }
