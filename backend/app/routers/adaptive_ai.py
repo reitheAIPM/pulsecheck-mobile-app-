@@ -269,93 +269,100 @@ async def get_available_personas(
             logger.warning(f"Authentication failed, using fallback: {auth_error}")
             authenticated_user_id = user_id or "anonymous"
         
-        # Check user's premium status (simplified approach for now)
-        # Default to non-premium (only Pulse available)
+        # TEST ACCOUNT BYPASS
+        test_user_id = "6abe6283-5dd2-46d6-995a-d876a06a55f7"
+        is_test_account = authenticated_user_id == test_user_id
+        
+        # Check user's premium status
         has_premium = False
         
-        # Try to get user's premium status from preferences or auth service
-        try:
-            # For now, we'll check a simple in-memory store or default to false
-            # This will be replaced with proper subscription service integration
-            from app.routers.auth import _premium_status
-            has_premium = _premium_status.get(authenticated_user_id, False)
-        except Exception as e:
-            logger.warning(f"Could not check premium status, defaulting to free tier: {e}")
-            has_premium = False
+        if is_test_account:
+            logger.info(f"🚀 TEST ACCOUNT DETECTED: User {authenticated_user_id} gets all personas")
+            has_premium = True
+        else:
+            # Check actual premium status
+            try:
+                # First check if user has beta premium enabled
+                from app.services.subscription_service import SubscriptionService
+                from app.core.database import get_database
+                db = get_database()
+                sub_service = SubscriptionService(db)
+                sub_status = await sub_service.get_subscription_status(authenticated_user_id)
+                
+                has_premium = sub_status.get("beta_premium_enabled", False) or sub_status.get("is_premium_active", False)
+                logger.info(f"User {authenticated_user_id} subscription status: beta_premium={sub_status.get('beta_premium_enabled')}, is_premium={sub_status.get('is_premium_active')}")
+            except Exception as e:
+                logger.warning(f"Could not check subscription status: {e}")
+                # Fallback to in-memory check
+                try:
+                    from app.routers.auth import _premium_status
+                    has_premium = _premium_status.get(authenticated_user_id, False)
+                except Exception as e2:
+                    logger.warning(f"Could not check premium status, defaulting to free tier: {e2}")
+                    has_premium = False
         
         logger.info(f"User {authenticated_user_id} has premium: {has_premium}")
         
+        # Build persona list
+        all_personas = [
+            PersonaRecommendation(
+                persona_id="pulse",
+                persona_name="Pulse",
+                description="Your emotionally intelligent wellness companion",
+                recommended=True,
+                available=True,
+                requires_premium=False,
+                times_used=0,
+                recommendation_score=0.9,
+                recommendation_reasons=["Great for emotional support"],
+                last_used=None
+            ),
+            PersonaRecommendation(
+                persona_id="sage",
+                persona_name="Sage",
+                description="A wise mentor who provides strategic life guidance",
+                recommended=False,
+                available=True,
+                requires_premium=not has_premium,  # Only requires premium if user doesn't have it
+                times_used=0,
+                recommendation_score=0.7,
+                recommendation_reasons=["Good for life planning"],
+                last_used=None
+            ),
+            PersonaRecommendation(
+                persona_id="spark",
+                persona_name="Spark",
+                description="An energetic motivator who ignites creativity and action",
+                recommended=False,
+                available=True,
+                requires_premium=not has_premium,  # Only requires premium if user doesn't have it
+                times_used=0,
+                recommendation_score=0.6,
+                recommendation_reasons=["Perfect for motivation"],
+                last_used=None
+            ),
+            PersonaRecommendation(
+                persona_id="anchor",
+                persona_name="Anchor",
+                description="A steady presence who provides stability and grounding",
+                recommended=False,
+                available=True,
+                requires_premium=not has_premium,  # Only requires premium if user doesn't have it
+                times_used=0,
+                recommendation_score=0.7,
+                recommendation_reasons=["Great for stability"],
+                last_used=None
+            )
+        ]
+        
         # Return personas based on premium status
         if has_premium:
-            logger.info("Returning all 4 personas for premium user")
-            # Premium users get all 4 personas
-            return [
-                PersonaRecommendation(
-                    persona_id="pulse",
-                    persona_name="Pulse",
-                    description="Your emotionally intelligent wellness companion",
-                    recommended=True,
-                    available=True,
-                    requires_premium=False,
-                    times_used=0,
-                    recommendation_score=0.9,
-                    recommendation_reasons=["Great for emotional support"],
-                    last_used=None
-                ),
-                PersonaRecommendation(
-                    persona_id="sage",
-                    persona_name="Sage",
-                    description="A wise mentor who provides strategic life guidance",
-                    recommended=False,
-                    available=True,
-                    requires_premium=True,
-                    times_used=0,
-                    recommendation_score=0.7,
-                    recommendation_reasons=["Good for life planning"],
-                    last_used=None
-                ),
-                PersonaRecommendation(
-                    persona_id="spark",
-                    persona_name="Spark",
-                    description="An energetic motivator who ignites creativity and action",
-                    recommended=False,
-                    available=True,
-                    requires_premium=True,
-                    times_used=0,
-                    recommendation_score=0.6,
-                    recommendation_reasons=["Perfect for motivation"],
-                    last_used=None
-                ),
-                PersonaRecommendation(
-                    persona_id="anchor",
-                    persona_name="Anchor",
-                    description="A steady presence who provides stability and grounding",
-                    recommended=False,
-                    available=True,
-                    requires_premium=True,
-                    times_used=0,
-                    recommendation_score=0.7,
-                    recommendation_reasons=["Great for stability"],
-                    last_used=None
-                )
-            ]
+            logger.info("Returning all 4 personas (premium/test account)")
+            return all_personas
         else:
             logger.info("Returning only Pulse persona for free tier user")
-            # Free tier users get only Pulse
-            return [
-                PersonaRecommendation(
-                    persona_id="pulse",
-                    persona_name="Pulse",
-                    description="Your emotionally intelligent wellness companion",
-                    recommended=True,
-                    available=True,
-                    requires_premium=False,
-                    times_used=0,
-                    recommendation_score=0.9,
-                    recommendation_reasons=["Great for emotional support"],
-                    last_used=None
-                )
-            ]
+            # Free tier users only see Pulse
+            return [all_personas[0]]  # Just Pulse
             
     except Exception as e:
         logger.error(f"Error getting personas: {str(e)}")
