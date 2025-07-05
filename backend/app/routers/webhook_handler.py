@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional, List
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import hmac
 import hashlib
 import os
@@ -163,9 +163,16 @@ async def process_journal_entry_ai_response(
     """
     Process AI response for journal entry (runs in background)
     This provides immediate AI response instead of waiting for scheduled processing
+    
+    ✅ FIXED: Now checks user preferences and engagement patterns before triggering AI
     """
     try:
         logger.info(f"Processing AI response for entry {entry_id}")
+        
+        # 🚨 CRITICAL FIX: Check user preferences and engagement patterns FIRST
+        if not await should_generate_ai_response(user_id, db):
+            logger.info(f"AI responses disabled for user {user_id} - skipping automatic response")
+            return
         
         # Initialize AI services
         comprehensive_ai = ComprehensiveProactiveAIService(db)
@@ -190,6 +197,124 @@ async def process_journal_entry_ai_response(
         
     except Exception as e:
         logger.error(f"Error processing AI response for entry {entry_id}: {str(e)}", exc_info=True)
+
+async def should_generate_ai_response(user_id: str, db) -> bool:
+    """
+    Check if AI responses should be generated for this user
+    Based on user preferences and engagement patterns
+    """
+    try:
+        client = db.get_service_client()
+        
+        # 1. Check user AI preferences
+        prefs_result = client.table("user_ai_preferences").select("*").eq("user_id", user_id).execute()
+        
+        if not prefs_result.data:
+            # No preferences set = AI disabled by default
+            logger.info(f"User {user_id} has no AI preferences set - AI responses disabled")
+            return False
+        
+        prefs = prefs_result.data[0]
+        
+        # Check if AI interactions are explicitly enabled
+        if not prefs.get("ai_interactions_enabled", False):
+            logger.info(f"User {user_id} has AI interactions disabled in preferences")
+            return False
+        
+        # 2. Check user engagement patterns
+        # Look for evidence user enjoys AI interactions (likes, replies, etc.)
+        engagement_indicators = await check_user_ai_engagement_pattern(user_id, client)
+        
+        if not engagement_indicators["has_engagement_pattern"]:
+            logger.info(f"User {user_id} has not demonstrated AI engagement pattern - AI responses disabled")
+            return False
+        
+        # 3. Check daily limits based on user tier
+        daily_responses_today = await count_todays_ai_responses(user_id, client)
+        user_tier = prefs.get("user_tier", "free")
+        ai_interaction_level = prefs.get("ai_interaction_level", "minimal")
+        
+        daily_limits = {
+            "free": {"minimal": 3, "moderate": 5, "high": 8},
+            "premium": {"minimal": 10, "moderate": 25, "high": 999}
+        }
+        
+        daily_limit = daily_limits.get(user_tier, daily_limits["free"]).get(ai_interaction_level, 3)
+        
+        if daily_responses_today >= daily_limit:
+            logger.info(f"User {user_id} has reached daily AI response limit ({daily_responses_today}/{daily_limit})")
+            return False
+        
+        logger.info(f"✅ AI responses enabled for user {user_id} - preferences: {prefs.get('ai_interaction_level', 'minimal')}, engagement: {engagement_indicators['engagement_score']:.1f}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error checking AI response eligibility for user {user_id}: {str(e)}")
+        # Default to disabled on error
+        return False
+
+async def check_user_ai_engagement_pattern(user_id: str, client) -> dict:
+    """
+    Check if user has demonstrated positive engagement with AI responses
+    """
+    try:
+        # Look for AI interactions in last 30 days
+        cutoff_date = (datetime.now() - timedelta(days=30)).isoformat()
+        
+        # Check for AI reactions/likes
+        reactions_result = client.table("ai_reactions").select("*").eq("user_id", user_id).gte("created_at", cutoff_date).execute()
+        ai_reactions = len(reactions_result.data) if reactions_result.data else 0
+        
+        # Check for replies to AI responses
+        replies_result = client.table("ai_user_replies").select("*").eq("user_id", user_id).gte("created_at", cutoff_date).execute()
+        ai_replies = len(replies_result.data) if replies_result.data else 0
+        
+        # Check for explicit AI feedback
+        feedback_result = client.table("ai_feedback").select("*").eq("user_id", user_id).gte("created_at", cutoff_date).execute()
+        positive_feedback = 0
+        if feedback_result.data:
+            positive_feedback = len([f for f in feedback_result.data if f.get("feedback_type") in ["thumbs_up", "helpful"]])
+        
+        # Calculate engagement score
+        engagement_score = (ai_reactions * 0.5) + (ai_replies * 1.0) + (positive_feedback * 1.5)
+        
+        # Require minimum engagement to enable AI
+        min_engagement_threshold = 2.0  # At least 4 reactions OR 2 replies OR 1 positive feedback + 1 reaction
+        
+        has_engagement_pattern = engagement_score >= min_engagement_threshold
+        
+        return {
+            "has_engagement_pattern": has_engagement_pattern,
+            "engagement_score": engagement_score,
+            "ai_reactions": ai_reactions,
+            "ai_replies": ai_replies,
+            "positive_feedback": positive_feedback
+        }
+        
+    except Exception as e:
+        logger.error(f"Error checking engagement pattern for user {user_id}: {str(e)}")
+        return {
+            "has_engagement_pattern": False,
+            "engagement_score": 0.0,
+            "ai_reactions": 0,
+            "ai_replies": 0,
+            "positive_feedback": 0
+        }
+
+async def count_todays_ai_responses(user_id: str, client) -> int:
+    """
+    Count AI responses generated for user today
+    """
+    try:
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        
+        result = client.table("ai_insights").select("id", count="exact").eq("user_id", user_id).gte("created_at", today_start).execute()
+        
+        return result.count if result.count else 0
+        
+    except Exception as e:
+        logger.error(f"Error counting today's AI responses for user {user_id}: {str(e)}")
+        return 0
 
 @router.post("/supabase/ai-interaction", response_model=WebhookResponse)
 async def handle_ai_interaction_webhook(

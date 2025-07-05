@@ -87,9 +87,16 @@ class EngagementAnalytics:
 class ComprehensiveProactiveAIService:
     """Advanced proactive AI service with sophisticated engagement logic"""
     
-    def __init__(self, db: Database, adaptive_ai: AdaptiveAIService):
+    def __init__(self, db: Database):
         self.db = db
-        self.adaptive_ai = adaptive_ai
+        
+        # Initialize AI services with proper dependencies
+        from ..services.pulse_ai import PulseAI
+        from ..services.user_pattern_analyzer import UserPatternAnalyzer
+        
+        pulse_ai_service = PulseAI(db=db)
+        pattern_analyzer = UserPatternAnalyzer(db=db)
+        self.adaptive_ai = AdaptiveAIService(pulse_ai_service, pattern_analyzer)
         self.async_multi_persona = AsyncMultiPersonaService()
         
         # 🧪 TESTING MODE - Set to True for immediate responses (bypasses all timing delays)
@@ -1202,6 +1209,8 @@ Reference patterns you've noticed if relevant.
         """
         Execute immediate AI engagement for webhook-triggered events
         Bypasses scheduling delays for instant responses
+        
+        ✅ FIXED: Now generates only ONE persona response, not multiple personas automatically
         """
         try:
             logger.info(f"Executing immediate engagement for entry {opportunity['entry_id']}")
@@ -1209,12 +1218,16 @@ Reference patterns you've noticed if relevant.
             # Get user profile
             profile = await self.get_user_engagement_profile(opportunity["user_id"])
             
-            # Create ProactiveOpportunity object
+            # ✅ FIX: Select ONE optimal persona based on content, not "auto"
+            entry_content = opportunity.get("content", "")
+            optimal_persona = self._select_single_optimal_persona(entry_content, profile)
+            
+            # Create ProactiveOpportunity object for SINGLE persona
             proactive_opportunity = ProactiveOpportunity(
                 entry_id=opportunity["entry_id"],
                 user_id=opportunity["user_id"],
                 reason="webhook_immediate_response",
-                persona="auto",  # Will be determined by content analysis
+                persona=optimal_persona,  # ✅ Use selected persona, not "auto"
                 priority=10,  # Highest priority
                 delay_minutes=0,  # Immediate
                 message_context=opportunity.get("content", ""),
@@ -1223,7 +1236,7 @@ Reference patterns you've noticed if relevant.
                 expected_engagement_score=8.0  # High expectation for immediate responses
             )
             
-            # Execute engagement immediately
+            # ✅ FIX: Execute SINGLE engagement, not multiple
             success = await self.execute_comprehensive_engagement(
                 opportunity["user_id"], 
                 proactive_opportunity
@@ -1236,8 +1249,9 @@ Reference patterns you've noticed if relevant.
                     "entry_id": opportunity["entry_id"],
                     "user_id": opportunity["user_id"],
                     "trigger_type": "webhook",
-                    "persona_used": proactive_opportunity.persona,
-                    "processing_time": "immediate"
+                    "persona_used": optimal_persona,
+                    "processing_time": "immediate",
+                    "response_count": 1  # ✅ Only one response generated
                 }
             else:
                 return {
@@ -1255,6 +1269,62 @@ Reference patterns you've noticed if relevant.
                 "entry_id": opportunity.get("entry_id", "unknown"),
                 "user_id": opportunity.get("user_id", "unknown")
             }
+
+    def _select_single_optimal_persona(self, content: str, profile: UserEngagementProfile) -> str:
+        """
+        Select the single best persona for this journal entry content
+        Based on content analysis and user preferences
+        """
+        try:
+            content_lower = content.lower()
+            
+            # Analyze content themes
+            persona_scores = {
+                "pulse": 0.0,
+                "sage": 0.0, 
+                "spark": 0.0,
+                "anchor": 0.0
+            }
+            
+            # Emotional content indicators -> Pulse
+            emotional_keywords = ["feel", "emotion", "anxious", "sad", "happy", "frustrated", "excited", "worried", "overwhelmed"]
+            if any(keyword in content_lower for keyword in emotional_keywords):
+                persona_scores["pulse"] += 2.0
+            
+            # Reflective/pattern content -> Sage
+            reflective_keywords = ["think", "realize", "pattern", "always", "tendency", "noticed", "perspective", "wondering"]
+            if any(keyword in content_lower for keyword in reflective_keywords):
+                persona_scores["sage"] += 2.0
+            
+            # Goal/action content -> Spark
+            action_keywords = ["goal", "want to", "plan", "excited", "motivated", "energy", "possibilities", "opportunity"]
+            if any(keyword in content_lower for keyword in action_keywords):
+                persona_scores["spark"] += 2.0
+            
+            # Stress/overwhelm content -> Anchor
+            grounding_keywords = ["stress", "overwhelmed", "chaos", "pressure", "need to", "difficult", "hard", "struggle"]
+            if any(keyword in content_lower for keyword in grounding_keywords):
+                persona_scores["anchor"] += 2.0
+            
+            # Content length influences (longer = more likely Sage, shorter = more likely Pulse)
+            if len(content) > 300:
+                persona_scores["sage"] += 0.5
+            elif len(content) < 100:
+                persona_scores["pulse"] += 0.5
+            
+            # Select persona with highest score, defaulting to Pulse for emotional support
+            selected_persona = max(persona_scores.items(), key=lambda x: x[1])[0]
+            
+            # If scores are tied or low, default to Pulse for emotional support
+            if persona_scores[selected_persona] < 1.0:
+                selected_persona = "pulse"
+            
+            logger.info(f"Selected persona '{selected_persona}' for content analysis (scores: {persona_scores})")
+            return selected_persona
+            
+        except Exception as e:
+            logger.error(f"Error selecting optimal persona: {str(e)}")
+            return "pulse"  # Safe default
 
     async def check_collaborative_opportunities(self, entry_id: str, user_id: str) -> List[Dict[str, Any]]:
         """

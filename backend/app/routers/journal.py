@@ -1899,3 +1899,127 @@ async def stream_ai_response(
             await websocket.close()
         except:
             pass  # Connection may already be closed
+
+@router.post("/debug/enable-ai-for-user")
+async def enable_ai_for_user(
+    user_data: dict,  # {"user_id": "...", "enable": true}
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user_with_fallback)
+):
+    """
+    Debug endpoint to enable/disable AI for a specific user
+    """
+    try:
+        target_user_id = user_data.get("user_id")
+        enable_ai = user_data.get("enable", True)
+        
+        if not target_user_id:
+            raise HTTPException(status_code=400, detail="user_id required")
+        
+        # Use service role client to bypass RLS
+        client = db.get_service_client()
+        
+        # Upsert user AI preferences
+        prefs_data = {
+            "user_id": target_user_id,
+            "ai_interactions_enabled": enable_ai,
+            "ai_interaction_level": "high" if enable_ai else "minimal",
+            "user_tier": "premium" if enable_ai else "free",
+            "ai_engagement_score": 5.0 if enable_ai else 0.0,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        result = client.table("user_ai_preferences").upsert(prefs_data).execute()
+        
+        return {
+            "success": True,
+            "message": f"AI {'enabled' if enable_ai else 'disabled'} for user {target_user_id}",
+            "preferences": result.data[0] if result.data else None
+        }
+        
+    except Exception as e:
+        logger.error(f"Error setting AI preferences: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error setting AI preferences: {str(e)}")
+
+@router.get("/debug/ai-diagnostic/{user_id}")
+async def ai_diagnostic_for_user(
+    user_id: str,
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user_with_fallback)
+):
+    """
+    Debug endpoint to check AI system status for a specific user
+    """
+    try:
+        # Use service role client
+        client = db.get_service_client()
+        
+        # Check user AI preferences
+        prefs_result = client.table("user_ai_preferences").select("*").eq("user_id", user_id).execute()
+        user_prefs = prefs_result.data[0] if prefs_result.data else None
+        
+        # Check recent AI responses
+        recent_responses_result = client.table("ai_insights").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(5).execute()
+        recent_responses = recent_responses_result.data or []
+        
+        # Check today's AI response count
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        today_count_result = client.table("ai_insights").select("id", count="exact").eq("user_id", user_id).gte("created_at", today_start).execute()
+        today_count = today_count_result.count or 0
+        
+        # Test AI service directly
+        try:
+            from ..services.pulse_ai import PulseAI
+            pulse_ai = PulseAI(db=db)
+            
+            test_entry = JournalEntryResponse(
+                id="test-debug",
+                user_id=user_id,
+                content="I'm feeling a bit overwhelmed today but also excited about some new opportunities coming up.",
+                mood_level=6,
+                energy_level=7,
+                stress_level=5,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+                tags=[],
+                work_challenges=[],
+                gratitude_items=[]
+            )
+            
+            test_response = pulse_ai.generate_pulse_response(test_entry)
+            ai_service_status = {
+                "working": True,
+                "test_response": test_response.message[:100] if test_response.message else "No response",
+                "is_generic": "I'm here to listen and support you" in (test_response.message or "")
+            }
+            
+        except Exception as ai_error:
+            ai_service_status = {
+                "working": False,
+                "error": str(ai_error)
+            }
+        
+        return {
+            "user_id": user_id,
+            "ai_preferences": user_prefs,
+            "ai_enabled": user_prefs.get("ai_interactions_enabled", False) if user_prefs else False,
+            "today_response_count": today_count,
+            "recent_responses": [
+                {
+                    "id": r["id"],
+                    "ai_response": r["ai_response"][:100] if r.get("ai_response") else "No response",
+                    "persona_used": r.get("persona_used"),
+                    "created_at": r["created_at"]
+                } for r in recent_responses
+            ],
+            "ai_service_status": ai_service_status,
+            "recommendations": [
+                "Enable AI preferences" if not user_prefs else None,
+                "Check OpenAI API key" if not ai_service_status.get("working") else None,
+                "Generic responses detected" if ai_service_status.get("is_generic") else None
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in AI diagnostic: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error in AI diagnostic: {str(e)}")
