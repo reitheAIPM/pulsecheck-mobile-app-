@@ -77,8 +77,7 @@ class AdvancedSchedulerService:
         self.start_time: Optional[datetime] = None
         
         # Initialize comprehensive AI service
-        adaptive_ai = AdaptiveAIService(None, None)  # TODO: Properly initialize
-        self.proactive_ai = ComprehensiveProactiveAIService(db, adaptive_ai)
+        self.proactive_ai = ComprehensiveProactiveAIService(db)
         
         # Performance tracking
         self.metrics = SchedulerMetrics(
