@@ -1,19 +1,24 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, WebSocket, WebSocketDisconnect
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
 import logging
+import json
+import asyncio
 from fastapi import status
 
 from app.models.journal import (
     JournalEntryCreate, JournalEntryResponse, JournalEntriesResponse,
     JournalStats, JournalEntryUpdate, AIFeedbackCreate, AIReplyCreate, AIReplyResponse, AIRepliesResponse
 )
-from app.models.ai_insights import PulseResponse, AIAnalysisResponse, AIInsightResponse
+from app.models.ai_insights import PulseResponse, AIAnalysisResponse, AIInsightResponse, StructuredAIPersonaResponse, MultiPersonaStructuredResponse
 from app.services.pulse_ai import PulseAI
 from app.services.adaptive_ai_service import AdaptiveAIService, AIDebugContext
 from app.services.user_pattern_analyzer import UserPatternAnalyzer
 from app.services.weekly_summary_service import WeeklySummaryService, SummaryType
+from app.services.structured_ai_service import StructuredAIService
+from app.services.streaming_ai_service import StreamingAIService
+from app.services.async_multi_persona_service import AsyncMultiPersonaService
 from app.core.database import get_database, Database
 from app.core.security import get_current_user, get_current_user_with_fallback, limiter, validate_input_length, sanitize_user_input
 
@@ -63,6 +68,16 @@ def get_adaptive_ai_service(db: Database = Depends(get_database)):
     pulse_ai = PulseAI(db=db)
     pattern_analyzer = UserPatternAnalyzer(db=db)
     return AdaptiveAIService(pulse_ai, pattern_analyzer)
+
+# Initialize new AI services
+def get_structured_ai_service():
+    return StructuredAIService()
+
+def get_streaming_ai_service():
+    return StreamingAIService()
+
+def get_async_multi_persona_service():
+    return AsyncMultiPersonaService()
 
 @router.get("/test")
 async def test_journal_router():
@@ -1052,10 +1067,35 @@ async def get_journal_entries(
         # Convert to response models and handle missing updated_at field
         entries = []
         if result.data:
+            # Get all entry IDs for batch fetching AI insights
+            entry_ids = [entry['id'] for entry in result.data]
+            
+            # Fetch AI insights for all entries at once
+            ai_insights_result = client.table("ai_insights").select("*").eq("user_id", current_user["id"]).in_("journal_entry_id", entry_ids).order("created_at", desc=True).execute()
+            
+            # Group AI insights by journal entry ID
+            ai_insights_by_entry = {}
+            if ai_insights_result.data:
+                for insight in ai_insights_result.data:
+                    entry_id = insight['journal_entry_id']
+                    if entry_id not in ai_insights_by_entry:
+                        ai_insights_by_entry[entry_id] = []
+                    ai_insights_by_entry[entry_id].append({
+                        'id': insight['id'],
+                        'ai_response': insight['ai_response'],
+                        'persona_used': insight['persona_used'],
+                        'topic_flags': insight.get('topic_flags', []),
+                        'confidence_score': insight.get('confidence_score', 0.8),
+                        'created_at': insight['created_at']
+                    })
+            
             for entry in result.data:
                 # Ensure updated_at field exists. This is the critical fix.
                 if 'updated_at' not in entry or entry['updated_at'] is None:
                     entry['updated_at'] = entry.get('created_at', datetime.now(timezone.utc))
+                
+                # Add AI insights to the entry
+                entry['ai_insights'] = ai_insights_by_entry.get(entry['id'], [])
                 
                 entries.append(JournalEntryResponse(**entry))
 
@@ -1309,23 +1349,32 @@ async def reset_journal(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error resetting journal: {str(e)}")
 
-@router.post("/entries/{entry_id}/adaptive-response", response_model=AIInsightResponse)
+@router.post("/entries/{entry_id}/adaptive-response")
 @limiter.limit("15/minute")  # Rate limit adaptive AI requests
 async def get_adaptive_ai_response(
     request: Request,  # Required for rate limiter
     entry_id: str,
     persona: Optional[str] = "auto",  # "auto", "pulse", "sage", "spark", "anchor"
+    structured: bool = False,  # Enable structured response with rich metadata
+    streaming: bool = False,  # Enable streaming response (future WebSocket support)
+    multi_persona: bool = False,  # Enable multi-persona concurrent responses
     db: Database = Depends(get_database),
     current_user: dict = Depends(get_current_user),
-    adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service)
+    adaptive_ai: AdaptiveAIService = Depends(get_adaptive_ai_service),
+    structured_ai: StructuredAIService = Depends(get_structured_ai_service),
+    streaming_ai: StreamingAIService = Depends(get_streaming_ai_service),
+    async_multi_persona: AsyncMultiPersonaService = Depends(get_async_multi_persona_service)
 ):
     """
-    Get adaptive AI response with persona selection
+    Get adaptive AI response with enhanced capabilities
     
     Features:
     - Dynamic persona selection based on content
     - Pattern-aware responses using user history
     - Premium tier gating for advanced personas
+    - Structured responses with rich metadata (structured=true)
+    - Streaming responses with typing indicators (streaming=true)
+    - Multi-persona concurrent processing (multi_persona=true)
     """
     try:
         # Get the journal entry
@@ -1341,11 +1390,127 @@ async def get_adaptive_ai_response(
             
         journal_entry = JournalEntryResponse(**entry_data)
         
-        # Generate adaptive response
+        # Get journal history for context
+        history_result = client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(10).execute()
+        journal_history = []
+        if history_result.data:
+            for entry in history_result.data:
+                if 'updated_at' not in entry or entry['updated_at'] is None:
+                    entry['updated_at'] = entry.get('created_at', datetime.now(timezone.utc))
+                journal_history.append(JournalEntryResponse(**entry))
+        
+        # Multi-persona concurrent processing
+        if multi_persona:
+            if persona == "auto":
+                personas = ["pulse", "sage", "spark", "anchor"]
+            else:
+                personas = [persona]
+            
+            multi_response = await async_multi_persona.process_concurrent_personas(
+                journal_entry=journal_entry,
+                personas=personas,
+                user_id=current_user["id"],
+                journal_history=journal_history
+            )
+            
+            # Convert to frontend-compatible format (array of AI insights)
+            compatible_insights = []
+            for persona_response in multi_response.persona_responses:
+                insight = AIInsightResponse(
+                    insight=persona_response.message,
+                    suggested_action=persona_response.suggested_action or "Continue reflecting on your thoughts",
+                    follow_up_question=None,
+                    confidence_score=persona_response.confidence_score,
+                    persona_used=persona_response.persona_used,
+                    topic_flags=persona_response.topic_flags or [],
+                    generated_at=datetime.now(timezone.utc)
+                )
+                
+                # Add multi-persona metadata
+                insight.metadata = {
+                    "multi_persona_response": True,
+                    "total_personas": len(multi_response.persona_responses),
+                    "processing_time_ms": multi_response.total_processing_time,
+                    "concurrent_processing": True,
+                    "delivery_strategy": multi_response.delivery_strategy,
+                    "overall_sentiment": multi_response.overall_sentiment,
+                    "priority_level": multi_response.priority_level
+                }
+                
+                compatible_insights.append(insight)
+            
+            # Return the first insight with metadata about others being available
+            primary_insight = compatible_insights[0]
+            primary_insight.metadata.update({
+                "additional_personas": len(compatible_insights) - 1,
+                "all_persona_responses": [insight.dict() for insight in compatible_insights]
+            })
+            
+            return primary_insight
+        
+        # Structured response with rich metadata
+        if structured:
+            structured_response = await structured_ai.generate_structured_response(
+                journal_entry=journal_entry,
+                persona=persona,
+                user_id=current_user["id"],
+                journal_history=journal_history
+            )
+            
+            # Convert to frontend-compatible format while preserving rich metadata
+            compatible_response = AIInsightResponse(
+                insight=structured_response.response_text,
+                suggested_action="; ".join(structured_response.suggested_actions) if structured_response.suggested_actions else "Continue reflecting on your thoughts",
+                follow_up_question=None,  # Frontend doesn't use this from structured responses
+                confidence_score=structured_response.confidence_score,
+                persona_used=structured_response.persona_name,
+                topic_flags=structured_response.topics_identified,
+                generated_at=structured_response.generated_at
+            )
+            
+            # Add rich metadata for frontend enhancement
+            compatible_response.metadata = {
+                "structured_response": True,
+                "emotional_tone": structured_response.emotional_tone.value,
+                "response_type": structured_response.response_type.value,
+                "persona_strengths": structured_response.persona_strengths,
+                "estimated_helpfulness": structured_response.estimated_helpfulness,
+                "encourages_reflection": structured_response.encourages_reflection,
+                "validates_feelings": structured_response.validates_feelings,
+                "response_length_category": structured_response.response_length_category,
+                "contains_question": structured_response.contains_question
+            }
+            
+            return compatible_response
+        
+        # Streaming response (placeholder - actual streaming needs WebSocket)
+        if streaming:
+            # For now, return a standard response with streaming metadata
+            # TODO: Implement WebSocket streaming in separate endpoint
+            standard_response = await adaptive_ai.generate_adaptive_response(
+                user_id=current_user["id"],
+                journal_entry=journal_entry,
+                journal_history=journal_history,
+                persona=persona
+            )
+            
+            # Add streaming metadata
+            standard_response.metadata = standard_response.metadata or {}
+            standard_response.metadata.update({
+                "streaming_ready": True,
+                "streaming_note": "WebSocket streaming endpoint coming soon",
+                "response_chunks": len(standard_response.message.split('. ')),
+                "estimated_typing_time": len(standard_response.message) * 0.05  # 50ms per character
+            })
+            
+            return standard_response
+        
+        # Standard adaptive response (backward compatibility)
         response = await adaptive_ai.generate_adaptive_response(
             user_id=current_user["id"],
             journal_entry=journal_entry,
-            requested_persona=persona
+            journal_history=journal_history,
+            persona=persona
         )
         
         return response
@@ -1621,3 +1786,116 @@ async def test_create_journal_entry(
         response["model_error_type"] = type(e).__name__
     
     return response
+
+@router.websocket("/entries/{entry_id}/stream")
+async def stream_ai_response(
+    websocket: WebSocket,
+    entry_id: str,
+    persona: str = "auto",
+    token: Optional[str] = None,  # JWT token for authentication
+    streaming_ai: StreamingAIService = Depends(get_streaming_ai_service),
+    db: Database = Depends(get_database)
+):
+    """
+    WebSocket endpoint for real-time streaming AI responses
+    
+    Features:
+    - Live typing indicators with persona-specific timing
+    - Real-time response streaming
+    - Cancellation support
+    - Natural conversation flow
+    """
+    await websocket.accept()
+    
+    try:
+        # Authenticate user via JWT token
+        if not token:
+            await websocket.send_json({
+                "type": "error",
+                "message": "Authentication token required"
+            })
+            await websocket.close()
+            return
+        
+        # Validate JWT token and get current user
+        try:
+            from app.core.security import verify_token
+            current_user = await verify_token(token)
+            user_id = current_user["id"]
+        except Exception as e:
+            await websocket.send_json({
+                "type": "error",
+                "message": "Invalid authentication token"
+            })
+            await websocket.close()
+            return
+        
+        # Get the journal entry and verify ownership
+        client = db.get_client()
+        result = client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", user_id).single().execute()
+        
+        if not result.data:
+            await websocket.send_json({
+                "type": "error",
+                "message": "Journal entry not found or access denied"
+            })
+            await websocket.close()
+            return
+        
+        entry_data = result.data
+        if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
+            entry_data['updated_at'] = entry_data.get('created_at', datetime.now(timezone.utc))
+            
+        journal_entry = JournalEntryResponse(**entry_data)
+        
+        # Send initial connection confirmation
+        await websocket.send_json({
+            "type": "connected",
+            "entry_id": entry_id,
+            "persona": persona,
+            "message": f"Connected for streaming {persona} response"
+        })
+        
+        # Start streaming response
+        async for chunk in streaming_ai.stream_persona_response(
+            journal_entry=journal_entry,
+            persona=persona,
+            user_id=user_id
+        ):
+            await websocket.send_json({
+                "type": chunk.chunk_type,
+                "content": chunk.content,
+                "persona": chunk.persona,
+                "timestamp": chunk.timestamp.isoformat(),
+                "is_final": chunk.is_final,
+                "metadata": chunk.metadata
+            })
+            
+            # Small delay for natural typing rhythm
+            if chunk.chunk_type == "typing":
+                await asyncio.sleep(0.1)
+            elif chunk.chunk_type == "content":
+                await asyncio.sleep(0.05)
+        
+        # Send completion signal
+        await websocket.send_json({
+            "type": "complete",
+            "message": "Streaming response completed"
+        })
+        
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for entry {entry_id}")
+    except Exception as e:
+        logger.error(f"Error in streaming AI response: {e}")
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "message": f"Streaming error: {str(e)}"
+            })
+        except:
+            pass  # Connection may already be closed
+    finally:
+        try:
+            await websocket.close()
+        except:
+            pass  # Connection may already be closed

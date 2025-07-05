@@ -136,6 +136,27 @@ export interface AIInsightResponse {
   focus_areas?: string[];
   avoid_areas?: string[];
   generated_at: string;
+  metadata?: {
+    structured_response?: boolean;
+    multi_persona_response?: boolean;
+    emotional_tone?: string;
+    response_type?: string;
+    persona_strengths?: string[];
+    estimated_helpfulness?: number;
+    encourages_reflection?: boolean;
+    validates_feelings?: boolean;
+    response_length_category?: string;
+    contains_question?: boolean;
+    total_personas?: number;
+    processing_time_ms?: number;
+    concurrent_processing?: boolean;
+    delivery_strategy?: string;
+    overall_sentiment?: string;
+    priority_level?: string;
+    additional_personas?: number;
+    all_persona_responses?: any[];
+    [key: string]: any;
+  };
 }
 
 export interface UserAIPreferences {
@@ -509,14 +530,57 @@ class ApiService {
     return response.data;
   }
 
-  async getAdaptivePulseResponse(entryId: string, persona?: string): Promise<AIInsightResponse> {
-    console.log('Getting adaptive Pulse response for entry:', entryId, 'with persona:', persona);
-    const params = persona ? { persona } : {};
+  async getAdaptivePulseResponse(entryId: string, persona?: string, options?: {
+    structured?: boolean;
+    streaming?: boolean;
+    multi_persona?: boolean;
+  }): Promise<AIInsightResponse> {
+    console.log('Getting adaptive Pulse response for entry:', entryId, 'with persona:', persona, 'options:', options);
+    const params: any = {};
+    
+    if (persona) params.persona = persona;
+    if (options?.structured) params.structured = true;
+    if (options?.streaming) params.streaming = true;
+    if (options?.multi_persona) params.multi_persona = true;
+    
     const response: AxiosResponse<AIInsightResponse> = await this.client.post(`/api/v1/journal/entries/${entryId}/adaptive-response`, {}, {
       params
     });
     console.log('Adaptive Pulse response received:', response.data);
     return response.data;
+  }
+
+  // New methods for enhanced AI capabilities
+  async getStructuredAIResponse(entryId: string, persona?: string): Promise<AIInsightResponse> {
+    console.log('Getting structured AI response for entry:', entryId);
+    return this.getAdaptivePulseResponse(entryId, persona, { structured: true });
+  }
+
+  async getMultiPersonaResponse(entryId: string): Promise<AIInsightResponse> {
+    console.log('Getting multi-persona response for entry:', entryId);
+    return this.getAdaptivePulseResponse(entryId, "auto", { multi_persona: true });
+  }
+
+  // WebSocket streaming connection
+  connectToAIStream(entryId: string, persona: string = "auto", token: string): WebSocket {
+    const wsUrl = `${this.baseURL.replace('http', 'ws')}/api/v1/journal/entries/${entryId}/stream?persona=${persona}&token=${token}`;
+    console.log('Connecting to AI stream:', wsUrl);
+    
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onopen = () => {
+      console.log('AI streaming WebSocket connected');
+    };
+    
+    ws.onerror = (error) => {
+      console.error('AI streaming WebSocket error:', error);
+    };
+    
+    ws.onclose = () => {
+      console.log('AI streaming WebSocket disconnected');
+    };
+    
+    return ws;
   }
 
   // Enhanced error handling utility with AI debugging

@@ -1121,6 +1121,25 @@ def register_routers():
             # Continue without manual AI router rather than failing completely
             pass
 
+        # Webhook handler router for Supabase event-driven AI processing
+        print("🔄 Importing webhook handler router...")
+        sys.stdout.flush()
+        try:
+            from app.routers.webhook_handler import router as webhook_router
+            print("✅ Webhook handler router imported successfully")
+            sys.stdout.flush()
+            app.include_router(webhook_router, tags=["webhook"])  # Router already has prefix
+            print("✅ Webhook handler router registered")
+            routers_registered += 1
+            sys.stdout.flush()
+        except Exception as webhook_error:
+            print(f"❌ Webhook handler router import/registration failed: {webhook_error}")
+            print(f"❌ Webhook handler router traceback: {traceback.format_exc()}")
+            routers_failed += 1
+            sys.stdout.flush()
+            # Continue without webhook router rather than failing completely
+            pass
+
         print(f"🎉 Router registration complete! {routers_registered} routers registered successfully, {routers_failed} optional routers failed")
         sys.stdout.flush()
 

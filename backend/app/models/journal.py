@@ -45,7 +45,7 @@ class StressLevel(int, Enum):
 # Base Journal Entry Schema
 class JournalEntryBase(BaseModel):
     """Base journal entry schema"""
-    content: str = Field(..., min_length=10, max_length=2000)
+    content: str = Field(..., min_length=10, max_length=10000)
     mood_level: int = Field(..., ge=1, le=10)  # Accept integers directly
     energy_level: int = Field(..., ge=1, le=10)  # Accept integers directly
     stress_level: int = Field(..., ge=1, le=10)  # Accept integers directly
@@ -65,7 +65,7 @@ class JournalEntryCreate(JournalEntryBase):
 # Journal Entry Update Schema
 class JournalEntryUpdate(BaseModel):
     """Schema for updating journal entries"""
-    content: Optional[str] = Field(None, min_length=10, max_length=2000)
+    content: Optional[str] = Field(None, min_length=10, max_length=10000)
     mood_level: Optional[int] = Field(None, ge=1, le=10)  # Accept integers directly
     energy_level: Optional[int] = Field(None, ge=1, le=10)  # Accept integers directly
     stress_level: Optional[int] = Field(None, ge=1, le=10)  # Accept integers directly

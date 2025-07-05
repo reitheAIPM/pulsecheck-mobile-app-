@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Heart, MessageCircle, MoreHorizontal, Trash2, Copy, Sparkles, Send, User } from 'lucide-react';
+import { Calendar, Heart, MessageCircle, MoreHorizontal, Trash2, Copy, Sparkles, Send, User, BookOpen, Shield, Zap } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -260,139 +260,175 @@ export const JournalCard: React.FC<JournalCardProps> = ({
 
             {/* AI Response - Social Media Style */}
             {aiResponse && aiResponse.comments && aiResponse.comments.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <div className="flex items-start gap-3">
-                  {/* AI Avatar */}
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="h-4 w-4 text-blue-600" />
-                  </div>
+              <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                {aiResponse.comments.map((comment, index) => {
+                  // Parse persona from comment if it's structured, otherwise default to Pulse
+                  let persona = 'pulse';
+                  let personaName = 'Pulse AI';
+                  let aiMessage = comment;
                   
-                  {/* AI Response Content */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-sm text-blue-600">Pulse AI</span>
-                      <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                        AI Assistant
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(aiResponse.timestamp), { addSuffix: true })}
-                      </span>
-                    </div>
-                    
-                    <div className="text-sm text-gray-700 leading-relaxed mb-2">
-                      {aiResponse.comments[0]}
-                    </div>
-                    
-                    {/* AI Response Actions */}
-                    <div className="flex items-center gap-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleHelpfulClick}
-                        disabled={isSubmittingFeedback}
-                        className={`gap-2 h-7 px-2 text-xs transition-colors ${
-                          aiResponseHelpful 
-                            ? 'text-blue-600 bg-blue-50' 
-                            : 'text-gray-500 hover:text-blue-600'
-                        }`}
-                      >
-                        <Heart className={`h-3 w-3 ${aiResponseHelpful ? 'fill-current' : ''}`} />
-                        {aiResponseHelpful ? 'Helpful!' : 'Helpful'}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowReplyInput(!showReplyInput)}
-                        className="gap-2 h-7 px-2 text-xs text-gray-500 hover:text-blue-600"
-                      >
-                        <MessageCircle className="h-3 w-3" />
-                        Reply
-                      </Button>
-                    </div>
-
-                    {/* Reply Input */}
-                    {showReplyInput && (
-                      <div className="mt-3 space-y-2">
-                        <div className="flex gap-2">
-                          <textarea
-                            placeholder="Write a reply to the AI..."
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            className="flex-1 text-sm min-h-[80px] p-3 border border-gray-300 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleReplySubmit();
-                              }
-                            }}
-                          />
+                  // Try to extract persona from structured response
+                  try {
+                    if (comment.includes('persona:')) {
+                      const parts = comment.split('persona:');
+                      if (parts.length > 1) {
+                        const personaPart = parts[1].split(',')[0].trim();
+                        persona = personaPart.toLowerCase();
+                        personaName = personaPart.charAt(0).toUpperCase() + personaPart.slice(1) + ' AI';
+                      }
+                    }
+                  } catch (e) {
+                    // Fallback to default
+                  }
+                  
+                  // Define persona-specific styling
+                  const personaStyles = {
+                    pulse: { icon: 'bg-blue-100', iconColor: 'text-blue-600', nameColor: 'text-blue-600' },
+                    sage: { icon: 'bg-purple-100', iconColor: 'text-purple-600', nameColor: 'text-purple-600' },
+                    spark: { icon: 'bg-orange-100', iconColor: 'text-orange-600', nameColor: 'text-orange-600' },
+                    anchor: { icon: 'bg-green-100', iconColor: 'text-green-600', nameColor: 'text-green-600' }
+                  };
+                  
+                  const style = personaStyles[persona] || personaStyles.pulse;
+                  
+                  return (
+                    <div key={index} className="flex items-start gap-3">
+                      {/* AI Avatar */}
+                      <div className={`w-8 h-8 rounded-full ${style.icon} flex items-center justify-center flex-shrink-0`}>
+                        {persona === 'pulse' && <Sparkles className={`h-4 w-4 ${style.iconColor}`} />}
+                        {persona === 'sage' && <BookOpen className={`h-4 w-4 ${style.iconColor}`} />}
+                        {persona === 'spark' && <Zap className={`h-4 w-4 ${style.iconColor}`} />}
+                        {persona === 'anchor' && <Shield className={`h-4 w-4 ${style.iconColor}`} />}
+                      </div>
+                      
+                      {/* AI Response Content */}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`font-medium text-sm ${style.nameColor}`}>{personaName}</span>
+                          <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                            AI Assistant
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(aiResponse.timestamp), { addSuffix: true })}
+                          </span>
+                        </div>
+                        
+                        <div className="text-sm text-gray-700 leading-relaxed mb-2">
+                          {aiMessage}
+                        </div>
+                        
+                        {/* AI Response Actions */}
+                        <div className="flex items-center gap-4">
                           <Button
+                            variant="ghost"
                             size="sm"
-                            onClick={handleReplySubmit}
-                            disabled={!replyText.trim() || isSubmittingFeedback}
-                            className="px-3 self-start"
+                            onClick={handleHelpfulClick}
+                            disabled={isSubmittingFeedback}
+                            className={`gap-2 h-7 px-2 text-xs transition-colors ${
+                              aiResponseHelpful 
+                                ? 'text-blue-600 bg-blue-50' 
+                                : 'text-gray-500 hover:text-blue-600'
+                            }`}
                           >
-                            <Send className="h-3 w-3" />
+                            <Heart className={`h-3 w-3 ${aiResponseHelpful ? 'fill-current' : ''}`} />
+                            {aiResponseHelpful ? 'Helpful!' : 'Helpful'}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowReplyInput(!showReplyInput)}
+                            className="gap-2 h-7 px-2 text-xs text-gray-500 hover:text-blue-600"
+                          >
+                            <MessageCircle className="h-3 w-3" />
+                            Reply
                           </Button>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          Press Enter to send, Shift+Enter for new line
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {/* Reply Input - Show for last AI response */}
+                {showReplyInput && (
+                  <div className="mt-3 space-y-2 ml-11">
+                    <div className="flex gap-2">
+                      <textarea
+                        placeholder="Write a reply to the AI..."
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        className="flex-1 text-sm min-h-[80px] p-3 border border-gray-300 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleReplySubmit();
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleReplySubmit}
+                        disabled={!replyText.trim() || isSubmittingFeedback}
+                        className="px-3 self-start"
+                      >
+                        <Send className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Press Enter to send, Shift+Enter for new line
+                    </div>
+                  </div>
+                )}
+                
+                {/* User Replies Thread */}
+                {userReplies.length > 0 && (
+                  <div className="mt-3 space-y-2 ml-11">
+                    {userReplies.map((reply) => (
+                      <div key={reply.id} className="flex items-start gap-2">
+                        {/* Avatar */}
+                        <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
+                          {reply.is_ai_response ? (
+                            <Sparkles className="h-3 w-3 text-blue-600" />
+                          ) : (
+                            <span className="text-xs font-medium text-gray-600">
+                              {currentUser?.user_metadata?.full_name?.charAt(0) || 
+                               currentUser?.user_metadata?.name?.charAt(0) || 'U'}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Reply Content */}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {reply.is_ai_response ? (
+                              <>
+                                <span className="font-medium text-xs text-blue-600">
+                                  {reply.ai_persona === 'pulse' ? 'Pulse AI' : 
+                                   reply.ai_persona === 'sage' ? 'Sage AI' :
+                                   reply.ai_persona === 'spark' ? 'Spark AI' :
+                                   reply.ai_persona === 'anchor' ? 'Anchor AI' : 'AI'}
+                                </span>
+                                <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                  {reply.ai_persona?.charAt(0).toUpperCase() + reply.ai_persona?.slice(1) || 'AI'}
+                                </Badge>
+                              </>
+                            ) : (
+                              <span className="font-medium text-xs text-gray-600">You</span>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}
+                            </span>
+                          </div>
+                          
+                          <div className={`text-sm leading-relaxed ${
+                            reply.is_ai_response ? 'text-blue-700' : 'text-gray-700'
+                          }`}>
+                            {reply.reply_text}
+                          </div>
                         </div>
                       </div>
-                    )}
-                    
-                    {/* User Replies Thread */}
-                    {userReplies.length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        {userReplies.map((reply) => (
-                          <div key={reply.id} className="flex items-start gap-2">
-                            {/* Avatar */}
-                            <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
-                              {reply.is_ai_response ? (
-                                <Sparkles className="h-3 w-3 text-blue-600" />
-                              ) : (
-                                <span className="text-xs font-medium text-gray-600">
-                                  {currentUser?.user_metadata?.full_name?.charAt(0) || 
-                                   currentUser?.user_metadata?.name?.charAt(0) || 'U'}
-                                </span>
-                              )}
-                            </div>
-                            
-                            {/* Reply Content */}
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                {reply.is_ai_response ? (
-                                  <>
-                                    <span className="font-medium text-xs text-blue-600">
-                                      {reply.ai_persona === 'pulse' ? 'Pulse AI' : 
-                                       reply.ai_persona === 'sage' ? 'Sage AI' :
-                                       reply.ai_persona === 'spark' ? 'Spark AI' :
-                                       reply.ai_persona === 'anchor' ? 'Anchor AI' : 'AI'}
-                                    </span>
-                                    <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                      {reply.ai_persona?.charAt(0).toUpperCase() + reply.ai_persona?.slice(1) || 'AI'}
-                                    </Badge>
-                                  </>
-                                ) : (
-                                  <span className="font-medium text-xs text-gray-600">You</span>
-                                )}
-                                <span className="text-xs text-muted-foreground">
-                                  {formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}
-                                </span>
-                              </div>
-                              
-                              <div className={`text-sm leading-relaxed ${
-                                reply.is_ai_response ? 'text-blue-700' : 'text-gray-700'
-                              }`}>
-                                {reply.reply_text}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>

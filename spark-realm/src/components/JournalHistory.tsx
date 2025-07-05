@@ -34,9 +34,13 @@ import {
   MoreHorizontal, 
   Trash2, 
   Edit,
-  Copy
+  Copy,
+  Sparkles,
+  BookOpen,
+  Shield
 } from 'lucide-react';
 import { JournalEntry, AIInsightResponse, apiService } from '../services/api';
+import { formatDistanceToNow } from 'date-fns';
 
 // Extended journal entry with AI insights for history display
 interface JournalEntryWithInsights extends JournalEntry {
@@ -70,6 +74,16 @@ const JournalHistory: React.FC<JournalHistoryProps> = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<JournalEntryWithInsights | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Streaming state management
+  const [streamingConnections, setStreamingConnections] = useState<Map<string, WebSocket>>(new Map());
+  const [streamingResponses, setStreamingResponses] = useState<Map<string, {
+    persona: string;
+    content: string;
+    isTyping: boolean;
+    isComplete: boolean;
+  }>>(new Map());
+  const [streamingErrors, setStreamingErrors] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     let filtered = [...entries];
@@ -195,6 +209,177 @@ const JournalHistory: React.FC<JournalHistoryProps> = ({
       console.error('Failed to copy to clipboard:', error);
     }
   };
+
+  const handleGetStructuredResponse = async (entryId: string) => {
+    try {
+      const response = await apiService.getStructuredAIResponse(entryId);
+      alert('Enhanced AI Response generated! Check the console for details.');
+      console.log('Structured AI Response:', response);
+      // TODO: Update the entry with the new structured response
+    } catch (error) {
+      console.error('Failed to get structured response:', error);
+      alert('Failed to get enhanced response. Please try again.');
+    }
+  };
+
+  const handleGetMultiPersonaResponse = async (entryId: string) => {
+    try {
+      const response = await apiService.getMultiPersonaResponse(entryId);
+      alert('Multi-AI Response generated! Check the console for details.');
+      console.log('Multi-persona AI Response:', response);
+      // TODO: Update the entry with the new multi-persona response
+    } catch (error) {
+      console.error('Failed to get multi-persona response:', error);
+      alert('Failed to get multi-AI response. Please try again.');
+    }
+  };
+
+  const handleStreamingResponse = async (entryId: string, persona: string = "auto") => {
+    try {
+      // Check if there's already a streaming connection for this entry
+      if (streamingConnections.has(entryId)) {
+        console.log('Streaming connection already exists for this entry');
+        return;
+      }
+
+      // Get JWT token from localStorage or your auth system
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('Please log in to use streaming AI responses.');
+        return;
+      }
+
+      // Initialize streaming response state
+      setStreamingResponses(prev => new Map(prev.set(entryId, {
+        persona,
+        content: '',
+        isTyping: true,
+        isComplete: false
+      })));
+
+      // Clear any previous errors
+      setStreamingErrors(prev => {
+        const newErrors = new Map(prev);
+        newErrors.delete(entryId);
+        return newErrors;
+      });
+
+      // Create WebSocket connection
+      const ws = apiService.connectToAIStream(entryId, persona, token);
+      
+      // Store connection
+      setStreamingConnections(prev => new Map(prev.set(entryId, ws)));
+
+      // Handle WebSocket messages
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('Streaming message:', data);
+
+          switch (data.type) {
+            case 'connected':
+              console.log('WebSocket connected for entry:', entryId);
+              break;
+              
+            case 'typing':
+              setStreamingResponses(prev => new Map(prev.set(entryId, {
+                persona: data.persona || persona,
+                content: '',
+                isTyping: true,
+                isComplete: false
+              })));
+              break;
+              
+            case 'content':
+              setStreamingResponses(prev => {
+                const current = prev.get(entryId) || { persona, content: '', isTyping: false, isComplete: false };
+                return new Map(prev.set(entryId, {
+                  ...current,
+                  content: current.content + data.content,
+                  isTyping: false
+                }));
+              });
+              break;
+              
+            case 'complete':
+              setStreamingResponses(prev => {
+                const current = prev.get(entryId) || { persona, content: '', isTyping: false, isComplete: false };
+                return new Map(prev.set(entryId, {
+                  ...current,
+                  isTyping: false,
+                  isComplete: true
+                }));
+              });
+              console.log('Streaming complete for entry:', entryId);
+              break;
+              
+            case 'error':
+              setStreamingErrors(prev => new Map(prev.set(entryId, data.message || 'Streaming error occurred')));
+              setStreamingResponses(prev => {
+                const current = prev.get(entryId) || { persona, content: '', isTyping: false, isComplete: false };
+                return new Map(prev.set(entryId, {
+                  ...current,
+                  isTyping: false,
+                  isComplete: true
+                }));
+              });
+              break;
+          }
+        } catch (error) {
+          console.error('Error parsing streaming message:', error);
+        }
+      };
+
+      // Handle WebSocket errors
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setStreamingErrors(prev => new Map(prev.set(entryId, 'Connection error occurred')));
+        setStreamingResponses(prev => {
+          const current = prev.get(entryId) || { persona, content: '', isTyping: false, isComplete: false };
+          return new Map(prev.set(entryId, {
+            ...current,
+            isTyping: false,
+            isComplete: true
+          }));
+        });
+      };
+
+      // Handle WebSocket close
+      ws.onclose = () => {
+        console.log('WebSocket closed for entry:', entryId);
+        setStreamingConnections(prev => {
+          const newConnections = new Map(prev);
+          newConnections.delete(entryId);
+          return newConnections;
+        });
+      };
+
+    } catch (error) {
+      console.error('Failed to start streaming response:', error);
+      setStreamingErrors(prev => new Map(prev.set(entryId, 'Failed to start streaming. Please try again.')));
+    }
+  };
+
+  const stopStreaming = (entryId: string) => {
+    const ws = streamingConnections.get(entryId);
+    if (ws) {
+      ws.close();
+      setStreamingConnections(prev => {
+        const newConnections = new Map(prev);
+        newConnections.delete(entryId);
+        return newConnections;
+      });
+    }
+  };
+
+  // Cleanup WebSocket connections on unmount
+  useEffect(() => {
+    return () => {
+      streamingConnections.forEach((ws) => {
+        ws.close();
+      });
+    };
+  }, [streamingConnections]);
 
   if (isLoading && entries.length === 0) {
     return (
@@ -378,23 +563,161 @@ const JournalHistory: React.FC<JournalHistoryProps> = ({
                     {/* AI Responses */}
                     {entry.ai_insights && entry.ai_insights.length > 0 && (
                       <div className="mt-4 pt-4 border-t border-gray-100">
-                        <h4 className="text-sm font-medium text-gray-900 mb-2">AI Responses</h4>
-                        <div className="space-y-2">
-                          {entry.ai_insights.map((insight, index) => (
-                            <div key={index} className="bg-blue-50 p-3 rounded-lg">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Badge variant="secondary" className="text-xs">
-                                  {insight.persona_used || 'Pulse'}
-                                </Badge>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-sm font-medium text-gray-900">AI Responses</h4>
+                          {/* Enhanced AI Features Buttons */}
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => handleGetStructuredResponse(entry.id)}
+                              className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
+                              title="Get structured AI response with rich metadata"
+                            >
+                              Enhanced
+                            </button>
+                            <button
+                              onClick={() => handleGetMultiPersonaResponse(entry.id)}
+                              className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded hover:bg-purple-200 transition-colors"
+                              title="Get responses from multiple AI personas"
+                            >
+                              Multi-AI
+                            </button>
+                            <button
+                              onClick={() => streamingConnections.has(entry.id) ? stopStreaming(entry.id) : handleStreamingResponse(entry.id)}
+                              className={`text-xs px-2 py-1 rounded transition-colors ${
+                                streamingConnections.has(entry.id) 
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+                              }`}
+                              title={streamingConnections.has(entry.id) ? "Stop streaming response" : "Get real-time streaming AI response"}
+                            >
+                              {streamingConnections.has(entry.id) ? 'Stop' : 'Stream'}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          {/* Display streaming response if active */}
+                          {streamingResponses.has(entry.id) && (
+                            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg border border-blue-200">
+                              <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
+                                  <Sparkles className="h-4 w-4 text-blue-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-sm text-blue-600">
+                                      {streamingResponses.get(entry.id)?.persona.charAt(0).toUpperCase() + streamingResponses.get(entry.id)?.persona.slice(1)} AI
+                                    </span>
+                                    <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
+                                      Streaming
+                                    </Badge>
+                                    <span className="text-xs text-gray-500">
+                                      live
+                                    </span>
+                                  </div>
+                                  
+                                  {streamingResponses.get(entry.id)?.isTyping ? (
+                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                      <div className="flex gap-1">
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                      </div>
+                                      <span>AI is thinking...</span>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <p className="text-sm text-gray-700">{streamingResponses.get(entry.id)?.content}</p>
+                                      {streamingResponses.get(entry.id)?.isComplete && (
+                                        <div className="mt-2 pt-2 border-t border-gray-200">
+                                          <Badge variant="outline" className="bg-green-50 text-green-700 text-xs">
+                                            Complete
+                                          </Badge>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  
+                                  {streamingErrors.has(entry.id) && (
+                                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                                      <strong>Error:</strong> {streamingErrors.get(entry.id)}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              <p className="text-sm text-gray-700">{insight.insight}</p>
-                              {insight.suggested_action && (
-                                <p className="text-sm text-blue-700 mt-1">
-                                  💡 {insight.suggested_action}
-                                </p>
-                              )}
                             </div>
-                          ))}
+                          )}
+                          
+                          {entry.ai_insights.map((insight, index) => {
+                            // Define persona-specific styling
+                            const personaStyles = {
+                              pulse: { bg: 'bg-blue-50', icon: 'bg-blue-100', iconColor: 'text-blue-600', nameColor: 'text-blue-600' },
+                              sage: { bg: 'bg-purple-50', icon: 'bg-purple-100', iconColor: 'text-purple-600', nameColor: 'text-purple-600' },
+                              spark: { bg: 'bg-orange-50', icon: 'bg-orange-100', iconColor: 'text-orange-600', nameColor: 'text-orange-600' },
+                              anchor: { bg: 'bg-green-50', icon: 'bg-green-100', iconColor: 'text-green-600', nameColor: 'text-green-600' }
+                            };
+                            
+                            const persona = insight.persona_used || 'pulse';
+                            const style = personaStyles[persona] || personaStyles.pulse;
+                            
+                            return (
+                              <div key={index} className={`${style.bg} p-3 rounded-lg`}>
+                                <div className="flex items-start gap-3">
+                                  {/* Persona Avatar */}
+                                  <div className={`w-8 h-8 rounded-full ${style.icon} flex items-center justify-center flex-shrink-0`}>
+                                    {persona === 'pulse' && <Sparkles className={`h-4 w-4 ${style.iconColor}`} />}
+                                    {persona === 'sage' && <BookOpen className={`h-4 w-4 ${style.iconColor}`} />}
+                                    {persona === 'spark' && <Zap className={`h-4 w-4 ${style.iconColor}`} />}
+                                    {persona === 'anchor' && <Shield className={`h-4 w-4 ${style.iconColor}`} />}
+                                  </div>
+                                  
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className={`font-medium text-sm ${style.nameColor}`}>
+                                        {persona.charAt(0).toUpperCase() + persona.slice(1)} AI
+                                      </span>
+                                      <Badge variant="secondary" className="text-xs">
+                                        AI Assistant
+                                      </Badge>
+                                      <span className="text-xs text-gray-500">
+                                        {insight.generated_at ? formatDistanceToNow(new Date(insight.generated_at), { addSuffix: true }) : 'just now'}
+                                      </span>
+                                    </div>
+                                    
+                                    <p className="text-sm text-gray-700">{insight.insight}</p>
+                                    
+                                    {insight.suggested_action && (
+                                      <p className="text-sm text-blue-700 mt-1">
+                                        💡 {insight.suggested_action}
+                                      </p>
+                                    )}
+                                    
+                                    {/* Enhanced metadata display */}
+                                    {insight.metadata && (
+                                      <div className="mt-2 pt-2 border-t border-gray-200">
+                                        <div className="flex flex-wrap gap-1 text-xs">
+                                          {insight.metadata.structured_response && (
+                                            <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                              Enhanced
+                                            </Badge>
+                                          )}
+                                          {insight.metadata.multi_persona_response && (
+                                            <Badge variant="outline" className="bg-purple-50 text-purple-700">
+                                              Multi-AI
+                                            </Badge>
+                                          )}
+                                          {insight.metadata.emotional_tone && (
+                                            <Badge variant="outline" className="bg-gray-50 text-gray-600">
+                                              {insight.metadata.emotional_tone}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

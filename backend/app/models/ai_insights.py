@@ -65,6 +65,9 @@ class AIInsightResponse(BaseModel):
     focus_areas: Optional[List[str]] = Field(None, description="Areas focused on in response")
     avoid_areas: Optional[List[str]] = Field(None, description="Areas avoided in response")
     
+    # Enhanced metadata for new features
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata for enhanced features")
+    
     # Timestamp
     generated_at: datetime = Field(default_factory=datetime.utcnow, description="When response was generated")
 
@@ -238,4 +241,70 @@ class UserAIPreferences(BaseModel):
     
     # Metadata - use strings to match database format
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat(), description="When preferences were created")
-    updated_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat(), description="When preferences were last updated") 
+    updated_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat(), description="When preferences were last updated")
+
+class EmotionalTone(str, Enum):
+    """AI response emotional tone categories"""
+    SUPPORTIVE = "supportive"
+    ENCOURAGING = "encouraging"
+    ANALYTICAL = "analytical"
+    GROUNDING = "grounding"
+    EMPATHETIC = "empathetic"
+    MOTIVATIONAL = "motivational"
+    REFLECTIVE = "reflective"
+    PRACTICAL = "practical"
+
+class ResponseType(str, Enum):
+    """AI response type categories"""
+    INITIAL = "initial"
+    COLLABORATIVE = "collaborative"
+    PATTERN_RECOGNITION = "pattern_recognition"
+    FOLLOW_UP = "follow_up"
+    VALIDATION = "validation"
+    GUIDANCE = "guidance"
+
+class StructuredAIPersonaResponse(BaseModel):
+    """Structured AI persona response with rich metadata"""
+    persona_name: str = Field(..., description="Name of the AI persona (pulse, sage, spark, anchor)")
+    response_text: str = Field(..., min_length=20, max_length=1000, description="The main AI response text")
+    emotional_tone: EmotionalTone = Field(..., description="Emotional tone of the response")
+    confidence_score: float = Field(..., ge=0.0, le=1.0, description="AI confidence in response quality (0-1)")
+    topics_identified: List[str] = Field(default_factory=list, description="Key topics identified in user's journal entry")
+    follow_up_suggested: bool = Field(default=False, description="Whether a follow-up is suggested")
+    response_type: ResponseType = Field(default=ResponseType.INITIAL, description="Type of response being given")
+    
+    # Persona-specific characteristics
+    persona_strengths: List[str] = Field(default_factory=list, description="Key strengths this persona brings to the response")
+    suggested_actions: List[str] = Field(default_factory=list, max_items=3, description="Up to 3 actionable suggestions")
+    
+    # Engagement metadata
+    estimated_helpfulness: float = Field(default=0.8, ge=0.0, le=1.0, description="Estimated helpfulness score")
+    encourages_reflection: bool = Field(default=True, description="Whether response encourages user reflection")
+    validates_feelings: bool = Field(default=True, description="Whether response validates user's feelings")
+    
+    # Technical metadata
+    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    response_length_category: str = Field(default="medium", description="short, medium, or long")
+    contains_question: bool = Field(default=False, description="Whether response contains a question")
+
+class MultiPersonaStructuredResponse(BaseModel):
+    """Response containing multiple structured persona responses"""
+    journal_entry_id: str = Field(..., description="ID of the journal entry being responded to")
+    user_id: str = Field(..., description="ID of the user")
+    
+    persona_responses: List[StructuredAIPersonaResponse] = Field(..., min_items=1, max_items=4, description="Responses from AI personas")
+    
+    # Aggregate metadata
+    overall_sentiment: str = Field(..., description="Overall sentiment of the journal entry")
+    complexity_level: str = Field(default="medium", description="Complexity level of the entry (simple, medium, complex)")
+    priority_level: str = Field(default="normal", description="Priority level (low, normal, high, urgent)")
+    
+    # Timing and coordination
+    delivery_strategy: str = Field(default="staggered", description="How responses should be delivered (immediate, staggered, delayed)")
+    estimated_reading_time_minutes: int = Field(default=2, ge=1, le=10, description="Estimated time to read all responses")
+    
+    # Pattern recognition
+    recurring_themes: List[str] = Field(default_factory=list, description="Recurring themes identified across time")
+    growth_opportunities: List[str] = Field(default_factory=list, description="Potential areas for personal growth")
+    
+    generated_at: datetime = Field(default_factory=datetime.utcnow) 
