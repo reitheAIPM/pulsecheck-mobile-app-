@@ -10,6 +10,7 @@ from datetime import datetime
 
 from ..core.security import limiter
 from ..services.ai_debugging_service import ai_debugger, SystemHealth, Issue
+from ..services.service_initialization_validator import service_validator
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai-debug", tags=["ai-debugging"])
@@ -313,4 +314,296 @@ async def get_system_urls():
             "/ai-debug/common-fixes"
         ],
         "last_updated": datetime.now().isoformat()
-    } 
+    }
+
+@router.get("/service-initialization/validate-all")
+@limiter.limit("5/minute")
+async def validate_all_ai_services(request: Request):
+    """
+    🔍 ENHANCED: Validate all AI service initializations
+    
+    Prevents constructor issues by checking:
+    - Constructor signatures match expected parameters
+    - Required dependencies are available
+    - Services can be initialized without errors
+    """
+    try:
+        logger.info("🔍 Running comprehensive AI service initialization validation")
+        
+        validation_results = await service_validator.validate_all_ai_services()
+        validation_summary = service_validator.get_validation_summary()
+        
+        # Count critical issues
+        critical_issues = sum(1 for result in validation_results.values() if not result.validation_passed)
+        
+        return {
+            "success": True,
+            "timestamp": datetime.now().isoformat(),
+            "validation_summary": validation_summary,
+            "detailed_results": validation_results,
+            "critical_issues": critical_issues,
+            "system_status": "healthy" if critical_issues == 0 else "degraded",
+            "ai_debugging_recommendations": [
+                "Review failed validations immediately",
+                "Fix constructor signature mismatches",
+                "Ensure all dependencies are properly initialized",
+                "Run validation before deploying service changes"
+            ],
+            "prevention_tips": [
+                "Use this endpoint before service initialization",
+                "Add validation to CI/CD pipeline",
+                "Document constructor requirements",
+                "Use dependency injection patterns"
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Service validation failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Service validation failed: {str(e)}"
+        )
+
+@router.get("/service-initialization/guide/{service_name}")
+@limiter.limit("10/minute")
+async def get_service_initialization_guide(request: Request, service_name: str):
+    """
+    📋 Get initialization guide for a specific service
+    
+    Returns:
+    - Proper initialization example
+    - Common mistakes to avoid
+    - Required dependencies
+    - Constructor signature
+    """
+    try:
+        guide = service_validator.get_service_initialization_guide(service_name)
+        
+        if "error" in guide:
+            raise HTTPException(status_code=404, detail=guide["error"])
+        
+        return {
+            "success": True,
+            "service_name": service_name,
+            "initialization_guide": guide,
+            "ai_debugging_tips": [
+                f"Copy the proper initialization example for {service_name}",
+                "Check all required dependencies are available",
+                "Verify constructor signature matches your call",
+                "Use dependency injection for better testability"
+            ]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get initialization guide for {service_name}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get initialization guide: {str(e)}"
+        )
+
+@router.post("/service-initialization/validate")
+@limiter.limit("10/minute")
+async def validate_service_initialization(
+    request: Request,
+    service_name: str,
+    constructor_args: List = None,
+    constructor_kwargs: Dict = None
+):
+    """
+    🔍 Validate specific service initialization
+    
+    Body:
+    - service_name: Name of the service to validate
+    - constructor_args: List of positional arguments
+    - constructor_kwargs: Dict of keyword arguments
+    """
+    try:
+        constructor_args = constructor_args or []
+        constructor_kwargs = constructor_kwargs or {}
+        
+        validation_result = await service_validator.validate_service_initialization(
+            service_name=service_name,
+            constructor_args=constructor_args,
+            constructor_kwargs=constructor_kwargs
+        )
+        
+        return {
+            "success": True,
+            "service_name": service_name,
+            "validation_result": validation_result,
+            "validation_passed": validation_result.validation_passed,
+            "initialization_successful": validation_result.initialization_successful,
+            "next_steps": [
+                "Fix any errors listed in the validation result",
+                "Ensure all required dependencies are provided",
+                "Test the actual initialization",
+                "Monitor for similar issues in the future"
+            ] if not validation_result.validation_passed else [
+                "Service initialization looks good!",
+                "Proceed with actual initialization",
+                "Monitor for any runtime issues"
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Service validation failed for {service_name}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Service validation failed: {str(e)}"
+        )
+
+@router.get("/service-initialization/recent-failures")
+@limiter.limit("10/minute")
+async def get_recent_initialization_failures(request: Request):
+    """
+    📊 Get recent service initialization failures
+    
+    Returns patterns and recommendations for preventing future issues
+    """
+    try:
+        validation_summary = service_validator.get_validation_summary()
+        
+        return {
+            "success": True,
+            "timestamp": datetime.now().isoformat(),
+            "recent_failures": validation_summary.get("recent_failures", []),
+            "validation_success_rate": validation_summary.get("validation_success_rate", 0),
+            "critical_services_status": validation_summary.get("critical_services_status", {}),
+            "failure_patterns": {
+                "common_issues": [
+                    "Constructor signature mismatch",
+                    "Missing required dependencies",
+                    "Wrong parameter order",
+                    "None values for required parameters"
+                ],
+                "prevention_strategies": [
+                    "Use service initialization validator",
+                    "Add constructor validation tests",
+                    "Document service dependencies",
+                    "Use dependency injection patterns"
+                ]
+            },
+            "ai_debugging_recommendations": [
+                "Review recent failures for patterns",
+                "Update service initialization documentation",
+                "Add validation to CI/CD pipeline",
+                "Train team on proper initialization patterns"
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get recent failures: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get recent failures: {str(e)}"
+        )
+
+@router.get("/ai-responses/validate-structure")
+@limiter.limit("10/minute")
+async def validate_ai_response_structure(request: Request):
+    """
+    🔍 Validate AI response structure and content quality
+    
+    Ensures AI responses:
+    - Follow proper schema
+    - Contain persona-specific content
+    - Are not generic fallback responses
+    """
+    try:
+        # Get recent AI responses for validation
+        from ..core.database import get_database
+        db = get_database()
+        client = db.get_service_client()
+        
+        # Get recent AI insights
+        recent_responses = client.table("ai_insights").select("*").order("created_at", desc=True).limit(10).execute()
+        
+        validation_results = []
+        generic_responses = 0
+        persona_specific_responses = 0
+        
+        if recent_responses.data:
+            for response in recent_responses.data:
+                # Validate response structure
+                validation = {
+                    "response_id": response.get("id"),
+                    "persona": response.get("persona", "unknown"),
+                    "content_length": len(response.get("content", "")),
+                    "has_persona_specific_content": False,
+                    "is_generic": False,
+                    "validation_passed": True,
+                    "issues": []
+                }
+                
+                content = response.get("content", "").lower()
+                
+                # Check for generic responses
+                generic_indicators = [
+                    "i understand",
+                    "that sounds",
+                    "i hear you",
+                    "it seems like",
+                    "thank you for sharing"
+                ]
+                
+                if any(indicator in content for indicator in generic_indicators):
+                    validation["is_generic"] = True
+                    validation["validation_passed"] = False
+                    validation["issues"].append("Contains generic response patterns")
+                    generic_responses += 1
+                else:
+                    persona_specific_responses += 1
+                
+                # Check for persona-specific content
+                persona = response.get("persona", "")
+                if persona:
+                    persona_keywords = {
+                        "pulse": ["feel", "emotion", "heart", "support"],
+                        "sage": ["wisdom", "perspective", "experience", "insight"],
+                        "spark": ["energy", "action", "momentum", "change"],
+                        "anchor": ["stability", "foundation", "ground", "strength"]
+                    }
+                    
+                    if persona in persona_keywords:
+                        keywords = persona_keywords[persona]
+                        if any(keyword in content for keyword in keywords):
+                            validation["has_persona_specific_content"] = True
+                        else:
+                            validation["validation_passed"] = False
+                            validation["issues"].append(f"Missing {persona}-specific content")
+                
+                validation_results.append(validation)
+        
+        response_quality_score = (persona_specific_responses / len(validation_results) * 100) if validation_results else 0
+        
+        return {
+            "success": True,
+            "timestamp": datetime.now().isoformat(),
+            "validation_summary": {
+                "total_responses_analyzed": len(validation_results),
+                "persona_specific_responses": persona_specific_responses,
+                "generic_responses": generic_responses,
+                "response_quality_score": response_quality_score,
+                "validation_passed": generic_responses == 0
+            },
+            "detailed_results": validation_results,
+            "recommendations": [
+                "Improve prompt engineering for persona-specific responses",
+                "Add validation to AI response generation",
+                "Monitor for fallback response patterns",
+                "Enhance persona personality definitions"
+            ] if generic_responses > 0 else [
+                "AI responses are persona-specific and high quality!",
+                "Continue monitoring for quality assurance",
+                "Consider expanding persona personalities"
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"AI response structure validation failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI response validation failed: {str(e)}"
+        ) 
