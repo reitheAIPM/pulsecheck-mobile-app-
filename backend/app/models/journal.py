@@ -84,7 +84,7 @@ class JournalEntryResponse(JournalEntryBase):
     updated_at: datetime
     
     # AI-generated insights (populated after AI processing)
-    ai_insights: Optional[Dict[str, Any]] = None
+    ai_insights: Optional[List[Dict[str, Any]]] = None
     ai_generated_at: Optional[datetime] = None
 
 # Journal Statistics Schema
