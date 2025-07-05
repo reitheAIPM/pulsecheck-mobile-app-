@@ -97,7 +97,7 @@ class ComprehensiveProactiveAIService:
         pulse_ai_service = PulseAI(db=db)
         pattern_analyzer = UserPatternAnalyzer(db=db)
         self.adaptive_ai = AdaptiveAIService(pulse_ai_service, pattern_analyzer)
-        self.async_multi_persona = AsyncMultiPersonaService()
+        self.async_multi_persona = AsyncMultiPersonaService(db)
         
         # 🧪 TESTING MODE - Set to True for immediate responses (bypasses all timing delays)
         self.testing_mode = True
