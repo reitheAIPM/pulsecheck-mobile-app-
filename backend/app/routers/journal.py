@@ -1400,35 +1400,40 @@ async def get_adaptive_ai_response(
             else:
                 personas = [persona]
             
-            multi_response = await async_multi_persona.process_concurrent_personas(
+            multi_response = await async_multi_persona.generate_concurrent_persona_responses(
                 journal_entry=journal_entry,
                 personas=personas,
-                user_id=current_user["id"],
-                journal_history=journal_history
+                use_natural_timing=True,
+                max_concurrent=4
             )
             
             # Convert to frontend-compatible format (array of AI insights)
             compatible_insights = []
             for persona_response in multi_response.persona_responses:
                 insight = AIInsightResponse(
-                    insight=persona_response.message,
-                    suggested_action=persona_response.suggested_action or "Continue reflecting on your thoughts",
+                    insight=persona_response.response_text,
+                    suggested_action="; ".join(persona_response.suggested_actions) if persona_response.suggested_actions else "Continue reflecting on your thoughts",
                     follow_up_question=None,
                     confidence_score=persona_response.confidence_score,
-                    persona_used=persona_response.persona_used,
-                    topic_flags=persona_response.topic_flags or [],
-                    generated_at=datetime.now(timezone.utc)
+                    persona_used=persona_response.persona_name,
+                    topic_flags=persona_response.topics_identified or [],
+                    generated_at=persona_response.generated_at
                 )
                 
                 # Add multi-persona metadata
                 insight.metadata = {
                     "multi_persona_response": True,
                     "total_personas": len(multi_response.persona_responses),
-                    "processing_time_ms": multi_response.total_processing_time,
                     "concurrent_processing": True,
                     "delivery_strategy": multi_response.delivery_strategy,
                     "overall_sentiment": multi_response.overall_sentiment,
-                    "priority_level": multi_response.priority_level
+                    "priority_level": multi_response.priority_level,
+                    "emotional_tone": persona_response.emotional_tone.value,
+                    "response_type": persona_response.response_type.value,
+                    "persona_strengths": persona_response.persona_strengths,
+                    "estimated_helpfulness": persona_response.estimated_helpfulness,
+                    "encourages_reflection": persona_response.encourages_reflection,
+                    "validates_feelings": persona_response.validates_feelings
                 }
                 
                 compatible_insights.append(insight)

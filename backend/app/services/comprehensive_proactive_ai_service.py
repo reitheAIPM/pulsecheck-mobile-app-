@@ -862,17 +862,11 @@ Reference patterns you've noticed if relevant.
             logger.info(f"🚀 Executing concurrent multi-persona engagement: {personas} for entry {entry_id}")
             
             # Use AsyncMultiPersonaService for concurrent processing
-            multi_response = await self.async_multi_persona.process_concurrent_personas(
+            multi_response = await self.async_multi_persona.generate_concurrent_persona_responses(
                 journal_entry=entry,
                 personas=personas,
-                user_id=user_id,
-                journal_history=journal_history,
-                proactive_context={
-                    "engagement_strategies": [opp.engagement_strategy for opp in opportunities],
-                    "reasons": [opp.reason for opp in opportunities],
-                    "contexts": [opp.message_context for opp in opportunities],
-                    "expected_engagement_scores": [opp.expected_engagement_score for opp in opportunities]
-                }
+                use_natural_timing=True,
+                max_concurrent=4
             )
             
             # Store each persona response with comprehensive metadata
@@ -886,9 +880,9 @@ Reference patterns you've noticed if relevant.
                         "id": str(__import__('uuid').uuid4()),
                         "journal_entry_id": entry_id,
                         "user_id": user_id,
-                        "ai_response": persona_response.message,
-                        "persona_used": persona_response.persona_used,
-                        "topic_flags": persona_response.topic_flags or {},
+                        "ai_response": persona_response.response_text,
+                        "persona_used": persona_response.persona_name,
+                        "topic_flags": persona_response.topics_identified or {},
                         "confidence_score": persona_response.confidence_score,
                         "created_at": datetime.now(timezone.utc).isoformat()
                     }
@@ -902,7 +896,7 @@ Reference patterns you've noticed if relevant.
                         "expected_engagement_score": opportunity.expected_engagement_score,
                         "related_entries": opportunity.related_entries,
                         "delay_minutes": opportunity.delay_minutes,
-                        "processing_time_ms": multi_response.total_processing_time,
+                        "processing_time_ms": 0,  # Not available in this response format
                         "concurrent_personas": personas
                     })
                     
@@ -927,7 +921,7 @@ Reference patterns you've noticed if relevant.
             if success_count > 0:
                 sequential_time_estimate = len(personas) * 30  # 30 seconds per persona sequentially
                 performance_improvement = ((sequential_time_estimate - multi_response.total_processing_time/1000) / sequential_time_estimate) * 100
-                logger.info(f"🎯 Concurrent processing completed: {success_count}/{len(opportunities)} personas responded in {multi_response.total_processing_time}ms (~{performance_improvement:.0f}% faster than sequential)")
+                logger.info(f"🎯 Concurrent processing completed: {success_count}/{len(opportunities)} personas responded")
             
             return success_count > 0
             
