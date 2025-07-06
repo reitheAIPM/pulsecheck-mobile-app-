@@ -575,13 +575,6 @@ const JournalHistory: React.FC<JournalHistoryProps> = ({
                               Enhanced
                             </button>
                             <button
-                              onClick={() => handleGetMultiPersonaResponse(entry.id)}
-                              className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded hover:bg-purple-200 transition-colors"
-                              title="Get responses from multiple AI personas"
-                            >
-                              Multi-AI
-                            </button>
-                            <button
                               onClick={() => streamingConnections.has(entry.id) ? stopStreaming(entry.id) : handleStreamingResponse(entry.id)}
                               className={`text-xs px-2 py-1 rounded transition-colors ${
                                 streamingConnections.has(entry.id) 

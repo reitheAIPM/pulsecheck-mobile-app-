@@ -206,40 +206,104 @@ async def process_journal_entry_ai_response(
         else:
             selected_persona = "pulse"  # Default to emotional support
         
-        # Generate single persona response using enhanced prompts
-        multi_response = await async_multi_persona.generate_concurrent_persona_responses(
-            journal_entry=journal_entry,
-            personas=[selected_persona],  # Only ONE persona
-            use_natural_timing=False,  # Immediate response
-            max_concurrent=1
-        )
+        # Try to generate single persona response using enhanced prompts
+        response_generated = False
         
-        if multi_response.persona_responses:
-            persona_response = multi_response.persona_responses[0]
+        try:
+            multi_response = await async_multi_persona.generate_concurrent_persona_responses(
+                journal_entry=journal_entry,
+                personas=[selected_persona],  # Only ONE persona
+                use_natural_timing=False,  # Immediate response
+                max_concurrent=1
+            )
             
-            # Store the AI response
-            ai_insight_data = {
-                "id": str(__import__('uuid').uuid4()),
-                "journal_entry_id": entry_id,
-                "user_id": user_id,
-                "ai_response": persona_response.response_text,
-                "persona_used": persona_response.persona_name,
-                "topic_flags": persona_response.topics_identified or {},
-                "confidence_score": persona_response.confidence_score,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }
-            
-            # Insert AI response
-            service_client = db.get_service_client()
-            ai_result = service_client.table("ai_insights").insert(ai_insight_data).execute()
-            
-            if ai_result.data:
-                logger.info(f"✅ AI response generated for entry {entry_id}: {selected_persona} persona")
+            if multi_response.persona_responses:
+                persona_response = multi_response.persona_responses[0]
+                
+                # Store the AI response
+                ai_insight_data = {
+                    "id": str(__import__('uuid').uuid4()),
+                    "journal_entry_id": entry_id,
+                    "user_id": user_id,
+                    "ai_response": persona_response.response_text,
+                    "persona_used": persona_response.persona_name,
+                    "topic_flags": persona_response.topics_identified or {},
+                    "confidence_score": persona_response.confidence_score,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                # Insert AI response
+                service_client = db.get_service_client()
+                ai_result = service_client.table("ai_insights").insert(ai_insight_data).execute()
+                
+                if ai_result.data:
+                    logger.info(f"✅ AI response generated for entry {entry_id}: {selected_persona} persona")
+                    response_generated = True
+                else:
+                    logger.warning(f"Failed to store AI response for entry {entry_id}")
             else:
-                logger.warning(f"Failed to store AI response for entry {entry_id}")
-        else:
-            logger.warning(f"No persona responses generated for entry {entry_id}")
+                logger.warning(f"No persona responses generated for entry {entry_id}")
+                
+        except Exception as e:
+            logger.error(f"AsyncMultiPersonaService failed: {e}")
+            
+        # Fallback: Use AdaptiveAIService if AsyncMultiPersonaService fails
+        if not response_generated:
+            try:
+                logger.info(f"Falling back to AdaptiveAIService for entry {entry_id}")
+                
+                # Initialize adaptive AI service
+                from app.services.pulse_ai import PulseAI
+                from app.services.user_pattern_analyzer import UserPatternAnalyzer
+                
+                pulse_ai = PulseAI(db)
+                pattern_analyzer = UserPatternAnalyzer(db)
+                adaptive_ai = AdaptiveAIService(pulse_ai, pattern_analyzer)
+                
+                # Get journal history for context
+                history_result = client.table("journal_entries").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(10).execute()
+                journal_history = []
+                if history_result.data:
+                    for entry in history_result.data:
+                        entry_data = DateTimeUtils.ensure_updated_at(entry)
+                        journal_history.append(JournalEntryResponse(**entry_data))
+                
+                # Generate adaptive response
+                ai_response = await adaptive_ai.generate_adaptive_response(
+                    user_id=user_id,
+                    journal_entry=journal_entry,
+                    journal_history=journal_history,
+                    persona=selected_persona
+                )
+                
+                # Store the AI response
+                ai_insight_data = {
+                    "id": str(__import__('uuid').uuid4()),
+                    "journal_entry_id": entry_id,
+                    "user_id": user_id,
+                    "ai_response": ai_response.insight,
+                    "persona_used": ai_response.persona_used or selected_persona,
+                    "topic_flags": ai_response.topic_flags or {},
+                    "confidence_score": ai_response.confidence_score,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                # Insert AI response
+                service_client = db.get_service_client()
+                ai_result = service_client.table("ai_insights").insert(ai_insight_data).execute()
+                
+                if ai_result.data:
+                    logger.info(f"✅ Fallback AI response generated for entry {entry_id}: {selected_persona} persona")
+                    response_generated = True
+                else:
+                    logger.warning(f"Failed to store fallback AI response for entry {entry_id}")
+                    
+            except Exception as fallback_error:
+                logger.error(f"Fallback AdaptiveAIService also failed: {fallback_error}")
         
+        if not response_generated:
+            logger.error(f"Failed to generate any AI response for entry {entry_id}")
+            
     except Exception as e:
         logger.error(f"Error processing AI response for entry {entry_id}: {str(e)}", exc_info=True)
 
