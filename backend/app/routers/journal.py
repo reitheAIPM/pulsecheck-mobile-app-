@@ -322,92 +322,10 @@ async def create_journal_entry(
             logger.error(f"Data from database: {created_entry}")
             raise
         
-        # 🔥 NEW: Automatically generate AI persona response after journal creation
-        try:
-            logger.info(f"Generating automatic AI persona response for entry {journal_entry_response.id}")
-            logger.info(f"User ID: {current_user['id']}, Test User ID: 6abe6283-5dd2-46d6-995a-d876a06a55f7")
-            
-            # Use service role client for AI operations to bypass RLS
-            service_client = db.get_service_client()
-            
-            # Get user's journal history for context (last 10 entries) using service role
-            history_result = service_client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).limit(10).execute()
-            journal_history = [JournalEntryResponse(**entry) for entry in history_result.data] if history_result.data else []
-            
-            # 🚀 NEW: Use MultiPersonaService to determine how many personas should respond
-            from ..services.multi_persona_service import MultiPersonaService
-            multi_persona_service = MultiPersonaService(db)
-            
-            # Determine which personas should respond
-            responding_personas = await multi_persona_service.determine_responding_personas(
-                user_id=current_user["id"],
-                journal_entry=journal_entry_response
-            )
-            
-            logger.info(f"Generating responses from {len(responding_personas)} personas: {responding_personas}")
-            
-            # CRITICAL: Ensure we have personas to respond
-            if not responding_personas:
-                logger.error(f"No personas selected for user {current_user['id']}! Forcing at least one.")
-                responding_personas = ["pulse"]  # Fallback to at least one persona
-            
-            # Generate AI responses from each selected persona
-            ai_responses = []
-            for persona in responding_personas:
-                try:
-                    # Generate adaptive AI response for this persona
-                    ai_response = await adaptive_ai.generate_adaptive_response(
-                        user_id=current_user["id"],
-                        journal_entry=journal_entry_response,
-                        journal_history=journal_history,
-                        persona=persona  # Specific persona instead of "auto"
-                    )
-                    
-                    # Store AI response in database
-                    ai_insight_data = {
-                        "id": str(uuid.uuid4()),
-                        "journal_entry_id": journal_entry_response.id,
-                        "user_id": current_user["id"],
-                        "ai_response": ai_response.insight,
-                        "persona_used": ai_response.persona_used,
-                        "topic_flags": ai_response.topic_flags,
-                        "confidence_score": ai_response.confidence_score,
-                        "created_at": datetime.now(timezone.utc).isoformat()
-                    }
-                    
-                    # Insert AI response into ai_insights table using service role
-                    ai_result = service_client.table("ai_insights").insert(ai_insight_data).execute()
-                    
-                    if ai_result.data:
-                        logger.info(f"✅ AI response generated for entry {journal_entry_response.id} from {persona} persona")
-                        ai_responses.append(ai_response)
-                    else:
-                        logger.warning(f"Failed to store AI response from {persona} for entry {journal_entry_response.id}")
-                        
-                except Exception as persona_error:
-                    logger.error(f"Failed to generate {persona} response: {persona_error}")
-                    continue
-            
-            # Update the journal entry response to include first AI response (for backward compatibility)
-            if ai_responses:
-                first_response = ai_responses[0]
-                journal_entry_response.ai_insights = {
-                    "insight": first_response.insight,
-                    "persona_used": first_response.persona_used,
-                    "confidence_score": first_response.confidence_score,
-                    "suggested_action": first_response.suggested_action,
-                    "follow_up_question": first_response.follow_up_question,
-                    "topic_flags": first_response.topic_flags,
-                    "adaptation_level": first_response.adaptation_level,
-                    "total_responses": len(ai_responses),
-                    "responding_personas": responding_personas
-                }
-                journal_entry_response.ai_generated_at = datetime.now(timezone.utc)
-                
-        except Exception as ai_error:
-            # Don't fail the journal creation if AI response fails
-            logger.error(f"Failed to generate automatic AI response for entry {journal_entry_response.id}: {ai_error}")
-            # Continue without AI response - user can still manually request it later
+        # 🔥 DISABLED: Automatic AI persona responses on journal creation
+        # The webhook handler now generates a single optimal AI response
+        # This prevents multiple personas from responding to every entry
+        logger.info(f"Journal entry created: {journal_entry_response.id} - AI response will be generated by webhook")
         
         return journal_entry_response
         
