@@ -21,6 +21,7 @@ from app.services.streaming_ai_service import StreamingAIService
 from app.services.async_multi_persona_service import AsyncMultiPersonaService
 from app.core.database import get_database, Database
 from app.core.security import get_current_user, get_current_user_with_fallback, limiter, validate_input_length, sanitize_user_input
+from app.core.utils import DateTimeUtils
 
 logger = logging.getLogger(__name__)
 
@@ -515,8 +516,7 @@ async def get_pulse_response(
         
         entry_data = result.data
         # Ensure updated_at field exists before creating response
-        if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
-            entry_data['updated_at'] = entry_data.get('created_at', datetime.now(timezone.utc))
+        entry_data = DateTimeUtils.ensure_updated_at(entry_data)
             
         journal_entry = JournalEntryResponse(**entry_data)
         
@@ -960,8 +960,7 @@ async def get_ai_analysis(
         
         entry_data = result.data
         # Ensure updated_at field exists before creating response
-        if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
-            entry_data['updated_at'] = entry_data.get('created_at', datetime.now(timezone.utc))
+        entry_data = DateTimeUtils.ensure_updated_at(entry_data)
             
         journal_entry = JournalEntryResponse(**entry_data)
         
@@ -974,8 +973,7 @@ async def get_ai_analysis(
                 user_history = []
                 for entry in history_result.data:
                     # Ensure updated_at field exists for each history entry
-                    if 'updated_at' not in entry or entry['updated_at'] is None:
-                        entry['updated_at'] = entry.get('created_at', datetime.now(timezone.utc))
+                    entry = DateTimeUtils.ensure_updated_at(entry)
                     
                     user_history.append(JournalEntryResponse(**entry))
 
@@ -1091,8 +1089,7 @@ async def get_journal_entries(
             
             for entry in result.data:
                 # Ensure updated_at field exists. This is the critical fix.
-                if 'updated_at' not in entry or entry['updated_at'] is None:
-                    entry['updated_at'] = entry.get('created_at', datetime.now(timezone.utc))
+                entry = DateTimeUtils.ensure_updated_at(entry)
                 
                 # Add AI insights to the entry
                 entry['ai_insights'] = ai_insights_by_entry.get(entry['id'], [])
@@ -1223,8 +1220,7 @@ async def get_journal_entry(
         
         # Ensure updated_at field exists before creating response
         entry_data = result.data
-        if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
-            entry_data['updated_at'] = entry_data.get('created_at', datetime.now(timezone.utc))
+        entry_data = DateTimeUtils.ensure_updated_at(entry_data)
             
         return JournalEntryResponse(**entry_data)
         
@@ -1385,8 +1381,7 @@ async def get_adaptive_ai_response(
             raise HTTPException(status_code=404, detail="Journal entry not found")
         
         entry_data = result.data
-        if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
-            entry_data['updated_at'] = entry_data.get('created_at', datetime.now(timezone.utc))
+        entry_data = DateTimeUtils.ensure_updated_at(entry_data)
             
         journal_entry = JournalEntryResponse(**entry_data)
         
@@ -1395,8 +1390,7 @@ async def get_adaptive_ai_response(
         journal_history = []
         if history_result.data:
             for entry in history_result.data:
-                if 'updated_at' not in entry or entry['updated_at'] is None:
-                    entry['updated_at'] = entry.get('created_at', datetime.now(timezone.utc))
+                entry = DateTimeUtils.ensure_updated_at(entry)
                 journal_history.append(JournalEntryResponse(**entry))
         
         # Multi-persona concurrent processing
@@ -1630,8 +1624,7 @@ async def get_weekly_summary(
         if result.data:
             for entry in result.data:
                 # Ensure updated_at field exists
-                if 'updated_at' not in entry or entry['updated_at'] is None:
-                    entry['updated_at'] = entry.get('created_at', datetime.now(timezone.utc))
+                entry = DateTimeUtils.ensure_updated_at(entry)
                 
                 journal_entries.append(JournalEntryResponse(**entry))
         
@@ -1843,8 +1836,7 @@ async def stream_ai_response(
             return
         
         entry_data = result.data
-        if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
-            entry_data['updated_at'] = entry_data.get('created_at', datetime.now(timezone.utc))
+        entry_data = DateTimeUtils.ensure_updated_at(entry_data)
             
         journal_entry = JournalEntryResponse(**entry_data)
         
@@ -2137,8 +2129,7 @@ async def get_all_entries_with_ai_insights(
         entries_with_insights = []
         for entry in entries_result.data:
             # Handle missing updated_at field (same as working endpoint)
-            if 'updated_at' not in entry or entry['updated_at'] is None:
-                entry['updated_at'] = entry.get('created_at', datetime.now(timezone.utc))
+            entry = DateTimeUtils.ensure_updated_at(entry)
             
             entry_data = {
                 **entry,
