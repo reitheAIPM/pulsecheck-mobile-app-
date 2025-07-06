@@ -284,6 +284,8 @@ REACT_APP_API_URL=https://pulsecheck-mobile-app-production.up.railway.app
 
 ### **Technical Documentation**
 - [AI System Guide](./AI-SYSTEM-GUIDE.md) - Complete AI documentation
+- [AI Debugging Guide](./AI-DEBUGGING-GUIDE.md) - Critical debugging information
+- [Developer Guide](./DEVELOPER-GUIDE.md) - Complete development documentation
 - [API Documentation](./backend/API_DOCUMENTATION.md) - All API endpoints
 - [Best Practices](./backend/FASTAPI_SUPABASE_BEST_PRACTICES.md) - Development guidelines
 - [Contributing Guide](./ai/CONTRIBUTING.md) - Development workflow
