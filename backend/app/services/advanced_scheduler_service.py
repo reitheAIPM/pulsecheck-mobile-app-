@@ -216,15 +216,24 @@ class AdvancedSchedulerService:
             }
     
     async def _main_proactive_cycle(self):
-        """Main proactive AI engagement cycle - runs every 5 minutes"""
+        """Main proactive AI engagement cycle - runs every 5 minutes
+        ✅ TEMPORARILY DISABLED: Preventing duplicate AI responses"""
         cycle_id = f"main_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         start_time = datetime.now(timezone.utc)
         
         try:
-            logger.info(f"🔄 Starting main proactive cycle: {cycle_id}")
+            logger.info(f"🔄 Main proactive cycle {cycle_id} - DISABLED to prevent duplicates")
             
-            # Run comprehensive engagement cycle
-            result = await self.proactive_ai.run_comprehensive_engagement_cycle()
+            # ✅ DISABLED: Comprehensive engagement cycle temporarily disabled
+            # This prevents duplicate AI responses while using AsyncMultiPersonaService
+            # result = await self.proactive_ai.run_comprehensive_engagement_cycle()
+            
+            result = {
+                "active_users": 0,
+                "opportunities_found": 0,
+                "engagements_executed": 0,
+                "status": "disabled_temporarily"
+            }
             
             # Calculate duration
             duration = (datetime.now(timezone.utc) - start_time).total_seconds()
@@ -247,7 +256,7 @@ class AdvancedSchedulerService:
             # Store cycle history
             self._store_cycle_result(cycle_result)
             
-            logger.info(f"✅ Main proactive cycle completed: {cycle_id} - {result.get('engagements_executed', 0)} engagements executed")
+            logger.info(f"✅ Main proactive cycle completed: {cycle_id} - DISABLED (preventing duplicates)")
             
         except Exception as e:
             logger.error(f"❌ Error in main proactive cycle {cycle_id}: {e}")
@@ -270,7 +279,8 @@ class AdvancedSchedulerService:
             self._store_cycle_result(cycle_result)
     
     async def _immediate_response_cycle(self):
-        """Immediate response cycle for high-engagement users - runs every 1 minute"""
+        """Immediate response cycle for high-engagement users - runs every 1 minute
+        ✅ TEMPORARILY DISABLED: Preventing duplicate AI responses"""
         cycle_id = f"immediate_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         start_time = datetime.now(timezone.utc)
         

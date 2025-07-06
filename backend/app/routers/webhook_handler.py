@@ -9,13 +9,13 @@ from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional, List
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hmac
 import hashlib
 import os
 
 from ..core.database import get_database
-from ..services.comprehensive_proactive_ai_service import ComprehensiveProactiveAIService
+# Removed ComprehensiveProactiveAIService - using AsyncMultiPersonaService instead
 from ..services.adaptive_ai_service import AdaptiveAIService
 from ..services.pulse_ai import PulseAI
 from ..core.config import settings
@@ -164,7 +164,7 @@ async def process_journal_entry_ai_response(
     Process AI response for journal entry (runs in background)
     This provides immediate AI response instead of waiting for scheduled processing
     
-    ✅ FIXED: Now checks user preferences and engagement patterns before triggering AI
+    ✅ FIXED: Now uses AsyncMultiPersonaService for proper persona responses
     """
     try:
         logger.info(f"Processing AI response for entry {entry_id}")
@@ -174,26 +174,71 @@ async def process_journal_entry_ai_response(
             logger.info(f"AI responses disabled for user {user_id} - skipping automatic response")
             return
         
-        # Initialize AI services
-        comprehensive_ai = ComprehensiveProactiveAIService(db)
+        # Get the journal entry
+        client = db.get_client()
+        result = client.table("journal_entries").select("*").eq("id", entry_id).eq("user_id", user_id).single().execute()
         
-        # Create engagement opportunity for immediate processing
-        opportunity = {
-            "user_id": user_id,
-            "entry_id": entry_id,
-            "content": content,
-            "trigger_type": "webhook_immediate",
-            "priority": "high",
-            "created_at": datetime.now().isoformat()
-        }
+        if not result.data:
+            logger.warning(f"Journal entry {entry_id} not found")
+            return
         
-        # Process immediate AI engagement
-        result = await comprehensive_ai.execute_immediate_engagement(opportunity)
+        from app.core.utils import DateTimeUtils
+        entry_data = DateTimeUtils.ensure_updated_at(result.data)
+        from app.models.journal import JournalEntryResponse
+        journal_entry = JournalEntryResponse(**entry_data)
         
-        if result.get("success"):
-            logger.info(f"AI response generated for entry {entry_id}: {result.get('persona_used', 'unknown')} persona")
+        # ✅ FIX: Use AsyncMultiPersonaService instead of ComprehensiveProactiveAIService
+        from app.services.async_multi_persona_service import AsyncMultiPersonaService
+        async_multi_persona = AsyncMultiPersonaService(db)
+        
+        # Select ONE optimal persona based on content analysis
+        content_lower = content.lower()
+        
+        # Simple persona selection logic
+        if any(keyword in content_lower for keyword in ["feel", "emotion", "anxious", "sad", "worried", "overwhelmed"]):
+            selected_persona = "pulse"
+        elif any(keyword in content_lower for keyword in ["think", "realize", "pattern", "always", "noticed", "perspective"]):
+            selected_persona = "sage"
+        elif any(keyword in content_lower for keyword in ["goal", "want to", "plan", "excited", "motivated", "energy"]):
+            selected_persona = "spark"
+        elif any(keyword in content_lower for keyword in ["stress", "pressure", "difficult", "hard", "struggle"]):
+            selected_persona = "anchor"
         else:
-            logger.warning(f"AI response failed for entry {entry_id}: {result.get('error', 'unknown error')}")
+            selected_persona = "pulse"  # Default to emotional support
+        
+        # Generate single persona response using enhanced prompts
+        multi_response = await async_multi_persona.generate_concurrent_persona_responses(
+            journal_entry=journal_entry,
+            personas=[selected_persona],  # Only ONE persona
+            use_natural_timing=False,  # Immediate response
+            max_concurrent=1
+        )
+        
+        if multi_response.persona_responses:
+            persona_response = multi_response.persona_responses[0]
+            
+            # Store the AI response
+            ai_insight_data = {
+                "id": str(__import__('uuid').uuid4()),
+                "journal_entry_id": entry_id,
+                "user_id": user_id,
+                "ai_response": persona_response.response_text,
+                "persona_used": persona_response.persona_name,
+                "topic_flags": persona_response.topics_identified or {},
+                "confidence_score": persona_response.confidence_score,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            # Insert AI response
+            service_client = db.get_service_client()
+            ai_result = service_client.table("ai_insights").insert(ai_insight_data).execute()
+            
+            if ai_result.data:
+                logger.info(f"✅ AI response generated for entry {entry_id}: {selected_persona} persona")
+            else:
+                logger.warning(f"Failed to store AI response for entry {entry_id}")
+        else:
+            logger.warning(f"No persona responses generated for entry {entry_id}")
         
     except Exception as e:
         logger.error(f"Error processing AI response for entry {entry_id}: {str(e)}", exc_info=True)
@@ -383,27 +428,13 @@ async def process_ai_follow_up(
 ):
     """
     Process follow-up AI interactions (runs in background)
-    Enables collaborative AI responses and pattern recognition
+    ✅ DISABLED: Prevents duplicate AI responses - using AsyncMultiPersonaService instead
     """
     try:
-        logger.info(f"Processing AI follow-up for entry {entry_id}")
-        
-        # Initialize AI services
-        comprehensive_ai = ComprehensiveProactiveAIService(db)
-        
-        # Check for collaborative opportunities
-        # This could trigger additional persona responses after initial response
-        collaborative_opportunities = await comprehensive_ai.check_collaborative_opportunities(
-            entry_id=entry_id,
-            user_id=user_id
-        )
-        
-        if collaborative_opportunities:
-            logger.info(f"Found {len(collaborative_opportunities)} collaborative opportunities for entry {entry_id}")
-            
-            # Process collaborative responses
-            for opportunity in collaborative_opportunities:
-                await comprehensive_ai.execute_collaborative_engagement(opportunity)
+        logger.info(f"AI follow-up processing disabled for entry {entry_id} to prevent duplicates")
+        # Note: Follow-up AI processing is disabled to prevent duplicate responses
+        # AI responses are now handled by AsyncMultiPersonaService in the main webhook
+        return
         
     except Exception as e:
         logger.error(f"Error processing AI follow-up for entry {entry_id}: {str(e)}", exc_info=True)
