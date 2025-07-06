@@ -134,6 +134,83 @@ GET /api/v1/journal/entries/{entry_id}/ai-insights
 }
 ```
 
+### Get All AI Insights for Journal Entry (Multi-Persona)
+```
+GET /api/v1/journal/entries/{entry_id}/all-ai-insights
+```
+
+**Response:**
+```json
+{
+  "insights": [
+    {
+      "id": "uuid",
+      "journal_entry_id": "uuid",
+      "ai_response": "Pulse AI response about your energy levels...",
+      "persona_used": "pulse",
+      "topic_flags": ["wellness", "energy"],
+      "confidence_score": 0.85,
+      "created_at": "2025-07-02T15:14:43Z"
+    },
+    {
+      "id": "uuid",
+      "journal_entry_id": "uuid", 
+      "ai_response": "Sage AI response providing thoughtful perspective...",
+      "persona_used": "sage",
+      "topic_flags": ["reflection", "wisdom"],
+      "confidence_score": 0.82,
+      "created_at": "2025-07-02T15:14:44Z"
+    }
+  ],
+  "total_personas": 4,
+  "personas_responded": ["pulse", "sage", "spark", "anchor"]
+}
+```
+
+### Get All Journal Entries with AI Insights (Production)
+```
+GET /api/v1/journal/all-entries-with-ai-insights?page=1&per_page=30
+```
+
+**Response:**
+```json
+{
+  "entries": [
+    {
+      "id": "uuid",
+      "user_id": "uuid",
+      "content": "Journal entry content...",
+      "mood_level": 7,
+      "energy_level": 6,
+      "stress_level": 4,
+      "created_at": "2025-07-02T15:14:42Z",
+      "updated_at": "2025-07-02T15:14:42Z",
+      "ai_insights": [
+        {
+          "id": "uuid",
+          "ai_response": "Pulse AI response...",
+          "persona_used": "pulse",
+          "topic_flags": ["wellness"],
+          "confidence_score": 0.85,
+          "created_at": "2025-07-02T15:14:43Z"
+        },
+        {
+          "id": "uuid", 
+          "ai_response": "Sage AI response...",
+          "persona_used": "sage",
+          "topic_flags": ["reflection"],
+          "confidence_score": 0.82,
+          "created_at": "2025-07-02T15:14:44Z"
+        }
+      ]
+    }
+  ],
+  "page": 1,
+  "per_page": 30,
+  "total": 25
+}
+```
+
 ### Get All AI Responses for User (Testing Only)
 ```
 GET /api/v1/frontend-fix/ai-responses/{user_id}
