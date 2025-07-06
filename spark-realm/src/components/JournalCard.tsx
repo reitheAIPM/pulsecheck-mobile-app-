@@ -32,9 +32,15 @@ interface JournalCardProps {
   timestamp: string;
   tags?: string[];
   aiResponse?: {
-    comments: string[];
+    comments: Array<string | {
+      text: string;
+      persona: string;
+      timestamp: string;
+      confidence?: number;
+    }>;
     timestamp: string;
     emoji?: string;
+    personas_responded?: string[];
   };
   currentUser?: {
     id: string;
@@ -262,24 +268,11 @@ export const JournalCard: React.FC<JournalCardProps> = ({
             {aiResponse && aiResponse.comments && aiResponse.comments.length > 0 && (
               <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
                 {aiResponse.comments.map((comment, index) => {
-                  // Parse persona from comment if it's structured, otherwise default to Pulse
-                  let persona = 'pulse';
-                  let personaName = 'Pulse AI';
-                  let aiMessage = comment;
-                  
-                  // Try to extract persona from structured response
-                  try {
-                    if (comment.includes('persona:')) {
-                      const parts = comment.split('persona:');
-                      if (parts.length > 1) {
-                        const personaPart = parts[1].split(',')[0].trim();
-                        persona = personaPart.toLowerCase();
-                        personaName = personaPart.charAt(0).toUpperCase() + personaPart.slice(1) + ' AI';
-                      }
-                    }
-                  } catch (e) {
-                    // Fallback to default
-                  }
+                  // Extract persona and message from the new structure
+                  const isStringComment = typeof comment === 'string';
+                  const persona = isStringComment ? 'pulse' : (comment.persona || 'pulse');
+                  const aiMessage = isStringComment ? comment : (comment.text || '');
+                  const timestamp = isStringComment ? aiResponse.timestamp : (comment.timestamp || aiResponse.timestamp);
                   
                   // Define persona-specific styling
                   const personaStyles = {
@@ -290,6 +283,7 @@ export const JournalCard: React.FC<JournalCardProps> = ({
                   };
                   
                   const style = personaStyles[persona] || personaStyles.pulse;
+                  const personaName = persona.charAt(0).toUpperCase() + persona.slice(1) + ' AI';
                   
                   return (
                     <div key={index} className="flex items-start gap-3">
@@ -309,7 +303,7 @@ export const JournalCard: React.FC<JournalCardProps> = ({
                             AI Assistant
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(aiResponse.timestamp), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(timestamp), { addSuffix: true })}
                           </span>
                         </div>
                         

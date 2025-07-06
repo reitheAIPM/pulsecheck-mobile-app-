@@ -347,44 +347,81 @@ Our debug system is designed to **prevent false positives** that could mislead A
 - **AI Services**: OpenAI production API - **NOT mock responses**
 - **Environment**: Windows PowerShell - **NOT Unix/Linux**
 
+## 🔐 **AI-ONLY REFERENCE: SECURE CONNECTION DETAILS**
+**⚠️ CONFIDENTIAL**: For AI debugging and development reference only
+
+### **Supabase Database Connections**
+```
+# Direct Connection
+postgresql://postgres:[YOUR-PASSWORD]@db.qwpwlubxhtuzvmvajjjr.supabase.co:5432/postgres
+
+# Transaction Pooler
+postgresql://postgres.qwpwlubxhtuzvmvajjjr:[YOUR-PASSWORD]@aws-0-us-east-1.pooler.supabase.com:6543/postgres
+
+# Session Pooler  
+postgresql://postgres.qwpwlubxhtuzvmvajjjr:[YOUR-PASSWORD]@aws-0-us-east-1.pooler.supabase.com:5432/postgres
+```
+
+### **Supabase API Connections**
+```
+# Web App (NEXT_PUBLIC)
+NEXT_PUBLIC_SUPABASE_URL=https://qwpwlubxhtuzvmvajjjr.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=sb_publishable_3F8ly-MpNN7UcA6UEtiMFg_PlAX38wM
+
+# Mobile App (EXPO_PUBLIC)
+EXPO_PUBLIC_SUPABASE_URL=https://qwpwlubxhtuzvmvajjjr.supabase.co
+EXPO_PUBLIC_SUPABASE_KEY=sb_publishable_3F8ly-MpNN7UcA6UEtiMFg_PlAX38wM
+```
+
+### **Project References**
+- **Supabase Project ID**: `qwpwlubxhtuzvmvajjjr`
+- **Supabase Dashboard**: https://supabase.com/dashboard/project/qwpwlubxhtuzvmvajjjr
+- **Railway Backend**: https://pulsecheck-mobile-app-production.up.railway.app
+- **Vercel Frontend**: https://spark-realm.vercel.app
+
 ### **🚨 CRITICAL: PowerShell Compatibility Requirements**
 **❗ CURSOR AGENT TERMINAL WORKFLOW CHANGE**
 
-**⚠️ IMPORTANT**: Due to PowerShell terminal hanging issues with Cursor Agent, we now use this workflow:
-- **AI provides commands** as instructions rather than executing directly
-- **User executes commands** manually in their terminal
-- **AI does maximum analysis** before requesting terminal commands
-- **Minimal terminal interaction** - only when absolutely necessary
+**⚠️ TERMINAL HANGING ISSUE**: PowerShell prompts for missing parameters causing infinite hangs
 
-**When terminal commands are needed, AI will provide them in this format:**
-
-**For POST Requests (Testing Mode Control):**
+**Current Issue Example**:
 ```powershell
-# ✅ CORRECT - Enable AI testing mode
-Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/enable" -Method POST
+# ❌ CAUSES HANGING - PowerShell prompts for Uri parameter
+curl -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/test-ai"
 
-# ✅ CORRECT - Disable AI testing mode  
-Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/disable" -Method POST
-
-# ✅ CORRECT - Check testing mode status
-Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/status" -Method GET
+# Console output:
+# cmdlet Invoke-WebRequest at command pipeline position 1
+# Supply values for the following parameters:
+# Uri: [HANGS WAITING FOR INPUT]
 ```
 
-**For GET Requests (System Health):**
+**✅ CORRECTED COMMANDS**:
 ```powershell
-# ✅ CORRECT - Use curl.exe for simple GET requests
-curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/health"
-curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/status"
+# ✅ CORRECT - Use curl.exe explicitly to avoid PowerShell aliases
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/test-ai"
 
-# ❌ WRONG - Don't use curl -X in PowerShell (causes parameter binding errors)
-curl -X POST "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/enable"
+# ✅ CORRECT - Use Invoke-WebRequest with explicit parameters
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/test-ai" -Method GET
+
+# ✅ CORRECT - For POST requests with JSON
+$body = @{
+    "test_mode" = $true
+} | ConvertTo-Json
+
+Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/enable" -Method POST -Body $body -ContentType "application/json"
 ```
 
-**For JSON Response Parsing:**
-```powershell
-# ✅ CORRECT - Parse JSON responses for detailed analysis
-(Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/testing/status" -Method GET).Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
-```
+**Why This Happens**:
+- PowerShell aliases `curl` to `Invoke-WebRequest`
+- `Invoke-WebRequest` requires explicit parameters
+- Missing parameters cause interactive prompts that hang in Cursor Agent environment
+- Must use `curl.exe` or explicit `Invoke-WebRequest` syntax
+
+**AI Workflow Update**:
+- **AI provides corrected commands** as instructions
+- **User copies and runs** manually in separate terminal
+- **AI analyzes results** when user reports back
+- **No direct terminal execution** through Cursor Agent for complex commands
 
 ### **📋 CONFIRMED ENVIRONMENT VARIABLES STATUS**
 **❗ CRITICAL FOR AI DEBUGGING**: All environment variables are properly configured!
@@ -653,6 +690,28 @@ Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/
 - `POST /api/v1/proactive-ai/engage` - Trigger proactive engagement
 - `GET /api/v1/proactive-ai/history` - View engagement history
 - `GET /api/v1/proactive-ai/stats` - Engagement statistics
+
+#### **API Endpoints for AI Response Verification**
+```bash
+# Test AI system health
+GET https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/test-ai
+
+# Get AI insights for specific entry
+GET https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/entries/{entry_id}/ai-insights
+
+# Get all AI insights for specific entry (NEW)
+GET https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/entries/{entry_id}/all-ai-insights
+
+# Get all entries with AI insights included (NEW)
+GET https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/all-entries-with-ai-insights
+
+# Check scheduler status
+GET https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/status
+
+# AI debugging endpoints
+GET https://pulsecheck-mobile-app-production.up.railway.app/api/v1/ai-debug/service-initialization/validate-all
+GET https://pulsecheck-mobile-app-production.up.railway.app/api/v1/ai-debug/ai-responses/validate-structure
+```
 
 ### **Development Guidelines**
 

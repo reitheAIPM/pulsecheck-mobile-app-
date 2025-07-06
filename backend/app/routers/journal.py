@@ -2023,3 +2023,122 @@ async def ai_diagnostic_for_user(
     except Exception as e:
         logger.error(f"Error in AI diagnostic: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error in AI diagnostic: {str(e)}")
+
+@router.get("/entries/{entry_id}/all-ai-insights")
+@limiter.limit("60/minute")
+async def get_all_ai_insights_for_entry(
+    request: Request,
+    entry_id: str,
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user_with_fallback)
+):
+    """
+    Get all AI persona insights for a journal entry
+    
+    Returns all AI persona responses (Pulse, Sage, Spark, Anchor) that were generated
+    """
+    try:
+        # Use service role client to bypass RLS for reading AI insights
+        service_client = db.get_service_client()
+        
+        # Get all AI insights for this entry
+        result = service_client.table("ai_insights").select("*").eq("journal_entry_id", entry_id).eq("user_id", current_user["id"]).order("created_at").execute()
+        
+        if not result.data:
+            return {"insights": [], "message": "No AI insights found for this entry"}
+        
+        # Transform the data to include persona-specific information
+        insights = []
+        for ai_insight in result.data:
+            insights.append({
+                "id": ai_insight["id"],
+                "journal_entry_id": ai_insight["journal_entry_id"],
+                "ai_response": ai_insight["ai_response"],
+                "persona_used": ai_insight["persona_used"],
+                "topic_flags": ai_insight["topic_flags"] or [],
+                "confidence_score": ai_insight["confidence_score"],
+                "created_at": ai_insight["created_at"]
+            })
+        
+        return {
+            "insights": insights,
+            "total_personas": len(insights),
+            "personas_responded": list(set(i["persona_used"] for i in insights))
+        }
+        
+    except Exception as e:
+        logger.error(f"Error retrieving all AI insights: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving AI insights: {str(e)}")
+
+@router.get("/all-entries-with-ai-insights")
+@limiter.limit("30/minute")
+async def get_all_entries_with_ai_insights(
+    request: Request,
+    page: int = 1,
+    per_page: int = 30,
+    db: Database = Depends(get_database),
+    current_user: dict = Depends(get_current_user_with_fallback)
+):
+    """
+    Get all journal entries with their AI insights included
+    
+    This endpoint fetches journal entries and their associated AI responses in one call
+    """
+    try:
+        # Use service role client
+        service_client = db.get_service_client()
+        
+        # Calculate pagination
+        offset = (page - 1) * per_page
+        
+        # Get journal entries
+        entries_result = service_client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).range(offset, offset + per_page - 1).execute()
+        
+        if not entries_result.data:
+            return {"entries": [], "page": page, "per_page": per_page, "total": 0}
+        
+        # Get all entry IDs
+        entry_ids = [entry["id"] for entry in entries_result.data]
+        
+        # Get all AI insights for these entries in one query
+        insights_result = service_client.table("ai_insights").select("*").in_("journal_entry_id", entry_ids).eq("user_id", current_user["id"]).order("created_at").execute()
+        
+        # Group insights by journal entry ID
+        insights_by_entry = {}
+        if insights_result.data:
+            for insight in insights_result.data:
+                entry_id = insight["journal_entry_id"]
+                if entry_id not in insights_by_entry:
+                    insights_by_entry[entry_id] = []
+                insights_by_entry[entry_id].append({
+                    "id": insight["id"],
+                    "ai_response": insight["ai_response"],
+                    "persona_used": insight["persona_used"],
+                    "topic_flags": insight["topic_flags"] or [],
+                    "confidence_score": insight["confidence_score"],
+                    "created_at": insight["created_at"]
+                })
+        
+        # Combine entries with their AI insights
+        entries_with_insights = []
+        for entry in entries_result.data:
+            entry_data = {
+                **entry,
+                "ai_insights": insights_by_entry.get(entry["id"], [])
+            }
+            entries_with_insights.append(entry_data)
+        
+        # Get total count
+        count_result = service_client.table("journal_entries").select("*", count="exact", head=True).eq("user_id", current_user["id"]).execute()
+        total_count = count_result.count if hasattr(count_result, 'count') else len(entries_result.data)
+        
+        return {
+            "entries": entries_with_insights,
+            "page": page,
+            "per_page": per_page,
+            "total": total_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Error retrieving entries with AI insights: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving entries: {str(e)}")

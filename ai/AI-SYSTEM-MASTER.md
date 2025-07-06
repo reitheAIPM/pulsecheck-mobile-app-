@@ -29,6 +29,39 @@ This is your central navigation hub for all AI system documentation. Follow this
 
 ---
 
+## 🎯 AI Response Structure & Conversation Flow
+
+### **Correct Reply Structure**
+All AI personas should reply directly to the ORIGINAL journal entry, not to each other:
+
+```
+Journal Entry (by user)
+├── Pulse AI response (replies to journal)
+│   └── User reply → Pulse responds (conversation)
+├── Sage AI response (replies to journal)
+│   └── User reply → Sage responds (conversation)
+├── Spark AI response (replies to journal)
+│   └── User reply → Spark responds (conversation)
+└── Anchor AI response (replies to journal)
+    └── User reply → Anchor responds (conversation)
+```
+
+### **Key Requirements:**
+1. **Initial Responses**: All AI personas comment on the ORIGINAL journal entry
+2. **No Cross-Talk**: AI personas should NOT reply to each other
+3. **User Conversations**: Users can reply to any AI response to start a conversation with that specific persona
+4. **Persona Consistency**: Each AI maintains their unique personality in conversations
+
+### **Response Criteria:**
+- Not all 4 personas need to respond to every journal entry
+- Response selection based on:
+  - User preferences (which personas are enabled)
+  - Content relevance (which persona is most appropriate)
+  - Interaction level settings
+  - Entry type and mood indicators
+
+---
+
 ## 📚 **Complete File Directory (Navigation Hub)**
 
 ### **🚨 CRITICAL: CLEAN STRUCTURE MAINTAINED (6 FILES MAX)**

@@ -718,6 +718,28 @@ class ApiService {
       return [];
     }
   }
+
+  async getAllAIInsightsForEntry(entryId: string): Promise<any> {
+    try {
+      const response = await this.client.get(`/api/v1/journal/entries/${entryId}/all-ai-insights`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get all AI insights:', error);
+      throw error;
+    }
+  }
+
+  async getAllEntriesWithAIInsights(page: number = 1, perPage: number = 30): Promise<any> {
+    try {
+      const response = await this.client.get('/api/v1/journal/all-entries-with-ai-insights', {
+        params: { page, per_page: perPage }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get entries with AI insights:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance
