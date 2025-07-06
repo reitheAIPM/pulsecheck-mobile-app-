@@ -220,39 +220,48 @@ class ComprehensiveProactiveAIService:
         try:
             client = self.db.get_service_client()
             
-            # Check user's AI preferences for premium status
-            prefs_result = client.table("user_ai_preferences").select("ai_interaction_level").eq("user_id", user_id).execute()
+            # Check user's AI preferences and subscription status
+            prefs_result = client.table("user_ai_preferences").select("ai_interaction_level, premium_tier").eq("user_id", user_id).execute()
             
             if prefs_result.data:
                 ai_level_str = prefs_result.data[0].get("ai_interaction_level", "MODERATE")
+                premium_tier = prefs_result.data[0].get("premium_tier", False)
                 
-                # Map AI interaction level to tier and enum
+                # Map AI interaction level to enum
                 if ai_level_str == "HIGH":
-                    tier = UserTier.PREMIUM
                     ai_level = AIInteractionLevel.HIGH
                 elif ai_level_str == "MODERATE":
-                    tier = UserTier.FREE
                     ai_level = AIInteractionLevel.MODERATE
                 elif ai_level_str == "MINIMAL":
-                    tier = UserTier.FREE
                     ai_level = AIInteractionLevel.MINIMAL
                 else:
-                    tier = UserTier.FREE
                     ai_level = AIInteractionLevel.MODERATE
                 
-                logger.info(f"User {user_id} tier from database: {tier.value}, AI level: {ai_level.value}")
+                # Determine tier based on subscription status, not interaction level
+                if premium_tier:
+                    tier = UserTier.PREMIUM
+                else:
+                    # Check if user has HIGH interaction level as fallback premium indicator
+                    # This maintains backward compatibility for existing users
+                    if ai_level == AIInteractionLevel.HIGH:
+                        tier = UserTier.PREMIUM
+                        logger.info(f"User {user_id} promoted to PREMIUM due to HIGH interaction level")
+                    else:
+                        tier = UserTier.FREE
+                
+                logger.info(f"User {user_id} tier: {tier.value}, AI level: {ai_level.value} (premium_tier: {premium_tier})")
                 return tier, ai_level
                 
             else:
                 # No preferences found, check if user exists in auth users
-                # Default to FREE tier with MODERATE interaction level
-                logger.info(f"No AI preferences found for user {user_id}, defaulting to FREE/MODERATE")
-                return UserTier.FREE, AIInteractionLevel.MODERATE
+                # Default to PREMIUM tier with MODERATE interaction level for active users
+                logger.info(f"No AI preferences found for user {user_id}, defaulting to PREMIUM/MODERATE for active users")
+                return UserTier.PREMIUM, AIInteractionLevel.MODERATE
                 
         except Exception as e:
             logger.error(f"Error getting user tier and preferences for {user_id}: {e}")
-            # Default to FREE tier with MODERATE interaction level
-            return UserTier.FREE, AIInteractionLevel.MODERATE
+            # Default to PREMIUM tier with MODERATE interaction level for better user experience
+            return UserTier.PREMIUM, AIInteractionLevel.MODERATE
     
     async def get_active_users(self) -> List[str]:
         """Get users active in the last 7 days (journal entries OR AI interactions)"""

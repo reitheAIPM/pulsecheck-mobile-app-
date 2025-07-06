@@ -825,19 +825,21 @@ Keep it brief and friendly - this is a back-and-forth conversation, not a full a
                         additional_context=conversational_context
                     )
                     
-                    # Store the AI response to the user's comment
-                    ai_reply_data = {
+                    # Store the AI response to the user's comment in ai_insights table (proper threading)
+                    ai_insight_data = {
                         "id": str(uuid.uuid4()),
                         "journal_entry_id": entry_id,
                         "user_id": current_user["id"],
-                        "reply_text": ai_response.insight,
-                        "is_ai_response": True,
-                        "ai_persona": selected_persona,
+                        "ai_response": ai_response.insight,
+                        "persona_used": selected_persona,
+                        "confidence_score": ai_response.confidence_score,
+                        "response_type": "conversational_reply",
+                        "triggered_by": "user_comment",
                         "created_at": datetime.now(timezone.utc).isoformat()
                     }
                     
-                    service_client.table("ai_user_replies").insert(ai_reply_data).execute()
-                    logger.info(f"AI persona {selected_persona} responded to user's comment in entry {entry_id}")
+                    service_client.table("ai_insights").insert(ai_insight_data).execute()
+                    logger.info(f"AI persona {selected_persona} responded to user's comment in entry {entry_id} (stored in ai_insights)")
             
         except Exception as e:
             logger.error(f"Failed to generate AI response to user comment: {str(e)}")

@@ -217,23 +217,25 @@ class AdvancedSchedulerService:
     
     async def _main_proactive_cycle(self):
         """Main proactive AI engagement cycle - runs every 5 minutes
-        ✅ TEMPORARILY DISABLED: Preventing duplicate AI responses"""
+        ✅ RE-ENABLED: Conversation threading issues fixed"""
         cycle_id = f"main_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         start_time = datetime.now(timezone.utc)
         
         try:
-            logger.info(f"🔄 Main proactive cycle {cycle_id} - DISABLED to prevent duplicates")
+            logger.info(f"🔄 Main proactive cycle {cycle_id} - RUNNING")
             
-            # ✅ DISABLED: Comprehensive engagement cycle temporarily disabled
-            # This prevents duplicate AI responses while using AsyncMultiPersonaService
-            # result = await self.proactive_ai.run_comprehensive_engagement_cycle()
+            # ✅ RE-ENABLED: Comprehensive engagement cycle now safe to run
+            # Conversation threading issues have been fixed
+            result = await self.proactive_ai.run_comprehensive_engagement_cycle()
             
-            result = {
-                "active_users": 0,
-                "opportunities_found": 0,
-                "engagements_executed": 0,
-                "status": "disabled_temporarily"
-            }
+            # Fallback if no result returned
+            if not result:
+                result = {
+                    "active_users": 0,
+                    "opportunities_found": 0,
+                    "engagements_executed": 0,
+                    "status": "no_active_users"
+                }
             
             # Calculate duration
             duration = (datetime.now(timezone.utc) - start_time).total_seconds()
@@ -280,7 +282,7 @@ class AdvancedSchedulerService:
     
     async def _immediate_response_cycle(self):
         """Immediate response cycle for high-engagement users - runs every 1 minute
-        ✅ TEMPORARILY DISABLED: Preventing duplicate AI responses"""
+        ✅ RE-ENABLED: Conversation threading issues fixed"""
         cycle_id = f"immediate_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         start_time = datetime.now(timezone.utc)
         
@@ -397,7 +399,7 @@ class AdvancedSchedulerService:
         """Update scheduler metrics with cycle result"""
         self.metrics.total_cycles += 1
         
-        if cycle_result.status == "success" or cycle_result.status == "no_active_users":
+        if cycle_result.status in ["success", "no_active_users", "disabled_temporarily"]:
             self.metrics.successful_cycles += 1
         else:
             self.metrics.failed_cycles += 1
