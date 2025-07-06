@@ -2088,19 +2088,33 @@ async def get_all_entries_with_ai_insights(
         # Use service role client
         service_client = db.get_service_client()
         
+        # Validate parameters
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 30
+        
         # Calculate pagination
         offset = (page - 1) * per_page
         
-        # Get journal entries
+        # Get total count first (using same pattern as working endpoint)
+        count_result = service_client.table("journal_entries").select("id", count="exact").eq("user_id", current_user["id"]).execute()
+        total_count = count_result.count if count_result.count else 0
+        
+        # If no entries, return empty response
+        if total_count == 0:
+            return {"entries": [], "page": page, "per_page": per_page, "total": 0}
+        
+        # Get journal entries with pagination
         entries_result = service_client.table("journal_entries").select("*").eq("user_id", current_user["id"]).order("created_at", desc=True).range(offset, offset + per_page - 1).execute()
         
         if not entries_result.data:
-            return {"entries": [], "page": page, "per_page": per_page, "total": 0}
+            return {"entries": [], "page": page, "per_page": per_page, "total": total_count}
         
         # Get all entry IDs
         entry_ids = [entry["id"] for entry in entries_result.data]
         
-        # Get all AI insights for these entries in one query
+        # Get all AI insights for these entries in one query (fix .in syntax)
         insights_result = service_client.table("ai_insights").select("*").in_("journal_entry_id", entry_ids).eq("user_id", current_user["id"]).order("created_at").execute()
         
         # Group insights by journal entry ID
@@ -2122,15 +2136,15 @@ async def get_all_entries_with_ai_insights(
         # Combine entries with their AI insights
         entries_with_insights = []
         for entry in entries_result.data:
+            # Handle missing updated_at field (same as working endpoint)
+            if 'updated_at' not in entry or entry['updated_at'] is None:
+                entry['updated_at'] = entry.get('created_at', datetime.now(timezone.utc))
+            
             entry_data = {
                 **entry,
                 "ai_insights": insights_by_entry.get(entry["id"], [])
             }
             entries_with_insights.append(entry_data)
-        
-        # Get total count
-        count_result = service_client.table("journal_entries").select("*", count="exact", head=True).eq("user_id", current_user["id"]).execute()
-        total_count = count_result.count if hasattr(count_result, 'count') else len(entries_result.data)
         
         return {
             "entries": entries_with_insights,
