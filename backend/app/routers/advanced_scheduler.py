@@ -495,24 +495,5 @@ async def trigger_immediate_ai_response(
         logger.error(f"Error triggering immediate AI response: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to trigger immediate response: {str(e)}")
 
-# Auto-start scheduler on module import (for production)
-@router.on_event("startup")
-async def auto_start_scheduler():
-    """Automatically start the scheduler when the router is loaded"""
-    try:
-        # Only auto-start in production
-        import os
-        if os.getenv("ENVIRONMENT") == "production" and os.getenv("AUTO_START_SCHEDULER", "true").lower() == "true":
-            scheduler = await get_scheduler_service()
-            result = await scheduler.start_scheduler()
-            
-            if result["status"] == "started":
-                logger.info("🚀 Advanced scheduler auto-started on application startup")
-            else:
-                logger.warning(f"Advanced scheduler auto-start failed: {result}")
-        else:
-            logger.info("Advanced scheduler auto-start disabled (not in production or AUTO_START_SCHEDULER=false)")
-            
-    except Exception as e:
-        logger.error(f"Error in scheduler auto-start: {e}")
-        # Don't raise exception to avoid breaking app startup 
+# Note: Auto-start is now handled in main.py lifespan function to avoid race conditions
+# The @router.on_event("startup") decorator is deprecated and was causing conflicts 

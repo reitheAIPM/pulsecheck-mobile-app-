@@ -100,6 +100,11 @@ async def monitor_scheduler_health():
     """Background task to monitor and restart scheduler if it stops"""
     global scheduler_service
     
+    # Wait for initial startup to complete
+    await asyncio.sleep(30)
+    
+    consecutive_failures = 0
+    
     while True:
         try:
             await asyncio.sleep(60)  # Check every minute
@@ -107,16 +112,53 @@ async def monitor_scheduler_health():
             if scheduler_service and scheduler_available:
                 status = scheduler_service.get_scheduler_status()
                 
-                if status.get("status") != "running":
-                    logger.warning("🚨 Scheduler detected as stopped, attempting restart...")
+                # Check if scheduler is not running
+                if status.get("status") != "running" or not status.get("running", False):
+                    consecutive_failures += 1
+                    logger.warning(f"🚨 Scheduler detected as stopped (attempt {consecutive_failures}), attempting restart...")
+                    
                     try:
+                        # Stop first to clean up any partial state
+                        try:
+                            await scheduler_service.stop_scheduler()
+                        except:
+                            pass
+                        
+                        # Wait a moment
+                        await asyncio.sleep(2)
+                        
+                        # Start the scheduler
                         result = await scheduler_service.start_scheduler()
+                        
                         if result.get("status") == "started":
                             logger.info("✅ Scheduler auto-recovery successful")
+                            consecutive_failures = 0
+                            
+                            # Enable testing mode if configured
+                            if os.getenv("ENABLE_TESTING_MODE", "true").lower() == "true":
+                                try:
+                                    scheduler_service.proactive_ai.enable_testing_mode()
+                                    logger.info("🧪 Testing mode auto-enabled after recovery")
+                                except:
+                                    pass
                         else:
                             logger.error(f"❌ Scheduler auto-recovery failed: {result}")
+                            
+                            # If we've failed 3 times, try a full restart
+                            if consecutive_failures >= 3:
+                                logger.error("🔄 Attempting full scheduler service recreation...")
+                                scheduler_service = get_scheduler_service()
+                                await asyncio.sleep(5)
                     except Exception as e:
                         logger.error(f"❌ Scheduler auto-recovery error: {e}")
+                else:
+                    # Scheduler is running fine
+                    consecutive_failures = 0
+                    
+                    # Log health check every 5 minutes
+                    if int(time.time()) % 300 < 60:
+                        metrics = status.get("metrics", {})
+                        logger.info(f"✅ Scheduler health check: Running with {metrics.get('total_cycles', 0)} cycles")
                         
         except Exception as e:
             logger.error(f"Error in scheduler monitoring: {e}")
@@ -182,17 +224,49 @@ async def lifespan(app: FastAPI):
             logger.info("🤖 Starting advanced AI scheduler...")
             try:
                 scheduler_service = get_scheduler_service()
+                
+                # Ensure scheduler is stopped first (clean state)
+                try:
+                    await scheduler_service.stop_scheduler()
+                except:
+                    pass
+                    
+                await asyncio.sleep(1)
+                
+                # Start the scheduler
                 result = await scheduler_service.start_scheduler()
+                
                 if result.get("status") == "started":
                     logger.info("✅ Advanced AI scheduler started successfully")
                     
+                    # Enable testing mode by default for immediate responses
+                    if os.getenv("ENABLE_TESTING_MODE", "true").lower() == "true":
+                        try:
+                            test_result = scheduler_service.proactive_ai.enable_testing_mode()
+                            logger.info("🧪 Testing mode enabled: All AI timing delays bypassed")
+                            logger.info(f"Testing mode status: {test_result}")
+                        except Exception as e:
+                            logger.error(f"Failed to enable testing mode: {e}")
+                    
                     # Start background scheduler monitoring
-                    asyncio.create_task(monitor_scheduler_health())
+                    monitor_task = asyncio.create_task(monitor_scheduler_health())
+                    logger.info("🔍 Scheduler health monitoring started")
                 else:
                     logger.error(f"⚠️ Scheduler startup failed: {result}")
+                    
+                    # Still start monitoring to attempt recovery
+                    monitor_task = asyncio.create_task(monitor_scheduler_health())
+                    logger.info("🔍 Scheduler health monitoring started (will attempt recovery)")
             except Exception as e:
                 logger.error(f"⚠️ Scheduler startup failed (continuing without scheduler): {e}")
                 # Continue without scheduler to allow Railway deployment to complete
+                
+                # Still start monitoring to attempt recovery later
+                try:
+                    monitor_task = asyncio.create_task(monitor_scheduler_health())
+                    logger.info("🔍 Scheduler health monitoring started (will attempt recovery)")
+                except:
+                    pass
         else:
             logger.info("⚠️ Advanced AI scheduler not available, continuing without background scheduling")
         
@@ -1607,6 +1681,54 @@ async def disable_fallback_responses(user_id: str):
             "error": f"Failed to disable fallback responses: {str(e)}",
             "user_id": user_id
         }
+
+@app.get("/api/v1/scheduler/health")
+async def scheduler_comprehensive_health():
+    """
+    Comprehensive scheduler health check with detailed diagnostics
+    """
+    global scheduler_service
+    
+    health_info = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "scheduler_available": scheduler_available,
+        "scheduler_service_exists": scheduler_service is not None,
+        "testing_mode_env": os.getenv("ENABLE_TESTING_MODE", "true"),
+        "auto_start_env": os.getenv("AUTO_START_SCHEDULER", "true"),
+        "environment": os.getenv("ENVIRONMENT", "unknown")
+    }
+    
+    if scheduler_service and scheduler_available:
+        try:
+            status = scheduler_service.get_scheduler_status()
+            health_info["scheduler_status"] = status
+            health_info["is_healthy"] = status.get("running", False) and status.get("status") == "running"
+            
+            # Check testing mode
+            try:
+                testing_status = scheduler_service.proactive_ai.get_testing_mode_status()
+                health_info["testing_mode"] = testing_status
+            except:
+                health_info["testing_mode"] = {"error": "Could not get testing mode status"}
+                
+        except Exception as e:
+            health_info["error"] = str(e)
+            health_info["is_healthy"] = False
+    else:
+        health_info["is_healthy"] = False
+        health_info["error"] = "Scheduler service not initialized"
+    
+    # Add recommendations
+    if not health_info.get("is_healthy"):
+        health_info["recommendations"] = [
+            "1. Check Railway logs for startup errors",
+            "2. Ensure all environment variables are set",
+            "3. Try manual restart: POST /api/v1/scheduler/start",
+            "4. Check if testing mode is enabled",
+            "5. Monitor will attempt auto-recovery every minute"
+        ]
+    
+    return health_info
 
 if __name__ == "__main__":
     import uvicorn
