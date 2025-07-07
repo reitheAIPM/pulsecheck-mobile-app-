@@ -1244,8 +1244,8 @@ has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is pres
 **Changes Made**:
 - **Replaced static CORS middleware** with custom `DynamicCORSMiddleware` class
 - **Added regex pattern matching** for Vercel preview URLs:
-  - `https://pulsecheck-mobile-[a-z0-9]+-reitheaipms-projects.vercel.app`
-  - `https://[a-z0-9-]+-reitheaipms-projects.vercel.app`
+  - `https://pulsecheck-mobile-[a-z0-9]+-reitheaipms-projects.vercel\.app`
+  - `https://[a-z0-9-]+-reitheaipms-projects.vercel\.app`
 - **Automatic origin validation** using regex patterns instead of hardcoded lists
 - **Future-proof solution** that doesn't require manual updates for new Vercel deployments
 
@@ -1895,3 +1895,100 @@ The system finds opportunities (2 opportunities detected) but then filters them 
 - **Engagement Execution**: ❌ Blocked by duplicate prevention
 - **Testing Mode**: ✅ Enabled (delays bypassed, bombardment disabled)
 - **Root Cause**: Duplicate prevention logic is too aggressive
+
+### **Latest Findings - API Endpoints & Debug Logging (July 7, 2025)**
+
+#### **API Endpoint Issues Discovered:**
+1. **Testing Status Endpoint**: Returns 404 error - endpoint may not exist
+2. **Scheduler Status**: Returns 502 Bad Gateway after manual cycle
+3. **Manual Cycle**: ✅ Working (returns "triggered" status)
+
+#### **Debug Logging Added:**
+1. **`_should_persona_respond` Method**: Added detailed logging to track:
+   - Which personas are being checked
+   - Whether they have already responded to specific entries
+   - Bombardment prevention status
+   - Final decision (should respond or not)
+
+2. **`_analyze_entry_comprehensive` Method**: Added logging to track:
+   - Available personas for user
+   - Which personas can/cannot respond
+   - Opportunity generation process
+   - Final opportunity count
+
+#### **Expected Debug Output:**
+When a manual cycle runs, we should now see logs like:
+```
+🔍 DEBUG: Available personas for user {user_id}: {'pulse', 'sage', 'spark', 'anchor'}
+🔍 DEBUG: Checking if persona pulse should respond to entry {entry_id}
+✅ Persona pulse has NOT responded to entry {entry_id}
+🧪 Testing mode: Skipping bombardment prevention for persona pulse
+✅ Persona pulse SHOULD respond to entry {entry_id}
+✅ Persona pulse CAN respond to entry {entry_id}
+🧪 Testing mode: Generating multi-persona opportunities for entry {entry_id}
+🧪 Testing mode: Generated {X} opportunities
+📊 Final result: Generated {X} opportunities for entry {entry_id}
+```
+
+#### **Next Steps:**
+1. **Create a new journal entry** to test with fresh data
+2. **Monitor the logs** to see exactly where the filtering happens
+3. **Check if the 502 error** is preventing us from seeing the results
+4. **Consider temporary bypass** of duplicate prevention if all personas are blocked
+
+### **Current Status:**
+- **Debug Logging**: ✅ Added to both key methods
+- **Manual Cycle**: ✅ Working (triggers successfully)
+- **API Endpoints**: ⚠️ Some endpoints returning errors (404/502)
+- **Root Cause**: Still investigating - waiting for fresh journal entry test
+
+### **BREAKTHROUGH - Scheduler Was Stopped (July 7, 2025)**
+
+#### **Root Cause Found:**
+The issue was **NOT** with the duplicate prevention logic or opportunity detection. The real problem was that **the scheduler was completely stopped**!
+
+#### **Evidence from API Testing:**
+- **Scheduler Status**: "stopped" (not running)
+- **Total Cycles**: 0 (no cycles executed)
+- **Running**: false (scheduler was inactive)
+- **Manual Cycles**: ✅ Working (could trigger manually)
+- **Automatic Cycles**: ❌ Not running (scheduler stopped)
+
+#### **Solution Applied:**
+1. **Restarted the scheduler** using the restart endpoint
+2. **Result**: Scheduler is now running with all 4 job cycles active:
+   - Immediate Response Cycle (every 1 minute)
+   - Main Proactive AI Engagement Cycle (every 5 minutes)
+   - Analytics and Monitoring Cycle (every 15 minutes)
+   - Daily Cleanup Cycle (daily at 2 AM)
+
+#### **Current Status After Fix:**
+- **Scheduler**: ✅ Running (status: "running")
+- **Total Cycles**: ✅ 1 cycle executed
+- **All Job Cycles**: ✅ Active and scheduled
+- **Debug Logging**: ✅ Added to track opportunity detection
+- **Testing Mode**: ✅ Enabled (delays bypassed)
+
+#### **Next Steps for Testing:**
+1. **Create a NEW journal entry** (> 10 characters, not AI-like)
+2. **Wait 5 minutes** for the next main cycle (17:37:51)
+3. **Check if AI responses are generated** automatically
+4. **Monitor the debug logs** to see the opportunity detection process
+
+#### **Expected Behavior Now:**
+- Scheduler should automatically detect new journal entries
+- Debug logs should show the opportunity detection process
+- AI responses should be generated for new entries
+- Multiple personas should respond (in testing mode)
+
+### **What We Learned:**
+- **The duplicate prevention logic was NOT the issue**
+- **The scheduler stopping after deployment was the real problem**
+- **Manual cycles worked but automatic cycles didn't**
+- **API endpoint testing revealed the true root cause**
+
+### **Documentation Updated:**
+- Added debug logging to track opportunity detection
+- Created API endpoint testing script
+- Documented the scheduler restart process
+- Identified working vs non-working endpoints

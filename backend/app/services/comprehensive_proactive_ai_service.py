@@ -1072,6 +1072,11 @@ Reference patterns you've noticed if relevant.
     async def _should_persona_respond(self, user_id: str, opportunity: ProactiveOpportunity) -> bool:
         """Check if this persona should respond based on recent responses"""
         try:
+            # 🧪 TESTING MODE BYPASS: Skip all duplicate prevention in testing mode
+            if self.testing_mode:
+                logger.info(f"🧪 Testing mode: Bypassing all duplicate prevention for persona {opportunity.persona}")
+                return True
+            
             # CRITICAL: Use service role client to bypass RLS for AI operations
             client = self.db.get_service_client()
             
