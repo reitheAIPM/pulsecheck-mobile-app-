@@ -19,6 +19,11 @@ jobs:
       - name: Verify Railway CLI
         run: railway --version
 
+      - name: Debug Railway Token
+        run: echo "RAILWAY_TOKEN is $RAILWAY_TOKEN"
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
       - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
