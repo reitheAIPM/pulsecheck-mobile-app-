@@ -99,8 +99,9 @@ class ComprehensiveProactiveAIService:
         self.adaptive_ai = AdaptiveAIService(pulse_ai_service, pattern_analyzer)
         self.async_multi_persona = AsyncMultiPersonaService(db)
         
-        # 🧪 TESTING MODE - Set to True for immediate responses (bypasses all timing delays)
-        self.testing_mode = True
+        # 🧪 TESTING MODE - Disabled by default to prevent spam
+        self.testing_mode = False  # Changed from True to False
+        logger.info("🧪 TESTING MODE DISABLED - AI responses will use normal timing")
         
         # Timing configurations
         self.timing_configs = {

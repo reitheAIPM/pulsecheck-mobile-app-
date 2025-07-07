@@ -2086,3 +2086,55 @@ The issue appears to be in the **reply structure and persona labeling**:
 - **Duplicate Prevention**: ✅ Bypassed (testing mode)
 - **New Issue**: ❌ Duplicate responses with incorrect structure
 - **Missing**: ❌ Other personas not responding
+
+### **DUPLICATE RESPONSE ISSUE FIXED (July 7, 2025)**
+
+#### **Root Cause of Duplicates:**
+The issue was in the `run_comprehensive_engagement_cycle` method where there was a **fallback to sequential processing** that caused the same opportunity to be processed multiple times.
+
+#### **Problem Code:**
+```python
+# Fallback to sequential processing
+for opp in valid_opportunities[:2]:  # Limit to 2 for safety
+    success = await self.execute_comprehensive_engagement(user_id, opp)
+    if success:
+        total_executed += 1
+```
+
+#### **Fix Applied:**
+Removed the fallback to sequential processing and ensured only one processing method is used per opportunity:
+
+```python
+# ❌ REMOVED: Fallback to sequential processing to prevent duplicates
+# Only process the first opportunity to avoid duplicates
+if valid_opportunities:
+    success = await self.execute_comprehensive_engagement(user_id, valid_opportunities[0])
+    if success:
+        total_executed += 1
+    processed_entries += 1
+```
+
+#### **Persona Labeling Issue:**
+The user reported seeing "Pulse AI" and "Pulse" as separate personas. This suggests there might be an issue with:
+1. **Frontend display logic** - How personas are being labeled in the UI
+2. **Database storage** - How persona names are being stored
+3. **Response generation** - Whether the same response is being generated with different labels
+
+#### **Next Steps:**
+1. **Test with a new journal entry** to see if duplicates are fixed
+2. **Check the frontend** to see how persona names are being displayed
+3. **Investigate persona labeling** in the database and response format
+4. **Ensure only one persona responds** per opportunity
+
+### **Current Status:**
+- **Duplicate Processing**: ✅ Fixed (removed fallback)
+- **Scheduler**: ✅ Running (cycles executing)
+- **Testing Mode**: ✅ Enabled (bypassing restrictions)
+- **Persona Labeling**: ⚠️ Needs investigation
+- **Multiple Personas**: ⚠️ Only Pulse responding (others missing)
+
+### **Expected Behavior After Fix:**
+- **No more duplicate responses** for the same content
+- **Only one response per opportunity** should be generated
+- **Proper persona labeling** should be consistent
+- **Other personas should respond** (Sage, Spark, Anchor)
