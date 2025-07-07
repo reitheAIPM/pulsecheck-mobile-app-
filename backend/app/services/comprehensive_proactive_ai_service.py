@@ -440,24 +440,48 @@ class ComprehensiveProactiveAIService:
             logger.info(f"Skipping non-user entry {entry.id} with type {getattr(entry, 'type', None)}")
             return opportunities
         
-        # Get available personas based on user tier
+        # Get available personas for this user
         available_personas = self._get_available_personas_for_user(profile)
+        logger.info(f"🔍 DEBUG: Available personas for user {entry.user_id}: {available_personas}")
         
-        # Remove personas that already responded to this entry
-        responding_personas = {resp.get("persona_used", "pulse") for resp in entry_responses}
-        personas_to_respond = available_personas - responding_personas
+        # Check which personas can respond to this entry
+        personas_to_respond = set()
+        for persona in available_personas:
+            # Create a temporary opportunity to check if persona should respond
+            temp_opportunity = ProactiveOpportunity(
+                entry_id=entry.id,
+                user_id=entry.user_id,
+                reason="debug_check",
+                persona=persona,
+                priority=5,
+                delay_minutes=0,
+                message_context="debug",
+                related_entries=[],
+                engagement_strategy="debug",
+                expected_engagement_score=5.0
+            )
+            
+            should_respond = await self._should_persona_respond(entry.user_id, temp_opportunity)
+            if should_respond:
+                personas_to_respond.add(persona)
+                logger.info(f"✅ Persona {persona} CAN respond to entry {entry.id}")
+            else:
+                logger.info(f"❌ Persona {persona} CANNOT respond to entry {entry.id}")
         
         if not personas_to_respond:
-            logger.info(f"No available personas for entry {entry.id} (all personas already responded)")
+            logger.info(f"❌ No available personas for entry {entry.id} (all personas already responded)")
             return opportunities
+        else:
+            logger.info(f"✅ Found {len(personas_to_respond)} personas that can respond: {personas_to_respond}")
         
         # In testing mode, generate multi-persona opportunities for all available personas
         if self.testing_mode:
-            logger.info(f"Testing mode: Generating multi-persona opportunities for entry {entry.id}")
+            logger.info(f"🧪 Testing mode: Generating multi-persona opportunities for entry {entry.id}")
             persona_opportunities = self._generate_multi_persona_opportunities(
                 entry, [], personas_to_respond, profile, 0
             )
             opportunities.extend(persona_opportunities)
+            logger.info(f"🧪 Testing mode: Generated {len(persona_opportunities)} opportunities")
         else:
             # Standard single persona response
             optimal_persona = self._select_optimal_persona_for_entry(entry, personas_to_respond)
@@ -475,8 +499,11 @@ class ComprehensiveProactiveAIService:
                     engagement_strategy="initial",
                     expected_engagement_score=self._predict_engagement_score(entry, optimal_persona, profile)
                 ))
+                logger.info(f"✅ Generated single persona opportunity for {optimal_persona}")
+            else:
+                logger.info(f"❌ No optimal persona selected for entry {entry.id}")
         
-        logger.info(f"Generated {len(opportunities)} opportunities for entry {entry.id}")
+        logger.info(f"📊 Final result: Generated {len(opportunities)} opportunities for entry {entry.id}")
         return opportunities
     
     def _find_related_entries(self, entry: JournalEntryResponse, all_entries: List[JournalEntryResponse]) -> List[JournalEntryResponse]:
@@ -1048,12 +1075,17 @@ Reference patterns you've noticed if relevant.
             # CRITICAL: Use service role client to bypass RLS for AI operations
             client = self.db.get_service_client()
             
+            # 🔍 DEBUG: Log the opportunity being checked
+            logger.info(f"🔍 DEBUG: Checking if persona {opportunity.persona} should respond to entry {opportunity.entry_id}")
+            
             # Check if this persona has already responded to this specific entry
             existing_response = client.table("ai_insights").select("id").eq("user_id", user_id).eq("journal_entry_id", opportunity.entry_id).eq("persona_used", opportunity.persona).limit(1).execute()
             
             if existing_response.data:
-                logger.info(f"Persona {opportunity.persona} already responded to entry {opportunity.entry_id}")
+                logger.info(f"❌ Persona {opportunity.persona} already responded to entry {opportunity.entry_id}")
                 return False
+            else:
+                logger.info(f"✅ Persona {opportunity.persona} has NOT responded to entry {opportunity.entry_id}")
             
             # Check if this persona has responded to any entry in the last 10 minutes (bombardment prevention)
             if not self.testing_mode:
@@ -1061,13 +1093,18 @@ Reference patterns you've noticed if relevant.
                 recent_response = client.table("ai_insights").select("id").eq("user_id", user_id).eq("persona_used", opportunity.persona).gte("created_at", cutoff_time).limit(1).execute()
                 
                 if recent_response.data:
-                    logger.info(f"Persona {opportunity.persona} responded recently, skipping to prevent bombardment")
+                    logger.info(f"❌ Persona {opportunity.persona} responded recently, skipping to prevent bombardment")
                     return False
+                else:
+                    logger.info(f"✅ Persona {opportunity.persona} has NOT responded recently (bombardment check passed)")
+            else:
+                logger.info(f"🧪 Testing mode: Skipping bombardment prevention for persona {opportunity.persona}")
             
+            logger.info(f"✅ Persona {opportunity.persona} SHOULD respond to entry {opportunity.entry_id}")
             return True
             
         except Exception as e:
-            logger.error(f"Error checking if persona should respond: {e}")
+            logger.error(f"❌ Error checking if persona should respond: {e}")
             return True  # Default to allowing response if check fails
     
     def get_engagement_analytics(self) -> EngagementAnalytics:

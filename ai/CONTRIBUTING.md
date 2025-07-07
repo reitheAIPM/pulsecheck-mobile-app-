@@ -1795,3 +1795,103 @@ After every Railway deploy:
 ### TODO for Future Automation
 - Monitor Railway for post-deploy hook support or improved project token access.
 - If/when available, update workflow to auto-start scheduler after deploy.
+
+---
+
+## 🚨 AI Opportunity Detection & Engagement Troubleshooting Log (2025)
+
+**Last Updated:** July 7, 2025
+
+### **Background & Context**
+This section documents the ongoing investigation and resolution attempts for the persistent issue where the AI system fails to generate responses to journal entries, despite the backend and scheduler reporting healthy status. This has been a major pain point for the project and is referenced in multiple sections above (see: 'CRITICAL AI SYSTEM FINDINGS', 'Testing Mode', 'Persona Response Structure', etc.).
+
+#### **Symptoms**
+- Scheduler runs successfully, cycles increment, but `opportunities_found` and `engagements_executed` are often 0.
+- Manual cycle triggers and testing mode do not reliably result in AI responses.
+- Duplicate prevention and reply structure logic may be too aggressive, blocking valid AI responses.
+- Sometimes, only one persona responds, or none at all, even when multiple should.
+
+#### **Root Causes Identified**
+- **Sophisticated filtering in `ComprehensiveProactiveAIService`** (see: 'CRITICAL AI SYSTEM FINDINGS')
+  - Entry age filter, daily limit check, recent activity, already responded, user engagement/tier checks
+- **Testing mode bypasses timing but not all filters**
+- **Persona duplicate prevention**: If any persona has responded to an entry, others may be blocked
+- **Reply/conversation threading logic**: May prevent AIs from responding to new entries if reply structure is misinterpreted
+- **User engagement pattern checks**: AI may not respond unless user has demonstrated interest (see: 'AI RESPONSE BEHAVIOR & CONVERSATION STRUCTURE')
+
+#### **What Was Tried**
+- **Bypassing all filters in testing mode**: Only partially effective; some responses generated, but not reliably
+- **Manual cycle triggers**: Confirmed cycles run, but still 0 opportunities in many cases
+- **Debug scripts**: Confirmed that opportunities are sometimes found, but engagements are not executed (see: `scripts/debug_journal_entries.ps1`)
+- **Persona response check**: Confirmed that if all personas have responded, no new opportunities are created (see: `_should_persona_respond` and `_analyze_entry_comprehensive`)
+- **User tier logic review**: Confirmed that default is PREMIUM, so all personas should be available
+- **Testing with new journal entries**: Sometimes works, but not consistently
+
+#### **What Worked / What Didn't**
+| Attempted Fix/Action                | Result/Notes                                                                 |
+|-------------------------------------|------------------------------------------------------------------------------|
+| Testing mode (timing bypass)        | Bypasses delays, but not all filters; still 0 opportunities in some cases    |
+| Manual cycle trigger                | Cycles run, but engagements often not executed                              |
+| Creating new journal entry          | Sometimes triggers AI, but not always; inconsistent                         |
+| Persona duplicate prevention logic  | Too aggressive; blocks valid responses if any persona has responded          |
+| Debug scripts (see scripts/)        | Helped confirm where logic is failing, but not a permanent fix              |
+
+#### **Current Status & Blockers**
+- **Duplicate/reply structure logic is too aggressive**: If any persona has responded to an entry, all others are blocked from responding, even if they haven't yet.
+- **Reply/conversation threading logic**: May be preventing AIs from responding to new entries if reply structure is misinterpreted (see: 'PROPER CONVERSATION STRUCTURE').
+- **User engagement pattern checks**: May be blocking AI responses for users who haven't demonstrated interest, even in testing mode.
+- **Testing mode**: Bypasses timing, but not all filters; not a full solution.
+
+#### **Next Steps**
+1. **Review and refactor duplicate prevention logic** so that each persona can respond to a journal entry if they haven't already, regardless of other personas.
+2. **Audit reply/conversation threading logic** to ensure AIs are not blocked from responding to new user entries.
+3. **Add more granular debug logging** to confirm exactly why an opportunity is not executed (e.g., which filter is blocking it).
+4. **Test with new journal entries and different user tiers** to confirm fixes.
+5. **Update this log with every new finding, attempted fix, and outcome.**
+
+#### **References & Cross-links**
+- See 'CRITICAL AI SYSTEM FINDINGS' and 'Testing Mode' above for root cause analysis and bypass attempts.
+- See 'AI RESPONSE BEHAVIOR & CONVERSATION STRUCTURE' for correct persona and reply logic.
+- See `scripts/debug_journal_entries.ps1` and `scripts/check_existing_responses.ps1` for debug tools.
+
+### **Root Cause Analysis - Duplicate Prevention Logic (July 7, 2025)**
+
+#### **Key Findings from Code Review:**
+
+1. **`_should_persona_respond` Method (Lines 1045-1072):**
+   - **Line 1055**: Checks if persona has already responded to specific entry
+   - **Line 1060**: Checks for bombardment prevention (10-minute cooldown) - **DISABLED in testing mode**
+   - **Issue**: If ANY persona has responded to an entry, ALL other personas are blocked
+
+2. **`_analyze_entry_comprehensive` Method (Lines 414-481):**
+   - **Line 450**: "No available personas for entry {entry.id} (all personas already responded)"
+   - **Issue**: Once one persona responds, all other personas are filtered out
+
+3. **Testing Mode Status:**
+   - **Bombardment prevention is DISABLED** in testing mode
+   - **All delays are bypassed** (0 delay)
+   - **But duplicate prevention logic is still active**
+
+#### **The Core Problem:**
+The system finds opportunities (2 opportunities detected) but then filters them out because:
+1. **One persona has already responded** to the journal entry
+2. **All other personas are blocked** from responding to the same entry
+3. **Result**: 0 engagements executed despite finding opportunities
+
+#### **Evidence from Recent Test:**
+- **Users: 1** - System found active user
+- **Opportunities: 2** - System found 2 opportunities  
+- **Engagements: 0** - But 0 were executed due to duplicate prevention
+
+#### **Next Steps:**
+1. **Add debug logging** to `_should_persona_respond` method
+2. **Test with new journal entry** to see if fresh entries work
+3. **Consider temporary bypass** of duplicate prevention in testing mode
+4. **Check if existing AI responses exist** for recent entries
+
+### **Current Status:**
+- **Scheduler**: ✅ Running (3 cycles executed)
+- **Opportunity Detection**: ✅ Working (finds opportunities)
+- **Engagement Execution**: ❌ Blocked by duplicate prevention
+- **Testing Mode**: ✅ Enabled (delays bypassed, bombardment disabled)
+- **Root Cause**: Duplicate prevention logic is too aggressive
