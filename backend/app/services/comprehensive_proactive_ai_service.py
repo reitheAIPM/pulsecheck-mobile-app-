@@ -431,14 +431,18 @@ class ComprehensiveProactiveAIService:
         logger.info(f"  - Content exists: {bool(entry.content)}")
         logger.info(f"  - Existing responses: {len(entry_responses)}")
         
-        # Only respond to user journal entries (not AI responses or replies)
-        # Assume user-created entries have either a missing is_ai_response field or is_ai_response == False
-        if hasattr(entry, 'is_ai_response') and entry.is_ai_response:
-            logger.info(f"Skipping AI-generated entry {entry.id}")
+        # ✅ FIXED: Only respond to user journal entries (not AI responses or replies)
+        # Check if this entry is actually a journal entry, not an AI response
+        client = self.db.get_service_client()
+        journal_entry_check = client.table("journal_entries").select("id").eq("id", entry.id).execute()
+        if not journal_entry_check.data:
+            logger.info(f"Skipping entry {entry.id} - not found in journal_entries table (likely an AI response)")
             return opportunities
-        # If entry has a type or source field, only respond to 'user' or 'journal' types
-        if hasattr(entry, 'type') and entry.type not in ('user', 'journal'):
-            logger.info(f"Skipping non-user entry {entry.id} with type {getattr(entry, 'type', None)}")
+        
+        # ✅ NEW: Double-check using database function to ensure this isn't an AI response
+        ai_response_check = client.rpc("is_ai_response", {"entry_id": entry.id}).execute()
+        if ai_response_check.data and ai_response_check.data[0]:
+            logger.info(f"Skipping AI-generated entry {entry.id} - detected as AI response")
             return opportunities
         
         # Get available personas for this user
@@ -1093,9 +1097,16 @@ Reference patterns you've noticed if relevant.
             logger.info(f"🔍 DEBUG: Checking if persona {opportunity.persona} should respond to entry {opportunity.entry_id}")
             
             # ✅ FIXED: Check if the entry itself is an AI response (should not respond to AI responses)
-            entry_check = client.table("ai_insights").select("id").eq("journal_entry_id", opportunity.entry_id).eq("is_ai_response", True).limit(1).execute()
-            if entry_check.data:
+            # Use the new database function for more robust checking
+            entry_check = client.rpc("is_ai_response", {"entry_id": opportunity.entry_id}).execute()
+            if entry_check.data and entry_check.data[0]:
                 logger.info(f"❌ Entry {opportunity.entry_id} is an AI response - should not respond to AI responses")
+                return False
+            
+            # ✅ NEW: Additional check - ensure this is a real journal entry, not an AI response
+            journal_entry_check = client.table("journal_entries").select("id").eq("id", opportunity.entry_id).execute()
+            if not journal_entry_check.data:
+                logger.info(f"❌ Entry {opportunity.entry_id} not found in journal_entries table - skipping")
                 return False
             
             # ✅ FIXED: Check if this persona has already responded to this specific entry
