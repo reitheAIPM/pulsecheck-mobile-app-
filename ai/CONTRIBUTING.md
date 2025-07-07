@@ -1656,25 +1656,28 @@ const ws = new WebSocket('wss://pulsecheck-mobile-app-production.up.railway.app/
 #### **✅ PROPER THREADING MODEL**
 ```
 Journal Entry (User)
-├── Pulse AI Response (if triggered)
-├── Anchor AI Response (if triggered)  
-├── Sage AI Response (if triggered)
-└── Spark AI Response (if triggered)
-    ├── User Reply to Specific AI
-    └── Same AI Continues Conversation
+├── Pulse AI Response (direct reply to journal entry)
+├── Sage AI Response (direct reply to journal entry)  
+├── Spark AI Response (direct reply to journal entry)
+└── Anchor AI Response (direct reply to journal entry)
+    ├── User Reply to Pulse AI → Only Pulse AI continues conversation
+    ├── User Reply to Sage AI → Only Sage AI continues conversation
+    └── User Reply to Spark AI → Only Spark AI continues conversation
 ```
 
-#### **✅ CONVERSATION FLOW RULES**
+#### **✅ CONVERSATION RULES**
 1. **Initial Responses**: All AI personas respond directly to the original journal entry
-2. **User Engagement**: When user replies to a specific AI, only that AI continues the conversation
-3. **No AI-to-AI**: AI personas never reply to each other's responses
-4. **Conversation Ownership**: Each AI maintains its own conversation thread with the user
+2. **Separate Threads**: Each AI response creates its own conversation thread
+3. **User Engagement**: When user replies to specific AI, only that AI continues
+4. **No AI-to-AI**: AI personas never reply to each other's responses
+5. **One Response Per Persona**: Each persona can only respond once to the original entry
+6. **Thread Isolation**: Each AI maintains its own conversation thread with the user
 
-#### **❌ WRONG CURRENT STRUCTURE**
+#### **❌ WRONG CURRENT BEHAVIOR**
 ```
 Journal Entry (User)
 ├── Pulse AI Response
-    ├── Anchor AI Reply to Pulse ❌ WRONG
+    ├── Pulse AI Reply to itself ❌ WRONG
     ├── Sage AI Reply to Pulse ❌ WRONG  
     └── Spark AI Reply to Pulse ❌ WRONG
 ```
@@ -1920,7 +1923,7 @@ The system finds opportunities (2 opportunities detected) but then filters them 
 When a manual cycle runs, we should now see logs like:
 ```
 🔍 DEBUG: Available personas for user {user_id}: {'pulse', 'sage', 'spark', 'anchor'}
-🔍 DEBUG: Checking if persona pulse should respond to entry {entry_id}
+�� DEBUG: Checking if persona pulse should respond to entry {entry_id}
 ✅ Persona pulse has NOT responded to entry {entry_id}
 🧪 Testing mode: Skipping bombardment prevention for persona pulse
 ✅ Persona pulse SHOULD respond to entry {entry_id}
@@ -2138,3 +2141,447 @@ The user reported seeing "Pulse AI" and "Pulse" as separate personas. This sugge
 - **Only one response per opportunity** should be generated
 - **Proper persona labeling** should be consistent
 - **Other personas should respond** (Sage, Spark, Anchor)
+
+### **🚨 EMERGENCY SHUTDOWN - AI System Disabled (July 7, 2025)**
+
+#### **Issue:**
+The AI system was generating excessive responses and spam, creating multiple replies and comments from Pulse AI.
+
+#### **Emergency Actions Taken:**
+1. **Stopped the scheduler** - No more automatic AI cycles
+2. **Disabled testing mode** - Prevents immediate responses
+3. **Deployed emergency fix** - System now uses normal timing delays
+
+#### **Current Status:**
+- **Scheduler**: ❌ STOPPED (no automatic cycles)
+- **Testing Mode**: ❌ DISABLED (normal timing restored)
+- **AI Responses**: ❌ DISABLED (no immediate responses)
+- **Spam Prevention**: ✅ ACTIVE
+
+#### **What This Means:**
+- **No more automatic AI responses** to journal entries
+- **No more spam or duplicate responses**
+- **System is safe** for normal journaling
+- **Manual testing only** when needed
+
+#### **To Re-enable (When Ready):**
+1. **Enable testing mode** in `comprehensive_proactive_ai_service.py`
+2. **Start the scheduler** via API endpoint
+3. **Test with a single entry** to verify no spam
+4. **Monitor closely** for any issues
+
+### **Root Cause Analysis:**
+The combination of:
+- **Testing mode bypass** (allowing immediate responses)
+- **Duplicate prevention disabled** (allowing multiple responses)
+- **Scheduler running** (triggering multiple cycles)
+- **Fallback processing** (causing duplicate execution)
+
+Created a perfect storm for AI spam. The system needs a complete redesign of the response logic before re-enabling.
+
+### **🚨 CRITICAL ISSUE - AI Feedback Loop (July 7, 2025)**
+
+#### **Critical Problem Discovered:**
+The AI system was creating a **feedback loop** where Pulse was:
+1. **Responding every 5 minutes** to journal entries
+2. **Creating duplicate responses** as replies to itself
+3. **Responding to its own responses** - creating an infinite loop
+
+#### **This is Fundamentally Wrong Because:**
+- **AI should never respond to its own responses**
+- **AI should not create feedback loops**
+- **AI should not generate duplicate content**
+- **AI should respect conversation boundaries**
+
+#### **Root Cause Analysis:**
+The issue was caused by:
+1. **Testing mode bypass** - Allowing immediate responses without proper filtering
+2. **Disabled duplicate prevention** - Allowing multiple responses to same entry
+3. **Scheduler running every 5 minutes** - Triggering repeated cycles
+4. **No conversation boundary detection** - AI couldn't distinguish between user entries and AI responses
+5. **Fallback processing** - Causing duplicate execution of same opportunities
+
+#### **System Design Flaws:**
+- **No conversation threading** - AI couldn't track what it had already responded to
+- **No response filtering** - AI was treating its own responses as new journal entries
+- **No rate limiting** - AI could respond unlimited times to same entry
+- **No context awareness** - AI didn't understand it was creating a loop
+
+#### **Emergency Status:**
+- **AI System**: ❌ PERMANENTLY DISABLED until redesign
+- **Scheduler**: ❌ STOPPED (no automatic cycles)
+- **Testing Mode**: ❌ DISABLED (no immediate responses)
+- **Safety**: ✅ ACTIVE (no more feedback loops)
+
+#### **Required Fixes Before Re-enabling:**
+1. **Implement conversation threading** - Track what AI has already responded to
+2. **Add response filtering** - Prevent AI from responding to its own responses
+3. **Implement rate limiting** - Maximum 1 response per entry per persona
+4. **Add context awareness** - AI must understand conversation boundaries
+5. **Redesign opportunity detection** - Only respond to genuine user entries
+6. **Add conversation state tracking** - Know what's been said and by whom
+
+#### **This is a Critical Design Failure:**
+The AI system fundamentally lacks the basic safeguards needed to prevent feedback loops. This requires a complete redesign of the conversation and response logic before it can be safely re-enabled.
+
+---
+
+## 🚨 **CRITICAL CONVERSATION THREADING DESIGN REQUIREMENTS (January 30, 2025)**
+
+### **🎯 CORRECT AI CONVERSATION STRUCTURE**
+
+#### **✅ PROPER THREADING MODEL**
+```
+Journal Entry (User)
+├── Pulse AI Response (direct reply to journal entry)
+├── Sage AI Response (direct reply to journal entry)  
+├── Spark AI Response (direct reply to journal entry)
+└── Anchor AI Response (direct reply to journal entry)
+    ├── User Reply to Pulse AI → Only Pulse AI continues conversation
+    ├── User Reply to Sage AI → Only Sage AI continues conversation
+    └── User Reply to Spark AI → Only Spark AI continues conversation
+```
+
+#### **✅ CONVERSATION RULES**
+1. **Initial Responses**: All AI personas respond directly to the original journal entry
+2. **Separate Threads**: Each AI response creates its own conversation thread
+3. **User Engagement**: When user replies to specific AI, only that AI continues
+4. **No AI-to-AI**: AI personas never reply to each other's responses
+5. **One Response Per Persona**: Each persona can only respond once to the original entry
+6. **Thread Isolation**: Each AI maintains its own conversation thread with the user
+
+#### **❌ WRONG CURRENT BEHAVIOR**
+```
+Journal Entry (User)
+├── Pulse AI Response
+    ├── Pulse AI Reply to itself ❌ WRONG
+    ├── Sage AI Reply to Pulse ❌ WRONG  
+    └── Spark AI Reply to Pulse ❌ WRONG
+```
+
+### **🛡️ REQUIRED SAFEGUARDS**
+
+#### **1. Response Filtering**
+- **AI should never respond to its own responses**
+- **AI should only respond to genuine user journal entries**
+- **AI should not treat AI responses as new journal entries**
+- **AI should distinguish between user content and AI content**
+
+#### **2. Rate Limiting**
+- **Maximum 1 response per persona per journal entry**
+- **No duplicate responses from same persona**
+- **No multiple responses to same entry from same persona**
+- **Respect conversation boundaries**
+
+#### **3. Conversation Threading**
+- **Track parent-child relationships** (journal entry → AI response → user reply → AI follow-up)
+- **Maintain conversation state** for each AI persona
+- **Isolate conversation threads** per AI persona
+- **Prevent cross-thread contamination**
+
+#### **4. Context Awareness**
+- **AI must understand it's responding to user content, not AI content**
+- **AI must track what it has already said**
+- **AI must respect conversation boundaries**
+- **AI must not create feedback loops**
+
+### **🔧 TECHNICAL IMPLEMENTATION REQUIREMENTS**
+
+#### **1. Database Schema Updates**
+- **Add `parent_id` field** to track conversation threading
+- **Add `conversation_thread_id`** to group related responses
+- **Add `ai_persona_id`** to identify which AI responded
+- **Add `response_type`** field (initial, follow-up, user-reply)
+
+#### **2. Response Generation Logic**
+- **Only respond to entries with `response_type = 'user_entry'`**
+- **Never respond to entries with `response_type = 'ai_response'`**
+- **Check if persona has already responded to this entry**
+- **Create proper parent-child relationships**
+
+#### **3. Opportunity Detection Updates**
+- **Filter out AI responses from opportunity detection**
+- **Only process genuine user journal entries**
+- **Check conversation threading before generating responses**
+- **Respect one-response-per-persona rule**
+
+#### **4. Conversation State Tracking**
+- **Track which AI has responded to which entry**
+- **Maintain conversation thread isolation**
+- **Prevent AI from responding to its own responses**
+- **Implement proper conversation boundaries**
+
+### **📋 INVESTIGATION TASK LIST**
+
+#### **Priority 1: Root Cause Analysis**
+1. **Examine database schema** - Check how responses are stored and threaded
+2. **Review opportunity detection logic** - See why AI responses are being treated as new entries
+3. **Analyze response generation** - Check why AI is responding to its own responses
+4. **Investigate conversation threading** - See how parent-child relationships are handled
+
+#### **Priority 2: Database Investigation**
+1. **Check `ai_insights` table structure** - Verify threading fields exist
+2. **Examine `journal_entries` table** - See how AI responses are stored
+3. **Review foreign key relationships** - Understand how responses link to entries
+4. **Check for duplicate entries** - See if same response is stored multiple times
+
+#### **Priority 3: Code Investigation**
+1. **Review `ComprehensiveProactiveAIService`** - Check opportunity detection logic
+2. **Examine `execute_comprehensive_engagement`** - See how responses are generated
+3. **Check `_should_persona_respond`** - Verify duplicate prevention logic
+4. **Review response storage** - See how responses are saved to database
+
+#### **Priority 4: Frontend Investigation**
+1. **Check how responses are displayed** - See if UI is causing labeling issues
+2. **Review response grouping** - Check if frontend is creating duplicate displays
+3. **Examine persona labeling** - See why "Pulse AI" vs "Pulse" confusion exists
+4. **Check conversation threading** - Verify how responses are grouped in UI
+
+### **🎯 SUCCESS CRITERIA**
+
+#### **System Working Correctly When:**
+1. **Each AI responds once** to the original journal entry
+2. **No duplicate responses** from the same persona
+3. **Proper conversation threading** with clear parent-child relationships
+4. **AI only responds to user content**, never to its own responses
+5. **Each AI maintains its own conversation thread** with the user
+6. **No feedback loops** or infinite response chains
+
+#### **System Failing When:**
+1. **AI responds to its own responses** (feedback loop)
+2. **Duplicate responses** from same persona
+3. **AI-to-AI conversations** (personas replying to each other)
+4. **Incorrect conversation threading** (responses not properly linked)
+5. **Multiple responses** from same persona to same entry
+6. **AI treating its responses as new journal entries**
+
+### **🚨 CRITICAL DESIGN PRINCIPLES**
+
+#### **1. Conversation Isolation**
+- Each AI persona has its own conversation thread with the user
+- No cross-contamination between different AI personas
+- Clear boundaries between different conversation threads
+
+#### **2. Response Uniqueness**
+- Each persona can only respond once to a given journal entry
+- No duplicate responses from the same persona
+- No multiple responses to the same entry from same persona
+
+#### **3. User-Centric Design**
+- AI only responds to genuine user journal entries
+- AI never responds to its own responses
+- AI respects user engagement patterns and preferences
+
+#### **4. Threading Integrity**
+- Proper parent-child relationships in database
+- Clear conversation flow tracking
+- No broken or circular references
+
+**This section documents our current investigation focus and the specific design requirements for fixing the AI conversation threading issues.**
+
+### **🔍 ROOT CAUSE ANALYSIS (January 30, 2025)**
+
+#### **1. Database Schema Issues**
+- **Missing threading fields**: `ai_insights` table lacks `parent_id`, `conversation_thread_id`, `response_type`
+- **No conversation tracking**: No way to distinguish user entries vs AI responses
+- **No thread isolation**: All responses stored flat without parent-child relationships
+- **Missing safeguards**: No database-level constraints to prevent AI feedback loops
+
+#### **2. Response Generation Logic Issues**
+- **Testing mode bypass**: Bypasses ALL duplicate prevention, causing feedback loops
+- **No response filtering**: AI responses treated as new journal entries
+- **Missing conversation boundaries**: No logic to prevent AI from responding to itself
+- **Aggressive duplicate prevention**: `_should_persona_respond` too restrictive
+
+#### **3. Opportunity Detection Issues**
+- **Testing mode confusion**: Bypasses timing but not all filters correctly
+- **Missing conversation state**: No tracking of what AI has already said
+- **No response type checking**: Doesn't distinguish between user content and AI content
+
+#### **4. Frontend Display Issues**
+- **Persona labeling confusion**: "Pulse AI" vs "Pulse" suggests display issues
+- **Duplicate display**: Same content appearing with different labels
+- **No conversation threading UI**: Frontend doesn't show proper thread structure
+
+### **📋 INVESTIGATION TASK LIST**
+
+#### **Priority 1: Database Schema Investigation**
+1. **Check current `ai_insights` table structure**
+   ```sql
+   -- Run in Supabase Dashboard SQL Editor
+   SELECT column_name, data_type, is_nullable, column_default
+   FROM information_schema.columns 
+   WHERE table_name = 'ai_insights'
+   ORDER BY ordinal_position;
+   ```
+
+2. **Check for existing threading fields**
+   ```sql
+   -- Check if threading fields exist
+   SELECT column_name FROM information_schema.columns 
+   WHERE table_name = 'ai_insights' 
+   AND column_name IN ('parent_id', 'conversation_thread_id', 'response_type', 'is_ai_response');
+   ```
+
+3. **Examine current response storage pattern**
+   ```sql
+   -- Check recent AI responses for patterns
+   SELECT id, journal_entry_id, user_id, persona_used, created_at, 
+          LEFT(ai_response, 100) as response_preview
+   FROM ai_insights 
+   ORDER BY created_at DESC 
+   LIMIT 10;
+   ```
+
+4. **Check for duplicate responses**
+   ```sql
+   -- Look for duplicate content
+   SELECT journal_entry_id, persona_used, COUNT(*) as response_count,
+          array_agg(LEFT(ai_response, 50)) as response_previews
+   FROM ai_insights 
+   GROUP BY journal_entry_id, persona_used 
+   HAVING COUNT(*) > 1;
+   ```
+
+#### **Priority 2: Code Logic Investigation**
+1. **Review `_should_persona_respond` method**
+   - Check if testing mode bypass is working correctly
+   - Verify duplicate prevention logic
+   - Test with different user scenarios
+
+2. **Review `_analyze_entry_comprehensive` method**
+   - Check how opportunities are generated
+   - Verify persona selection logic
+   - Test conversation boundary detection
+
+3. **Review `execute_comprehensive_engagement` method**
+   - Check response storage logic
+   - Verify metadata handling
+   - Test conversation threading
+
+4. **Review testing mode implementation**
+   - Check if bypasses are working correctly
+   - Verify timing logic
+   - Test with different scenarios
+
+#### **Priority 3: Frontend Investigation**
+1. **Check how responses are displayed**
+   - Review `JournalHistory` component
+   - Check persona labeling logic
+   - Verify response grouping
+
+2. **Check for duplicate display issues**
+   - Review response rendering logic
+   - Check for multiple display components
+   - Verify data fetching
+
+3. **Check conversation threading UI**
+   - Review thread display logic
+   - Check parent-child relationships
+   - Verify conversation flow
+
+#### **Priority 4: Testing and Validation**
+1. **Create test journal entry**
+   - Create new entry with >10 characters
+   - Monitor AI response generation
+   - Check for duplicates
+
+2. **Test conversation boundaries**
+   - Verify AI doesn't respond to its own responses
+   - Check thread isolation
+   - Test user reply scenarios
+
+3. **Test persona behavior**
+   - Verify each persona responds once
+   - Check persona-specific content
+   - Test multiple persona scenarios
+
+### **🎯 IMMEDIATE ACTION ITEMS**
+
+#### **1. Database Schema Fixes (Required)**
+```sql
+-- Add missing threading fields to ai_insights table
+ALTER TABLE ai_insights 
+ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES ai_insights(id),
+ADD COLUMN IF NOT EXISTS conversation_thread_id UUID,
+ADD COLUMN IF NOT EXISTS response_type TEXT DEFAULT 'ai_response' CHECK (response_type IN ('ai_response', 'user_reply', 'ai_followup')),
+ADD COLUMN IF NOT EXISTS is_ai_response BOOLEAN DEFAULT TRUE;
+
+-- Add indexes for performance
+CREATE INDEX IF NOT EXISTS idx_ai_insights_parent_id ON ai_insights(parent_id);
+CREATE INDEX IF NOT EXISTS idx_ai_insights_thread_id ON ai_insights(conversation_thread_id);
+CREATE INDEX IF NOT EXISTS idx_ai_insights_response_type ON ai_insights(response_type);
+```
+
+#### **2. Code Logic Fixes (Required)**
+1. **Fix response filtering in `_analyze_entry_comprehensive`**
+   - Add proper check for `is_ai_response` field
+   - Only respond to user entries, not AI responses
+   - Add conversation boundary detection
+
+2. **Fix testing mode bypass in `_should_persona_respond`**
+   - Keep duplicate prevention for same entry
+   - Only bypass timing delays
+   - Add proper conversation state tracking
+
+3. **Fix response storage in `execute_comprehensive_engagement`**
+   - Add proper threading metadata
+   - Set correct `parent_id` and `conversation_thread_id`
+   - Add response type classification
+
+#### **3. Frontend Fixes (Required)**
+1. **Fix persona labeling**
+   - Ensure consistent persona names
+   - Remove duplicate labeling logic
+   - Add proper conversation threading display
+
+2. **Fix response grouping**
+   - Group responses by conversation thread
+   - Show proper parent-child relationships
+   - Add conversation flow indicators
+
+### **🚨 CRITICAL FIXES NEEDED**
+
+#### **1. Database Schema Updates**
+- Add `parent_id`, `conversation_thread_id`, `response_type` fields
+- Add proper indexes for performance
+- Add constraints to prevent feedback loops
+
+#### **2. Response Generation Logic**
+- Only respond to entries with `is_ai_response = FALSE`
+- Add conversation boundary detection
+- Implement proper threading logic
+
+#### **3. Testing Mode Fixes**
+- Keep duplicate prevention for same entry
+- Only bypass timing delays
+- Add proper conversation state tracking
+
+#### **4. Frontend Display Fixes**
+- Fix persona labeling consistency
+- Add conversation threading UI
+- Remove duplicate display logic
+
+### **📊 SUCCESS METRICS**
+
+#### **System Working Correctly When:**
+1. **Each AI responds once** to the original journal entry
+2. **No duplicate responses** from the same persona
+3. **Proper conversation threading** with clear parent-child relationships
+4. **AI only responds to user content**, never to its own responses
+5. **Each AI maintains its own conversation thread** with the user
+6. **No feedback loops** or infinite response chains
+7. **Consistent persona labeling** in frontend
+8. **Proper conversation flow** in UI
+
+#### **System Failing When:**
+1. **AI responds to its own responses** (feedback loop)
+2. **Duplicate responses** from same persona
+3. **AI-to-AI conversations** (personas replying to each other)
+4. **Incorrect conversation threading** (responses not properly linked)
+5. **Multiple responses** from same persona to same entry
+6. **AI treating its responses as new journal entries**
+7. **Inconsistent persona labeling** (Pulse AI vs Pulse)
+8. **Missing conversation boundaries** in UI
+
+**This investigation plan provides a systematic approach to fixing the AI conversation threading issues.**

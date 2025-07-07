@@ -672,13 +672,14 @@ class ComprehensiveProactiveAIService:
         return opportunities
     
     async def _count_todays_ai_responses(self, user_id: str) -> int:
-        """Count AI responses sent today"""
+        """Count AI responses sent today using new threading fields"""
         try:
             # CRITICAL: Use service role client to bypass RLS for AI operations
             client = self.db.get_service_client()
             today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
             
-            result = client.table("ai_insights").select("id", count="exact").eq("user_id", user_id).gte("created_at", today_start).execute()
+            # ✅ FIXED: Use new threading fields to filter only AI responses
+            result = client.table("ai_insights").select("id", count="exact").eq("user_id", user_id).eq("is_ai_response", True).gte("created_at", today_start).execute()
             
             # FIX: Ensure count is always an integer (Supabase returns string)
             count_value = result.count or 0
@@ -689,11 +690,12 @@ class ComprehensiveProactiveAIService:
             return 0
     
     async def _get_existing_ai_responses(self, user_id: str, entry_ids: List[str]) -> Dict[str, List[Dict]]:
-        """Get existing AI responses for entries"""
+        """Get existing AI responses for entries using new threading fields"""
         try:
             # CRITICAL: Use service role client to bypass RLS for AI operations
             client = self.db.get_service_client()
-            responses_result = client.table("ai_insights").select("*").eq("user_id", user_id).in_("journal_entry_id", entry_ids).execute()
+            # ✅ FIXED: Use new threading fields to filter only AI responses
+            responses_result = client.table("ai_insights").select("*").eq("user_id", user_id).in_("journal_entry_id", entry_ids).eq("is_ai_response", True).execute()
             
             responses_by_entry = {}
             if responses_result.data:
@@ -785,7 +787,7 @@ Reference patterns you've noticed if relevant.
                 additional_context=comprehensive_context
             )
             
-            # Store the comprehensive AI response with metadata
+            # ✅ FIXED: Store the comprehensive AI response with proper threading metadata
             ai_insight_data = {
                 "id": str(__import__('uuid').uuid4()),
                 "journal_entry_id": opportunity.entry_id,
@@ -794,7 +796,12 @@ Reference patterns you've noticed if relevant.
                 "persona_used": ai_response.persona_used,
                 "topic_flags": ai_response.topic_flags,
                 "confidence_score": ai_response.confidence_score,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                # ✅ NEW: Add conversation threading fields
+                "parent_id": None,  # Direct response to journal entry
+                "conversation_thread_id": opportunity.entry_id,  # Use entry ID as thread ID
+                "response_type": "ai_response",
+                "is_ai_response": True
             }
             
             # Add comprehensive metadata
@@ -922,7 +929,12 @@ Reference patterns you've noticed if relevant.
                         "persona_used": persona_response.persona_name,
                         "topic_flags": persona_response.topics_identified or {},
                         "confidence_score": persona_response.confidence_score,
-                        "created_at": datetime.now(timezone.utc).isoformat()
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        # ✅ NEW: Add conversation threading fields
+                        "parent_id": None,  # Direct response to journal entry
+                        "conversation_thread_id": entry_id,  # Use entry ID as thread ID
+                        "response_type": "ai_response",
+                        "is_ai_response": True
                     }
                     
                     # Add comprehensive metadata
@@ -1072,21 +1084,23 @@ Reference patterns you've noticed if relevant.
             }
     
     async def _should_persona_respond(self, user_id: str, opportunity: ProactiveOpportunity) -> bool:
-        """Check if this persona should respond based on recent responses"""
+        """Check if this persona should respond based on recent responses and conversation threading"""
         try:
-            # 🧪 TESTING MODE BYPASS: Skip all duplicate prevention in testing mode
-            if self.testing_mode:
-                logger.info(f"🧪 Testing mode: Bypassing all duplicate prevention for persona {opportunity.persona}")
-                return True
-            
             # CRITICAL: Use service role client to bypass RLS for AI operations
             client = self.db.get_service_client()
             
             # 🔍 DEBUG: Log the opportunity being checked
             logger.info(f"🔍 DEBUG: Checking if persona {opportunity.persona} should respond to entry {opportunity.entry_id}")
             
-            # Check if this persona has already responded to this specific entry
-            existing_response = client.table("ai_insights").select("id").eq("user_id", user_id).eq("journal_entry_id", opportunity.entry_id).eq("persona_used", opportunity.persona).limit(1).execute()
+            # ✅ FIXED: Check if the entry itself is an AI response (should not respond to AI responses)
+            entry_check = client.table("ai_insights").select("id").eq("journal_entry_id", opportunity.entry_id).eq("is_ai_response", True).limit(1).execute()
+            if entry_check.data:
+                logger.info(f"❌ Entry {opportunity.entry_id} is an AI response - should not respond to AI responses")
+                return False
+            
+            # ✅ FIXED: Check if this persona has already responded to this specific entry
+            # Use the new database function for proper conversation threading
+            existing_response = client.table("ai_insights").select("id").eq("user_id", user_id).eq("journal_entry_id", opportunity.entry_id).eq("persona_used", opportunity.persona).eq("is_ai_response", True).limit(1).execute()
             
             if existing_response.data:
                 logger.info(f"❌ Persona {opportunity.persona} already responded to entry {opportunity.entry_id}")
@@ -1094,18 +1108,21 @@ Reference patterns you've noticed if relevant.
             else:
                 logger.info(f"✅ Persona {opportunity.persona} has NOT responded to entry {opportunity.entry_id}")
             
-            # Check if this persona has responded to any entry in the last 10 minutes (bombardment prevention)
-            if not self.testing_mode:
+            # ✅ FIXED: Testing mode bypass - only bypass timing, not duplicate prevention
+            if self.testing_mode:
+                logger.info(f"🧪 Testing mode: Skipping timing delays but keeping duplicate prevention for persona {opportunity.persona}")
+                # In testing mode, we still check for duplicates but skip timing delays
+                return True
+            else:
+                # Check if this persona has responded to any entry in the last 10 minutes (bombardment prevention)
                 cutoff_time = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
-                recent_response = client.table("ai_insights").select("id").eq("user_id", user_id).eq("persona_used", opportunity.persona).gte("created_at", cutoff_time).limit(1).execute()
+                recent_response = client.table("ai_insights").select("id").eq("user_id", user_id).eq("persona_used", opportunity.persona).eq("is_ai_response", True).gte("created_at", cutoff_time).limit(1).execute()
                 
                 if recent_response.data:
                     logger.info(f"❌ Persona {opportunity.persona} responded recently, skipping to prevent bombardment")
                     return False
                 else:
                     logger.info(f"✅ Persona {opportunity.persona} has NOT responded recently (bombardment check passed)")
-            else:
-                logger.info(f"🧪 Testing mode: Skipping bombardment prevention for persona {opportunity.persona}")
             
             logger.info(f"✅ Persona {opportunity.persona} SHOULD respond to entry {opportunity.entry_id}")
             return True
