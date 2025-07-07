@@ -161,12 +161,41 @@ class ComprehensiveProactiveAIService:
             # FIXED: Implement proper subscription lookup from database
             tier, ai_level = await self._get_user_tier_and_preferences(user_id)
             
-            # Get recent journal entries (last 7 days)
+            # Get recent journal entries (last 7 days) with timeout
             cutoff_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-            entries_result = client.table("journal_entries").select("*").eq("user_id", user_id).gte("created_at", cutoff_date).order("created_at", desc=True).execute()
             
-            # Get AI interactions (reactions, replies)
-            ai_interactions_result = client.table("ai_insights").select("*").eq("user_id", user_id).gte("created_at", cutoff_date).execute()
+            # 🔧 TIMEOUT FIX: Add timeout to prevent hanging
+            try:
+                entries_result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        lambda: client.table("journal_entries")
+                        .select("*")
+                        .eq("user_id", user_id)
+                        .gte("created_at", cutoff_date)
+                        .order("created_at", desc=True)
+                        .execute()
+                    ),
+                    timeout=10.0  # 10 second timeout
+                )
+            except asyncio.TimeoutError:
+                logger.error(f"Database timeout getting journal entries for user {user_id}")
+                entries_result = type('MockResult', (), {'data': []})()
+            
+            # Get AI interactions (reactions, replies) with timeout
+            try:
+                ai_interactions_result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        lambda: client.table("ai_insights")
+                        .select("*")
+                        .eq("user_id", user_id)
+                        .gte("created_at", cutoff_date)
+                        .execute()
+                    ),
+                    timeout=10.0  # 10 second timeout
+                )
+            except asyncio.TimeoutError:
+                logger.error(f"Database timeout getting AI interactions for user {user_id}")
+                ai_interactions_result = type('MockResult', (), {'data': []})()
             
             # Calculate engagement metrics
             journal_entries = entries_result.data or []

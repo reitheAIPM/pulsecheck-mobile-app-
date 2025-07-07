@@ -1479,15 +1479,27 @@ async def get_ai_responses_for_frontend(user_id: str):
             "troubleshooting": "Check database connectivity and user_id format"
         }
 
-# Graceful shutdown handler
+# Signal handler for graceful shutdown
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully"""
-    logger.info(f"Received signal {signum}, initiating graceful shutdown...")
+    global scheduler_service
+    
+    logger.info(f"🛑 Received signal {signum}, initiating graceful shutdown...")
+    
+    if scheduler_service and scheduler_available:
+        try:
+            # Stop the scheduler gracefully
+            asyncio.create_task(scheduler_service.stop_scheduler())
+            logger.info("✅ Scheduler shutdown initiated")
+        except Exception as e:
+            logger.error(f"Error during scheduler shutdown: {e}")
+    
+    # Exit gracefully
     sys.exit(0)
 
-# Register signal handlers
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
+# Register signal handlers for graceful shutdown
+signal.signal(signal.SIGTERM, signal_handler)  # Railway sends SIGTERM
+signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C during development
 
 @app.get("/api/v1/debug/test-database-access")
 async def test_database_access():

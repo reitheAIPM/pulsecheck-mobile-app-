@@ -150,10 +150,10 @@ class AdvancedSchedulerService:
                 coalesce=True
             )
             
-            # Add daily cleanup cycle (every 24 hours at 2 AM)
+            # Add daily cleanup cycle (every 24 hours at 2 AM UTC)
             self.scheduler.add_job(
                 self._cleanup_cycle,
-                trigger=CronTrigger(hour=2, minute=0),
+                trigger=CronTrigger(hour=2, minute=0, timezone=timezone.utc),
                 id="cleanup_cycle",
                 name="Daily Cleanup Cycle",
                 max_instances=1,
