@@ -422,10 +422,6 @@ class ComprehensiveProactiveAIService:
         opportunities = []
         entry_responses = existing_responses.get(entry.id, [])
         
-        # 🚨 CRITICAL FIX: Temporarily bypass ALL filters to get AI working
-        # This will force AI responses for testing
-        logger.info(f"🔧 CRITICAL FIX: Bypassing all filters for entry {entry.id}")
-        
         # Log entry details for debugging
         logger.info(f"🔍 DEBUGGING entry {entry.id}:")
         logger.info(f"  - Content length: {len(entry.content) if entry.content else 0}")
@@ -434,72 +430,48 @@ class ComprehensiveProactiveAIService:
         logger.info(f"  - Content exists: {bool(entry.content)}")
         logger.info(f"  - Existing responses: {len(entry_responses)}")
         
-        # 🧪 TEMPORARILY DISABLED: Content length and AI pattern checks
-        # Will re-enable after identifying the blocking issue
-        
-        # ORIGINAL CODE (temporarily disabled):
-        # if not hasattr(entry, 'content') or not entry.content or len(entry.content.strip()) < 10:
-        #     logger.info(f"Skipping entry {entry.id} - not a valid journal entry")
-        #     return opportunities
-        # 
-        # ai_response_patterns = [...]
-        # if any(pattern.lower() in content_start for pattern in ai_response_patterns):
-        #     logger.info(f"Skipping entry {entry.id} - appears to be an AI response")
-        #     return opportunities
-        
-        # Calculate time since entry
-        entry_time = entry.created_at
-        if isinstance(entry_time, str):
-            entry_time = datetime.fromisoformat(entry_time.replace('Z', '+00:00'))
-        elif hasattr(entry_time, 'replace'):
-            # If it's already a datetime, ensure it's timezone-aware
-            if entry_time.tzinfo is None:
-                entry_time = entry_time.replace(tzinfo=timezone.utc)
-        
-        minutes_since_entry = (datetime.now(timezone.utc) - entry_time).total_seconds() / 60
-        
-        # 🔧 CRITICAL FIX: Force opportunity creation regardless of timing or existing responses
-        logger.info(f"🔧 FORCING opportunity creation for entry {entry.id} (testing_mode={self.testing_mode})")
+        # Only respond to user journal entries (not AI responses)
+        if hasattr(entry, 'is_ai_response') and entry.is_ai_response:
+            logger.info(f"Skipping AI-generated entry {entry.id}")
+            return opportunities
         
         # Get available personas based on user tier
         available_personas = self._get_available_personas_for_user(profile)
         
-        # 🔧 CRITICAL FIX: Ignore existing responses and force new opportunity
         # Remove personas that already responded to this entry
-        # responding_personas = {resp.get("persona_used", "pulse") for resp in entry_responses}
-        # available_personas = available_personas - responding_personas
+        responding_personas = {resp.get("persona_used", "pulse") for resp in entry_responses}
+        personas_to_respond = available_personas - responding_personas
         
-        if not available_personas:
-            logger.info(f"🔧 CRITICAL FIX: No available personas, using default 'pulse'")
-            available_personas = {"pulse"}
+        if not personas_to_respond:
+            logger.info(f"No available personas for entry {entry.id} (all personas already responded)")
+            return opportunities
         
-        # 🔧 CRITICAL FIX: Force single persona opportunity regardless of user tier
-        logger.info(f"🔧 FORCING single persona opportunity for entry {entry.id}")
+        # In testing mode, generate multi-persona opportunities for all available personas
+        if self.testing_mode:
+            logger.info(f"Testing mode: Generating multi-persona opportunities for entry {entry.id}")
+            persona_opportunities = self._generate_multi_persona_opportunities(
+                entry, [], personas_to_respond, profile, 0
+            )
+            opportunities.extend(persona_opportunities)
+        else:
+            # Standard single persona response
+            optimal_persona = self._select_optimal_persona_for_entry(entry, personas_to_respond)
+            if optimal_persona:
+                delay = 0 if self.testing_mode else self._calculate_initial_delay(profile, entry)
+                opportunities.append(ProactiveOpportunity(
+                    entry_id=entry.id,
+                    user_id=entry.user_id,
+                    reason="Initial response to new journal entry",
+                    persona=optimal_persona,
+                    priority=8,
+                    delay_minutes=delay,
+                    message_context=self._generate_context_message(entry, "initial"),
+                    related_entries=[],
+                    engagement_strategy="initial",
+                    expected_engagement_score=self._predict_engagement_score(entry, optimal_persona, profile)
+                ))
         
-        # Standard single persona response
-        optimal_persona = self._select_optimal_persona_for_entry(entry, available_personas)
-        
-        # 🔧 CRITICAL FIX: Force initial response opportunity regardless of existing responses
-        logger.info(f"🔧 FORCING initial response opportunity for entry {entry.id}")
-        
-        # Initial response opportunity (FORCE IT)
-        # if len(entry_responses) == 0:  # No responses yet
-        # 🔧 CRITICAL FIX: Use 0 delay for testing mode
-        delay = 0 if self.testing_mode else 0  # Force 0 delay
-        opportunities.append(ProactiveOpportunity(
-            entry_id=entry.id,
-            user_id=entry.user_id,
-            reason="CRITICAL FIX: Forced initial response to new journal entry",
-            persona=optimal_persona,
-            priority=10,  # Highest priority
-            delay_minutes=delay,
-            message_context=self._generate_context_message(entry, "initial"),
-            related_entries=[],  # No related entries for forced response
-            engagement_strategy="initial",
-            expected_engagement_score=10.0  # Maximum engagement score
-        ))
-        
-        logger.info(f"🔧 CRITICAL FIX: Generated {len(opportunities)} forced opportunities for entry {entry.id}")
+        logger.info(f"Generated {len(opportunities)} opportunities for entry {entry.id}")
         return opportunities
     
     def _find_related_entries(self, entry: JournalEntryResponse, all_entries: List[JournalEntryResponse]) -> List[JournalEntryResponse]:
