@@ -1030,12 +1030,13 @@ Reference patterns you've noticed if relevant.
                                     processed_entries += 1
                             except Exception as e:
                                 logger.error(f"Error in concurrent multi-persona engagement: {e}")
-                                # Fallback to sequential processing
-                                for opp in valid_opportunities[:2]:  # Limit to 2 for safety
-                                    success = await self.execute_comprehensive_engagement(user_id, opp)
+                                # ❌ REMOVED: Fallback to sequential processing to prevent duplicates
+                                # Only process the first opportunity to avoid duplicates
+                                if valid_opportunities:
+                                    success = await self.execute_comprehensive_engagement(user_id, valid_opportunities[0])
                                     if success:
                                         total_executed += 1
-                                processed_entries += 1
+                                    processed_entries += 1
                         else:
                             # Single persona response
                             success = await self.execute_comprehensive_engagement(user_id, valid_opportunities[0])
