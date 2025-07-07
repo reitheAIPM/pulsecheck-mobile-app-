@@ -353,4 +353,37 @@ The platform documentation analysis has successfully identified and implemented 
 
 All improvements are production-ready and maintain full backward compatibility. The next phases will focus on advanced features like webhook integration, vector search, and edge function processing to further enhance the system's capabilities.
 
-**Status**: Phase 1 complete, Phase 2 ready for implementation, significant performance gains achieved. 
+**Status**: Phase 1 complete, Phase 2 ready for implementation, significant performance gains achieved.
+
+## 🛠️ July 2025: AI Scheduler & Multi-Persona Response Debugging
+
+### Ideal Situation
+- Scheduler auto-starts after every deployment (no manual intervention needed)
+- AI responds to each user journal entry with multiple personas (Pulse, Sage, Spark, Anchor) in testing mode
+- No duplicate persona responses
+- AI does NOT reply to its own comments or to other AI-generated entries
+
+### Issues Identified
+- Scheduler does NOT auto-start after deployment; must be started manually via API
+- AI was generating duplicate replies by responding to its own comments (AI comments treated as journal entries)
+- Only one persona (Pulse) was responding due to forced single-persona logic
+
+### Actions Taken
+- Restored multi-persona response logic in testing mode (all personas respond)
+- Added filter to ensure AI only responds to user-created journal entries (not to AI comments or replies)
+- Prevented duplicate persona responses by checking if a persona has already responded to an entry
+- Documented the need for a post-deploy hook/script to auto-start the scheduler after deployment
+
+### Next Steps
+- Implement a post-deploy script or Railway/Vercel hook to start the scheduler automatically after every deployment
+- Continue monitoring for duplicate or missing persona responses
+- Ensure all AI opportunity logic only targets user-created journal entries
+
+### Debugging/Testing Checklist
+- [x] Scheduler running after deploy
+- [x] Manual cycle triggers multi-persona AI responses
+- [x] No duplicate persona replies
+- [x] AI does not reply to its own comments
+- [ ] Scheduler auto-starts after deploy (TODO)
+
+--- 

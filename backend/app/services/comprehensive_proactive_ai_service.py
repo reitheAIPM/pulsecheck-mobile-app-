@@ -430,9 +430,14 @@ class ComprehensiveProactiveAIService:
         logger.info(f"  - Content exists: {bool(entry.content)}")
         logger.info(f"  - Existing responses: {len(entry_responses)}")
         
-        # Only respond to user journal entries (not AI responses)
+        # Only respond to user journal entries (not AI responses or replies)
+        # Assume user-created entries have either a missing is_ai_response field or is_ai_response == False
         if hasattr(entry, 'is_ai_response') and entry.is_ai_response:
             logger.info(f"Skipping AI-generated entry {entry.id}")
+            return opportunities
+        # If entry has a type or source field, only respond to 'user' or 'journal' types
+        if hasattr(entry, 'type') and entry.type not in ('user', 'journal'):
+            logger.info(f"Skipping non-user entry {entry.id} with type {getattr(entry, 'type', None)}")
             return opportunities
         
         # Get available personas based on user tier

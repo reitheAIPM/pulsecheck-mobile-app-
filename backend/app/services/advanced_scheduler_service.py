@@ -72,7 +72,15 @@ class AdvancedSchedulerService:
     
     def __init__(self, db: Database):
         self.db = db
-        self.scheduler = AsyncIOScheduler()
+        self.scheduler = AsyncIOScheduler(
+            event_loop=None,  # Use the current event loop
+            timezone=timezone.utc,
+            job_defaults={
+                'coalesce': True,
+                'max_instances': 1,
+                'misfire_grace_time': 60  # Allow 60 seconds grace time for missed executions
+            }
+        )
         self.status = SchedulerStatus.STOPPED
         self.start_time: Optional[datetime] = None
         
@@ -116,6 +124,10 @@ class AdvancedSchedulerService:
         try:
             if self.status == SchedulerStatus.RUNNING:
                 return {"status": "already_running", "message": "Scheduler is already running"}
+            
+            # Stop any existing scheduler
+            if self.scheduler.running:
+                self.scheduler.shutdown(wait=False)
             
             self.status = SchedulerStatus.STARTING
             self.start_time = datetime.now(timezone.utc)
@@ -215,6 +227,32 @@ class AdvancedSchedulerService:
                 "error": str(e)
             }
     
+    async def restart_scheduler(self) -> Dict[str, Any]:
+        """Restart the advanced scheduler"""
+        try:
+            logger.info("🔄 Restarting advanced scheduler...")
+            
+            # Stop the scheduler
+            await self.stop_scheduler()
+            
+            # Wait a moment for cleanup
+            import asyncio
+            await asyncio.sleep(1)
+            
+            # Start the scheduler
+            result = await self.start_scheduler()
+            
+            logger.info("✅ Advanced Scheduler restarted successfully")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error restarting scheduler: {e}")
+            return {
+                "status": "error",
+                "message": f"Failed to restart scheduler: {str(e)}",
+                "error": str(e)
+            }
+    
     async def _main_proactive_cycle(self):
         """Main proactive AI engagement cycle - runs every 5 minutes
         ✅ RE-ENABLED: Conversation threading issues fixed"""
@@ -258,7 +296,7 @@ class AdvancedSchedulerService:
             # Store cycle history
             self._store_cycle_result(cycle_result)
             
-            logger.info(f"✅ Main proactive cycle completed: {cycle_id} - DISABLED (preventing duplicates)")
+            logger.info(f"✅ Main proactive cycle completed: {cycle_id} - {result.get('engagements_executed', 0)} engagements executed")
             
         except Exception as e:
             logger.error(f"❌ Error in main proactive cycle {cycle_id}: {e}")

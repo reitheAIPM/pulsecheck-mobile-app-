@@ -82,6 +82,28 @@ async def stop_scheduler(
         logger.error(f"Error stopping scheduler via API: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to stop scheduler: {str(e)}")
 
+@router.post("/restart")
+async def restart_scheduler(
+    scheduler: AdvancedSchedulerService = Depends(get_scheduler_service)
+) -> Dict[str, Any]:
+    """
+    Restart the advanced proactive AI scheduler
+    
+    This will restart the scheduler with proper event loop integration.
+    Useful for fixing APScheduler issues.
+    """
+    try:
+        result = await scheduler.restart_scheduler()
+        
+        if result["status"] == "started":
+            logger.info("🔄 Advanced scheduler restarted successfully via API")
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error restarting scheduler via API: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to restart scheduler: {str(e)}")
+
 @router.get("/status")
 async def get_scheduler_status(
     scheduler: AdvancedSchedulerService = Depends(get_scheduler_service)

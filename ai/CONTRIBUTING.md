@@ -1763,3 +1763,35 @@ All personas giving identical generic responses: "I'm here to listen and support
 5. Fallback responses instead of actual AI-generated content
 
 **This section must be referenced before any AI response system work.**
+
+---
+
+## 🚦 Deployment Workflow: Manual AI Scheduler Start (July 2025)
+
+### Current Reality
+- **Railway + GitHub integration** handles all backend deploys automatically.
+- **Railway CLI token automation is NOT used** due to project token issues and complexity.
+- **AI Scheduler does NOT auto-start after deploy** (Railway limitation).
+
+### Manual Post-Deploy Step (Required)
+After every Railway deploy:
+1. **Check scheduler status:**
+   - [Scheduler Status Endpoint](https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/status)
+2. **If scheduler is stopped, start it manually:**
+   - Run this in PowerShell:
+     ```powershell
+     Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/start" -Method POST
+     ```
+   - Or in a Unix shell:
+     ```sh
+     curl -X POST "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/start"
+     ```
+
+### Why Not Automated?
+- Railway CLI token (RAILWAY_TOKEN) is not reliably supported for CI/CD automation.
+- Built-in Railway+GitHub deploys are more robust, but lack post-deploy hooks.
+- Manual step is required until Railway adds post-deploy scripting or token support improves.
+
+### TODO for Future Automation
+- Monitor Railway for post-deploy hook support or improved project token access.
+- If/when available, update workflow to auto-start scheduler after deploy.
