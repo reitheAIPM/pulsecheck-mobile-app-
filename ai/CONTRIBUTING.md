@@ -168,6 +168,54 @@ When something fails → AI gets complete context → AI fixes issue → AI vali
 4. **Implement Optimizations**: Start with Phase 1 from platform analysis
 5. **Monitor AI Responses**: Ensure opportunities are being found and executed
 
+#### **🚨 CRITICAL TODO: RE-ENABLE DAILY LIMITS AFTER TESTING**
+**Date Added**: January 7, 2025  
+**Status**: ⚠️ **ACTIVE - TESTING MODE**
+
+**What Was Changed**:
+- **Daily AI response limits completely disabled** in `comprehensive_proactive_ai_service.py`
+- **Commit**: `ecb30c2` - "Remove daily AI response limits for testing"
+- **Lines Modified**: ~380-400 in `check_comprehensive_opportunities()` method
+
+**Why**:
+- Daily limits were preventing AI responses during testing (users hitting 50 responses/day limit)
+- Scheduler was showing "0 opportunities found" due to daily limit restrictions
+- Needed unlimited AI responses for development and testing
+
+**TODO After Testing Complete**:
+```python
+# RESTORE THIS CODE in comprehensive_proactive_ai_service.py:
+# Check daily limit
+daily_limit = self.daily_limits[profile.tier][profile.ai_interaction_level]
+today_responses = await self._count_todays_ai_responses(user_id)
+
+# Bypass limits for testing users
+if user_id in self.testing_user_ids:
+    logger.info(f"🧪 Testing user {user_id} bypassing daily limits ({today_responses} responses today)")
+elif today_responses >= daily_limit and profile.ai_interaction_level != AIInteractionLevel.HIGH:
+    logger.info(f"⚠️ User {user_id} has reached daily AI response limit ({today_responses}/{daily_limit})")
+    return []
+elif today_responses >= daily_limit:
+    if profile.tier != UserTier.PREMIUM or daily_limit != 999:
+        logger.info(f"⚠️ User {user_id} has reached daily AI response limit ({today_responses}/{daily_limit})")
+        return []
+
+logger.info(f"✅ Daily limit check passed: {today_responses}/{daily_limit} responses today")
+```
+
+**Current Daily Limits**:
+- **FREE/MINIMAL**: 5 responses/day
+- **FREE/MODERATE**: 10 responses/day  
+- **FREE/HIGH**: 15 responses/day
+- **PREMIUM/MINIMAL**: 20 responses/day
+- **PREMIUM/MODERATE**: 50 responses/day
+- **PREMIUM/HIGH**: Unlimited (999)
+
+**Testing User IDs** (bypass all limits):
+- `6abe6283-5dd2-46d6-995a-d876a06a55f7`
+
+**⚠️ SECURITY REMINDER**: Daily limits prevent API cost abuse and ensure fair usage across users.
+
 ### **🎯 USER EXPERIENCE IS PRIMARY PRIORITY**
 - **User experience supersedes all technical considerations**
 - **Bug-free operation is mandatory before any launch**
