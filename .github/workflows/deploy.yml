@@ -1,0 +1,26 @@
+# GitHub Actions workflow for deploying to Railway and starting the scheduler
+name: Deploy and Start Scheduler
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Railway CLI
+        run: npm install -g railway
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service=pulsecheck-mobile-app-
+
+      - name: Start Scheduler After Deploy
+        run: |
+          curl -X POST "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/start" 
