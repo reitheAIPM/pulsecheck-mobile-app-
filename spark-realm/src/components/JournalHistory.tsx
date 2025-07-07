@@ -468,8 +468,8 @@ const JournalHistory: React.FC<JournalHistoryProps> = ({
         ) : (
           filteredEntries.map((entry) => {
             const isExpanded = expandedEntries.has(entry.id);
-            const previewText = entry.content.length > 150 
-              ? entry.content.substring(0, 150) + '...'
+            const previewText = entry.content.length > 600 
+              ? entry.content.substring(0, 600) + '...'
               : entry.content;
 
             return (
@@ -539,7 +539,7 @@ const JournalHistory: React.FC<JournalHistoryProps> = ({
                       {isExpanded ? entry.content : previewText}
                     </p>
 
-                    {entry.content.length > 150 && (
+                    {entry.content.length > 600 && (
                       <Button
                         variant="ghost"
                         size="sm"

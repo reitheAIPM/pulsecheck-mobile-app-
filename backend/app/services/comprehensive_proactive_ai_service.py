@@ -393,6 +393,28 @@ class ComprehensiveProactiveAIService:
         opportunities = []
         entry_responses = existing_responses.get(entry.id, [])
         
+        # 🔧 CRITICAL FIX: Ensure we only respond to actual journal entries
+        # Skip if this entry doesn't have basic journal entry structure
+        if not hasattr(entry, 'content') or not entry.content or len(entry.content.strip()) < 10:
+            logger.info(f"Skipping entry {entry.id} - not a valid journal entry")
+            return opportunities
+        
+        # 🔧 CRITICAL FIX: Skip if this looks like an AI response entry
+        # Check if content starts with AI response patterns
+        ai_response_patterns = [
+            "Thank you for sharing",
+            "I can see you wrote",
+            "Your journal entry about",
+            "I notice you mentioned",
+            "It sounds like you're",
+            "I understand you're feeling"
+        ]
+        
+        content_start = entry.content.strip()[:100].lower()
+        if any(pattern.lower() in content_start for pattern in ai_response_patterns):
+            logger.info(f"Skipping entry {entry.id} - appears to be an AI response")
+            return opportunities
+        
         # Calculate time since entry
         entry_time = entry.created_at
         if isinstance(entry_time, str):
@@ -404,8 +426,10 @@ class ComprehensiveProactiveAIService:
         
         minutes_since_entry = (datetime.now(timezone.utc) - entry_time).total_seconds() / 60
         
-        # Skip very recent entries (less than 5 minutes) - UNLESS testing mode
-        if not self.testing_mode and minutes_since_entry < self.timing_configs["initial_comment_min"]:
+        # 🔧 TESTING MODE FIX: Remove timing restrictions completely for testing
+        if self.testing_mode:
+            logger.info(f"Testing mode enabled - bypassing all timing restrictions for entry {entry.id}")
+        elif minutes_since_entry < self.timing_configs["initial_comment_min"]:
             logger.info(f"Entry {entry.id} too recent ({minutes_since_entry:.1f} minutes), waiting for {self.timing_configs['initial_comment_min']} minutes")
             return opportunities
         
@@ -444,7 +468,8 @@ class ComprehensiveProactiveAIService:
             
             # Initial response opportunity
             if len(entry_responses) == 0:  # No responses yet
-                delay = self._calculate_initial_delay(profile, entry)
+                # 🔧 TESTING MODE FIX: Use 0 delay for testing mode
+                delay = 0 if self.testing_mode else self._calculate_initial_delay(profile, entry)
                 opportunities.append(ProactiveOpportunity(
                     entry_id=entry.id,
                     user_id=entry.user_id,
@@ -462,13 +487,15 @@ class ComprehensiveProactiveAIService:
             if len(related_entries) >= 2 and len(entry_responses) <= 1:
                 pattern_persona = self._select_persona_for_pattern(related_entries, available_personas)
                 if pattern_persona and pattern_persona != optimal_persona:
+                    # 🔧 TESTING MODE FIX: Use 0 delay for testing mode
+                    pattern_delay = 0 if self.testing_mode else self.timing_configs["collaborative_delay"]
                     opportunities.append(ProactiveOpportunity(
                         entry_id=entry.id,
                         user_id=entry.user_id,
                         reason=f"Pattern detected across {len(related_entries) + 1} entries",
                         persona=pattern_persona,
                         priority=6,
-                        delay_minutes=self.timing_configs["collaborative_delay"],
+                        delay_minutes=pattern_delay,
                         message_context=self._generate_pattern_context(entry, related_entries),
                         related_entries=[e.id for e in related_entries],
                         engagement_strategy="collaborative",
@@ -1144,11 +1171,20 @@ Reference patterns you've noticed if relevant.
         # Determine which personas should respond based on content
         responding_personas = self._select_multiple_personas_for_entry(entry, available_personas)
         
-        base_delay = self._calculate_initial_delay(profile, entry)
+        # 🔧 TESTING MODE FIX: Use 0 delay for testing mode
+        if self.testing_mode:
+            base_delay = 0
+            logger.info(f"Testing mode: Using 0 delay for multi-persona responses")
+        else:
+            base_delay = self._calculate_initial_delay(profile, entry)
         
         for i, persona in enumerate(responding_personas):
-            # Stagger responses by 10-15 minutes for natural conversation feel
-            delay = base_delay + (i * 12)  # 12 minute intervals
+            # 🔧 TESTING MODE FIX: No staggering in testing mode
+            if self.testing_mode:
+                delay = 0  # All personas respond immediately in testing mode
+            else:
+                # Stagger responses by 10-15 minutes for natural conversation feel
+                delay = base_delay + (i * 12)  # 12 minute intervals
             
             # Different strategies for different personas
             if i == 0:
