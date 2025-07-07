@@ -414,27 +414,28 @@ class ComprehensiveProactiveAIService:
         opportunities = []
         entry_responses = existing_responses.get(entry.id, [])
         
-        # 🔧 CRITICAL FIX: Ensure we only respond to actual journal entries
-        # Skip if this entry doesn't have basic journal entry structure
-        if not hasattr(entry, 'content') or not entry.content or len(entry.content.strip()) < 10:
-            logger.info(f"Skipping entry {entry.id} - not a valid journal entry")
-            return opportunities
+        # 🧪 TESTING: Temporarily disable all filters to debug opportunity detection
+        # TODO: Re-enable these filters after testing is complete
         
-        # 🔧 CRITICAL FIX: Skip if this looks like an AI response entry
-        # Check if content starts with AI response patterns
-        ai_response_patterns = [
-            "Thank you for sharing",
-            "I can see you wrote",
-            "Your journal entry about",
-            "I notice you mentioned",
-            "It sounds like you're",
-            "I understand you're feeling"
-        ]
+        # Log entry details for debugging
+        logger.info(f"🔍 DEBUGGING entry {entry.id}:")
+        logger.info(f"  - Content length: {len(entry.content) if entry.content else 0}")
+        logger.info(f"  - Content preview: {entry.content[:50] if entry.content else 'None'}...")
+        logger.info(f"  - Has content attr: {hasattr(entry, 'content')}")
+        logger.info(f"  - Content exists: {bool(entry.content)}")
         
-        content_start = entry.content.strip()[:100].lower()
-        if any(pattern.lower() in content_start for pattern in ai_response_patterns):
-            logger.info(f"Skipping entry {entry.id} - appears to be an AI response")
-            return opportunities
+        # 🧪 TEMPORARILY DISABLED: Content length and AI pattern checks
+        # Will re-enable after identifying the blocking issue
+        
+        # ORIGINAL CODE (temporarily disabled):
+        # if not hasattr(entry, 'content') or not entry.content or len(entry.content.strip()) < 10:
+        #     logger.info(f"Skipping entry {entry.id} - not a valid journal entry")
+        #     return opportunities
+        # 
+        # ai_response_patterns = [...]
+        # if any(pattern.lower() in content_start for pattern in ai_response_patterns):
+        #     logger.info(f"Skipping entry {entry.id} - appears to be an AI response")
+        #     return opportunities
         
         # Calculate time since entry
         entry_time = entry.created_at
