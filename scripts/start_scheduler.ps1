@@ -2,20 +2,33 @@
 
 # Function to start the scheduler
 function Start-Scheduler {
-    # Command to start the scheduler
     Write-Host "Starting the scheduler..."
-    # Add the actual command to start the scheduler here
+    try {
+        $response = Invoke-RestMethod -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/start" -Method POST
+        Write-Host "Scheduler started successfully: $($response | ConvertTo-Json)"
+    }
+    catch {
+        Write-Host "Error starting scheduler: $($_.Exception.Message)"
+    }
 }
 
 # Function to check the scheduler status
 function Check-SchedulerStatus {
-    # Command to check the scheduler status
     Write-Host "Checking scheduler status..."
-    # Add the actual command to check the scheduler status here
+    try {
+        $response = Invoke-RestMethod -Uri "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/status" -Method GET
+        Write-Host "Scheduler status: $($response | ConvertTo-Json)"
+    }
+    catch {
+        Write-Host "Error checking scheduler status: $($_.Exception.Message)"
+    }
 }
 
 # Start the scheduler
 Start-Scheduler
+
+# Wait a moment for the scheduler to initialize
+Start-Sleep -Seconds 2
 
 # Check the scheduler status
 Check-SchedulerStatus 
