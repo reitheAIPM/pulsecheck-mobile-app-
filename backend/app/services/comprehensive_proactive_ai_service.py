@@ -334,15 +334,23 @@ class ComprehensiveProactiveAIService:
             # Get recent journal entries
             # CRITICAL: Use service role client to bypass RLS for AI operations
             client = self.db.get_service_client()
-            cutoff_date = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
+            
+            # 🔧 TESTING FIX: Temporarily extend to 7 days to match user detection window
+            # This fixes the time window mismatch that was causing "1 user processed, 0 opportunities"
+            cutoff_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+            logger.info(f"🔍 TESTING: Extended opportunity detection window to 7 days (cutoff: {cutoff_date})")
             
             entries_result = client.table("journal_entries").select("*").eq("user_id", user_id).gte("created_at", cutoff_date).order("created_at", desc=True).execute()
             
             if not entries_result.data:
-                logger.info(f"❌ No journal entries found for user {user_id} in last 3 days")
+                logger.info(f"❌ No journal entries found for user {user_id} in last 7 days")
                 return []
             
             logger.info(f"📝 Found {len(entries_result.data)} journal entries for user {user_id}")
+            
+            # Log entry dates for debugging
+            for entry_data in entries_result.data:
+                logger.info(f"  📅 Entry {entry_data['id']}: created {entry_data['created_at']}")
             
             # Convert database entries to JournalEntryResponse objects with proper datetime handling
             entries = []
