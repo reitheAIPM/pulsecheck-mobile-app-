@@ -432,17 +432,12 @@ class ComprehensiveProactiveAIService:
         logger.info(f"  - Existing responses: {len(entry_responses)}")
         
         # ✅ FIXED: Only respond to user journal entries (not AI responses or replies)
-        # Check if this entry is actually a journal entry, not an AI response
+        # Simplified approach - just ensure this is a real journal entry
+        # The database trigger will handle duplicate prevention
         client = self.db.get_service_client()
         journal_entry_check = client.table("journal_entries").select("id").eq("id", entry.id).execute()
         if not journal_entry_check.data:
-            logger.info(f"Skipping entry {entry.id} - not found in journal_entries table (likely an AI response)")
-            return opportunities
-        
-        # ✅ NEW: Double-check using database function to ensure this isn't an AI response
-        ai_response_check = client.rpc("is_ai_response", {"entry_id": entry.id}).execute()
-        if ai_response_check.data and ai_response_check.data[0]:
-            logger.info(f"Skipping AI-generated entry {entry.id} - detected as AI response")
+            logger.info(f"Skipping entry {entry.id} - not found in journal_entries table")
             return opportunities
         
         # Get available personas for this user
@@ -1097,13 +1092,14 @@ Reference patterns you've noticed if relevant.
             logger.info(f"🔍 DEBUG: Checking if persona {opportunity.persona} should respond to entry {opportunity.entry_id}")
             
             # ✅ FIXED: Check if the entry itself is an AI response (should not respond to AI responses)
-            # Use the new database function for more robust checking
-            entry_check = client.rpc("is_ai_response", {"entry_id": opportunity.entry_id}).execute()
-            if entry_check.data and entry_check.data[0]:
+            # Temporarily disable aggressive database function calls that are blocking opportunities
+            # Use simpler approach that still prevents duplicates
+            entry_check = client.table("ai_insights").select("id").eq("journal_entry_id", opportunity.entry_id).eq("is_ai_response", True).limit(1).execute()
+            if entry_check.data:
                 logger.info(f"❌ Entry {opportunity.entry_id} is an AI response - should not respond to AI responses")
                 return False
             
-            # ✅ NEW: Additional check - ensure this is a real journal entry, not an AI response
+            # ✅ SIMPLIFIED: Ensure this is a real journal entry
             journal_entry_check = client.table("journal_entries").select("id").eq("id", opportunity.entry_id).execute()
             if not journal_entry_check.data:
                 logger.info(f"❌ Entry {opportunity.entry_id} not found in journal_entries table - skipping")
