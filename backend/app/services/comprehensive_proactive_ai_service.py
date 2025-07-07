@@ -341,21 +341,37 @@ class ComprehensiveProactiveAIService:
             cutoff_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
             logger.info(f"🔍 TESTING: Extended opportunity detection window to 7 days (cutoff: {cutoff_date})")
             
+            # ✅ FIXED: Get only REAL journal entries, not AI responses
+            # First get all journal entries
             entries_result = client.table("journal_entries").select("*").eq("user_id", user_id).gte("created_at", cutoff_date).order("created_at", desc=True).execute()
             
             if not entries_result.data:
                 logger.info(f"❌ No journal entries found for user {user_id} in last 7 days")
                 return []
             
-            logger.info(f"📝 Found {len(entries_result.data)} journal entries for user {user_id}")
+            # Get AI responses to filter them out
+            ai_response_entry_ids = set()
+            ai_responses_result = client.table("ai_insights").select("journal_entry_id").eq("user_id", user_id).eq("is_ai_response", True).execute()
+            if ai_responses_result.data:
+                ai_response_entry_ids = {resp["journal_entry_id"] for resp in ai_responses_result.data}
+                logger.info(f"📝 Found {len(ai_response_entry_ids)} entries that are AI responses - will filter out")
+            
+            # Filter out entries that are AI responses
+            real_entries_data = [entry for entry in entries_result.data if entry["id"] not in ai_response_entry_ids]
+            
+            if not real_entries_data:
+                logger.info(f"❌ No real journal entries found for user {user_id} (all were AI responses)")
+                return []
+            
+            logger.info(f"📝 Found {len(real_entries_data)} REAL journal entries for user {user_id}")
             
             # Log entry dates for debugging
-            for entry_data in entries_result.data:
+            for entry_data in real_entries_data:
                 logger.info(f"  📅 Entry {entry_data['id']}: created {entry_data['created_at']}")
             
             # Convert database entries to JournalEntryResponse objects with proper datetime handling
             entries = []
-            for entry_data in entries_result.data:
+            for entry_data in real_entries_data:
                 # Handle datetime conversion for fields that might be strings
                 if 'updated_at' not in entry_data or entry_data['updated_at'] is None:
                     entry_data['updated_at'] = entry_data.get('created_at', datetime.now().isoformat())
@@ -431,14 +447,8 @@ class ComprehensiveProactiveAIService:
         logger.info(f"  - Content exists: {bool(entry.content)}")
         logger.info(f"  - Existing responses: {len(entry_responses)}")
         
-        # ✅ FIXED: Only respond to user journal entries (not AI responses or replies)
-        # Simplified approach - just ensure this is a real journal entry
-        # The database trigger will handle duplicate prevention
-        client = self.db.get_service_client()
-        journal_entry_check = client.table("journal_entries").select("id").eq("id", entry.id).execute()
-        if not journal_entry_check.data:
-            logger.info(f"Skipping entry {entry.id} - not found in journal_entries table")
-            return opportunities
+        # ✅ SIMPLIFIED: We already filtered out AI responses in check_comprehensive_opportunities
+        # Now we just need to check which personas can respond
         
         # Get available personas for this user
         available_personas = self._get_available_personas_for_user(profile)
@@ -1091,14 +1101,8 @@ Reference patterns you've noticed if relevant.
             # 🔍 DEBUG: Log the opportunity being checked
             logger.info(f"🔍 DEBUG: Checking if persona {opportunity.persona} should respond to entry {opportunity.entry_id}")
             
-            # ✅ BALANCED APPROACH: Check if this is a real journal entry
-            journal_entry_check = client.table("journal_entries").select("id").eq("id", opportunity.entry_id).execute()
-            if not journal_entry_check.data:
-                logger.info(f"❌ Entry {opportunity.entry_id} not found in journal_entries table - skipping")
-                return False
-            
-            # ✅ BALANCED APPROACH: Check if this persona has already responded to this specific entry
-            # This prevents duplicates while allowing legitimate opportunities
+            # ✅ SIMPLIFIED: We already filtered out AI responses in check_comprehensive_opportunities
+            # Now just check if this persona has already responded to this specific entry
             existing_response = client.table("ai_insights").select("id").eq("user_id", user_id).eq("journal_entry_id", opportunity.entry_id).eq("persona_used", opportunity.persona).eq("is_ai_response", True).limit(1).execute()
             
             if existing_response.data:

@@ -39,6 +39,7 @@
 - **✅ Added Debug Endpoints**: Created diagnostic tools to troubleshoot AI response issues
 - **✅ CRITICAL FIX: Service Initialization Bugs**: Fixed constructor parameter mismatches causing complete AI system failure
 - **✅ Enhanced Debugging Framework**: Added service initialization validator and AI response structure validation
+- **✅ FIXED: AI Conversation Threading Issues**: Implemented proper conversation threading to prevent AI feedback loops
 - **⚠️ Generic Response Issue**: Still investigating PulseAI service returning fallback responses instead of persona-specific content
 
 ### **🛡️ NEW: ENHANCED PREVENTION SYSTEM (January 30, 2025)**
@@ -2585,3 +2586,114 @@ CREATE INDEX IF NOT EXISTS idx_ai_insights_response_type ON ai_insights(response
 8. **Missing conversation boundaries** in UI
 
 **This investigation plan provides a systematic approach to fixing the AI conversation threading issues.**
+
+---
+
+## 🚦 AI Conversation Threading: Investigation Log (July 2025)
+
+### What We've Tried
+- Identified that AI was responding to its own responses, causing feedback loops and duplicate replies.
+- Added threading fields (`parent_id`, `conversation_thread_id`, `is_ai_response`) to `ai_insights`.
+- Added database triggers/functions to prevent duplicate persona responses and AI feedback loops.
+- Updated backend logic to use these fields and prevent AI from responding to AI-generated content.
+- Simplified opportunity detection to only consider real journal entries (not AI responses).
+- Kept duplicate prevention at the database level, not in the opportunity detection logic.
+- Testing confirmed AI now only responds once per journal entry (no more infinite loops), but AI is still replying to its own responses in the UI (e.g., Pulse AI (Pulse) replying to Pulse AI (AI Assistant)).
+
+### What's Still Broken / Needs to be Fixed
+- AI is still allowed to reply to its own responses, creating a duplicate in the thread.
+- Threading model is not fully enforced: each AI response to a journal entry should be a direct child of the original entry, and only user replies to an AI response should trigger a follow-up from that same persona.
+- Backend needs to enforce: AI should never reply to another AI response unless a user has replied in between.
+- The frontend may be rendering both the AI response to the journal entry and the (incorrect) AI response to its own previous reply.
+
+### Next Steps / TODOs
+- Enforce threading in backend: Only consider user-created journal entries (not AI responses) as valid parents for AI replies. When a user replies to an AI, only that persona should be eligible to respond, and only once per thread.
+- Update opportunity detection: Ensure that AI does not respond to entries where `is_ai_response = TRUE` unless the parent is a user reply.
+- UI/Frontend: Ensure the frontend only displays valid AI responses (not AI-to-AI replies). Optionally, add a visual indicator for the thread structure.
+- Testing: Test with multiple personas and user replies to ensure only the correct persona continues the thread.
+
+---
+
+### **🚨 CRITICAL AI FIXES (January 30, 2025)**
+- **✅ Fixed Auto-Triggering Issue**: Added user preference and engagement pattern checking to prevent unwanted AI responses
+- **✅ Fixed Multiple Persona Problem**: Now generates only ONE optimal persona response per journal entry instead of 4 automatic responses
+- **✅ Added User AI Preferences System**: Created `user_ai_preferences` table with proper controls for AI interactions
+- **✅ Implemented Engagement Pattern Detection**: AI only responds when users have demonstrated positive engagement
+- **✅ Added Debug Endpoints**: Created diagnostic tools to troubleshoot AI response issues
+- **✅ CRITICAL FIX: Service Initialization Bugs**: Fixed constructor parameter mismatches causing complete AI system failure
+- **✅ Enhanced Debugging Framework**: Added service initialization validator and AI response structure validation
+- **✅ FIXED: AI Conversation Threading Issues**: Implemented proper conversation threading to prevent AI feedback loops
+- **⚠️ Generic Response Issue**: Still investigating PulseAI service returning fallback responses instead of persona-specific content
+
+### **🛡️ NEW: AI CONVERSATION THREADING FIXES (January 30, 2025)**
+**Root Cause Analysis & Resolution**
+
+#### **✅ Issues Fixed**
+1. **AI Response Filtering**: Updated `check_comprehensive_opportunities()` to filter out AI responses when detecting opportunities
+2. **Opportunity Detection**: Modified to only consider real user journal entries, not AI-generated content
+3. **Duplicate Prevention**: Simplified `_should_persona_respond()` to focus on persona-specific duplicate prevention
+4. **Threading Metadata**: Proper use of `parent_id`, `conversation_thread_id`, `is_ai_response` fields
+
+#### **🔧 Code Changes Made**
+**File**: `backend/app/services/comprehensive_proactive_ai_service.py`
+
+**1. Updated `check_comprehensive_opportunities()` method:**
+```python
+# ✅ FIXED: Get only REAL journal entries, not AI responses
+# First get all journal entries
+entries_result = client.table("journal_entries").select("*").eq("user_id", user_id).gte("created_at", cutoff_date).order("created_at", desc=True).execute()
+
+# Get AI responses to filter them out
+ai_response_entry_ids = set()
+ai_responses_result = client.table("ai_insights").select("journal_entry_id").eq("user_id", user_id).eq("is_ai_response", True).execute()
+if ai_responses_result.data:
+    ai_response_entry_ids = {resp["journal_entry_id"] for resp in ai_responses_result.data}
+    logger.info(f"📝 Found {len(ai_response_entry_ids)} entries that are AI responses - will filter out")
+
+# Filter out entries that are AI responses
+real_entries_data = [entry for entry in entries_result.data if entry["id"] not in ai_response_entry_ids]
+```
+
+**2. Simplified `_analyze_entry_comprehensive()` method:**
+```python
+# ✅ SIMPLIFIED: We already filtered out AI responses in check_comprehensive_opportunities
+# Now we just need to check which personas can respond
+```
+
+**3. Updated `_should_persona_respond()` method:**
+```python
+# ✅ SIMPLIFIED: We already filtered out AI responses in check_comprehensive_opportunities
+# Now just check if this persona has already responded to this specific entry
+existing_response = client.table("ai_insights").select("id").eq("user_id", user_id).eq("journal_entry_id", opportunity.entry_id).eq("persona_used", opportunity.persona).eq("is_ai_response", True).limit(1).execute()
+```
+
+#### **🎯 Expected Behavior After Fixes**
+1. **AI only responds to real journal entries** (not AI responses)
+2. **Each persona responds only once** per journal entry
+3. **No AI-to-AI conversations** occur
+4. **Proper conversation threading** is maintained
+5. **No feedback loops** or infinite response chains
+
+#### **🧪 Testing Script Created**
+**File**: `scripts/test_ai_threading_fix.ps1`
+- Comprehensive test script to verify threading fixes
+- Tests system health, scheduler status, and AI response generation
+- Provides step-by-step validation of the fixes
+
+#### **📊 Database Safeguards Already in Place**
+- **Migration**: `20250130000005_add_conversation_threading_fields.sql` - Added threading fields
+- **Migration**: `20250130000006_prevent_ai_response_loops.sql` - Added database triggers
+- **Functions**: `should_ai_respond_to_entry()`, `prevent_duplicate_ai_responses()`
+- **Triggers**: `prevent_duplicate_ai_responses_trigger` - Prevents AI-to-AI responses
+
+#### **🚨 Remaining Issues to Address**
+1. **Frontend Display**: Persona labeling inconsistency ("Pulse AI" vs "Pulse")
+2. **UI Threading**: Frontend needs to properly display conversation threading
+3. **Response Quality**: Still investigating generic fallback responses vs persona-specific content
+
+#### **📋 Next Steps**
+1. **Test the fixes** using the provided test script
+2. **Verify frontend display** of AI responses
+3. **Monitor for any remaining feedback loops**
+4. **Address persona labeling consistency** in frontend
+5. **Investigate response quality issues** in PulseAI service
