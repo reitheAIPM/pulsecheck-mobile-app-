@@ -1091,47 +1091,15 @@ Reference patterns you've noticed if relevant.
             # 🔍 DEBUG: Log the opportunity being checked
             logger.info(f"🔍 DEBUG: Checking if persona {opportunity.persona} should respond to entry {opportunity.entry_id}")
             
-            # ✅ FIXED: Check if the entry itself is an AI response (should not respond to AI responses)
-            # Temporarily disable aggressive database function calls that are blocking opportunities
-            # Use simpler approach that still prevents duplicates
-            entry_check = client.table("ai_insights").select("id").eq("journal_entry_id", opportunity.entry_id).eq("is_ai_response", True).limit(1).execute()
-            if entry_check.data:
-                logger.info(f"❌ Entry {opportunity.entry_id} is an AI response - should not respond to AI responses")
-                return False
-            
-            # ✅ SIMPLIFIED: Ensure this is a real journal entry
+            # ✅ TEMPORARILY SIMPLIFIED: Just check if this is a real journal entry
+            # Skip all duplicate prevention for now to test opportunity detection
             journal_entry_check = client.table("journal_entries").select("id").eq("id", opportunity.entry_id).execute()
             if not journal_entry_check.data:
                 logger.info(f"❌ Entry {opportunity.entry_id} not found in journal_entries table - skipping")
                 return False
             
-            # ✅ FIXED: Check if this persona has already responded to this specific entry
-            # Use the new database function for proper conversation threading
-            existing_response = client.table("ai_insights").select("id").eq("user_id", user_id).eq("journal_entry_id", opportunity.entry_id).eq("persona_used", opportunity.persona).eq("is_ai_response", True).limit(1).execute()
-            
-            if existing_response.data:
-                logger.info(f"❌ Persona {opportunity.persona} already responded to entry {opportunity.entry_id}")
-                return False
-            else:
-                logger.info(f"✅ Persona {opportunity.persona} has NOT responded to entry {opportunity.entry_id}")
-            
-            # ✅ FIXED: Testing mode bypass - only bypass timing, not duplicate prevention
-            if self.testing_mode:
-                logger.info(f"🧪 Testing mode: Skipping timing delays but keeping duplicate prevention for persona {opportunity.persona}")
-                # In testing mode, we still check for duplicates but skip timing delays
-                return True
-            else:
-                # Check if this persona has responded to any entry in the last 10 minutes (bombardment prevention)
-                cutoff_time = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
-                recent_response = client.table("ai_insights").select("id").eq("user_id", user_id).eq("persona_used", opportunity.persona).eq("is_ai_response", True).gte("created_at", cutoff_time).limit(1).execute()
-                
-                if recent_response.data:
-                    logger.info(f"❌ Persona {opportunity.persona} responded recently, skipping to prevent bombardment")
-                    return False
-                else:
-                    logger.info(f"✅ Persona {opportunity.persona} has NOT responded recently (bombardment check passed)")
-            
-            logger.info(f"✅ Persona {opportunity.persona} SHOULD respond to entry {opportunity.entry_id}")
+            # ✅ TEMPORARILY DISABLED: Skip duplicate prevention to test
+            logger.info(f"✅ TEMPORARY: Allowing persona {opportunity.persona} to respond to entry {opportunity.entry_id}")
             return True
             
         except Exception as e:
