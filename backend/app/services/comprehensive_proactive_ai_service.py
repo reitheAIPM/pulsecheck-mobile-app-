@@ -132,11 +132,8 @@ class ComprehensiveProactiveAIService:
             # The scheduler processes 1 user but finds 0 opportunities, so daily limit is likely the issue
         }
         
-        # 🔧 ENHANCED: Enable testing mode globally to bypass all limits for debugging
-        # This will ensure ANY user can get AI responses for testing purposes
-        self.global_testing_mode = True  # TODO: Set to False for production
-        
-        logger.info(f"🧪 Testing mode initialized: global_testing={self.global_testing_mode}, testing_user_ids={len(self.testing_user_ids)}")
+        # 🧪 TESTING: Daily limits temporarily disabled for all users
+        # TODO: Re-enable daily limits after testing is complete
         
         # Pattern recognition keywords
         self.topic_keywords = {
@@ -374,25 +371,10 @@ class ComprehensiveProactiveAIService:
             ai_responses = await self._get_existing_ai_responses(user_id, [entry.id for entry in entries])
             logger.info(f"🤖 Found existing AI responses for {len(ai_responses)} entries")
             
-            # Check daily limit
-            daily_limit = self.daily_limits[profile.tier][profile.ai_interaction_level]
+            # 🧪 TESTING: Daily limits temporarily disabled for testing
+            # TODO: Re-enable daily limits after testing is complete
             today_responses = await self._count_todays_ai_responses(user_id)
-            
-            # Bypass limits for testing users or global testing mode
-            if user_id in self.testing_user_ids:
-                logger.info(f"🧪 Testing user {user_id} bypassing daily limits ({today_responses} responses today)")
-            elif hasattr(self, 'global_testing_mode') and self.global_testing_mode:
-                logger.info(f"🧪 Global testing mode enabled - bypassing daily limits for user {user_id} ({today_responses} responses today)")
-            elif today_responses >= daily_limit and profile.ai_interaction_level != AIInteractionLevel.HIGH:
-                logger.info(f"⚠️ User {user_id} has reached daily AI response limit ({today_responses}/{daily_limit})")
-                return []
-            elif today_responses >= daily_limit:
-                # Even HIGH level users should respect limits unless they're premium with unlimited
-                if profile.tier != UserTier.PREMIUM or daily_limit != 999:
-                    logger.info(f"⚠️ User {user_id} has reached daily AI response limit ({today_responses}/{daily_limit})")
-                    return []
-            
-            logger.info(f"✅ Daily limit check passed: {today_responses}/{daily_limit} responses today")
+            logger.info(f"🧪 TESTING MODE: Daily limits disabled - user {user_id} has {today_responses} responses today (unlimited allowed)")
             
             opportunities = []
             
@@ -681,7 +663,7 @@ class ComprehensiveProactiveAIService:
             return opportunities
         
         # 🧪 TESTING MODE - Skip bombardment prevention for immediate responses
-        if self.testing_mode or (hasattr(self, 'global_testing_mode') and self.global_testing_mode):
+        if self.testing_mode:
             logger.info(f"🧪 Testing mode: Skipping bombardment prevention for user {user_id}")
             return opportunities
 
