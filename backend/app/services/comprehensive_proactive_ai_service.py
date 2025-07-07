@@ -1091,15 +1091,37 @@ Reference patterns you've noticed if relevant.
             # 🔍 DEBUG: Log the opportunity being checked
             logger.info(f"🔍 DEBUG: Checking if persona {opportunity.persona} should respond to entry {opportunity.entry_id}")
             
-            # ✅ TEMPORARILY SIMPLIFIED: Just check if this is a real journal entry
-            # Skip all duplicate prevention for now to test opportunity detection
+            # ✅ BALANCED APPROACH: Check if this is a real journal entry
             journal_entry_check = client.table("journal_entries").select("id").eq("id", opportunity.entry_id).execute()
             if not journal_entry_check.data:
                 logger.info(f"❌ Entry {opportunity.entry_id} not found in journal_entries table - skipping")
                 return False
             
-            # ✅ TEMPORARILY DISABLED: Skip duplicate prevention to test
-            logger.info(f"✅ TEMPORARY: Allowing persona {opportunity.persona} to respond to entry {opportunity.entry_id}")
+            # ✅ BALANCED APPROACH: Check if this persona has already responded to this specific entry
+            # This prevents duplicates while allowing legitimate opportunities
+            existing_response = client.table("ai_insights").select("id").eq("user_id", user_id).eq("journal_entry_id", opportunity.entry_id).eq("persona_used", opportunity.persona).eq("is_ai_response", True).limit(1).execute()
+            
+            if existing_response.data:
+                logger.info(f"❌ Persona {opportunity.persona} already responded to entry {opportunity.entry_id}")
+                return False
+            else:
+                logger.info(f"✅ Persona {opportunity.persona} has NOT responded to entry {opportunity.entry_id}")
+            
+            # ✅ BALANCED APPROACH: Only apply bombardment prevention in production mode
+            if not self.testing_mode:
+                # Check if this persona has responded to any entry in the last 10 minutes (bombardment prevention)
+                cutoff_time = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+                recent_response = client.table("ai_insights").select("id").eq("user_id", user_id).eq("persona_used", opportunity.persona).eq("is_ai_response", True).gte("created_at", cutoff_time).limit(1).execute()
+                
+                if recent_response.data:
+                    logger.info(f"❌ Persona {opportunity.persona} responded recently, skipping to prevent bombardment")
+                    return False
+                else:
+                    logger.info(f"✅ Persona {opportunity.persona} has NOT responded recently (bombardment check passed)")
+            else:
+                logger.info(f"🧪 Testing mode: Skipping bombardment prevention for persona {opportunity.persona}")
+            
+            logger.info(f"✅ Persona {opportunity.persona} SHOULD respond to entry {opportunity.entry_id}")
             return True
             
         except Exception as e:
