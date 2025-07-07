@@ -1,34 +1,20 @@
-# GitHub Actions workflow for deploying to Railway and starting the scheduler
-name: Deploy and Start Scheduler
-
-on:
-  push:
-    branches:
-      - main
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Verify Railway CLI
-        run: railway --version
-
-      - name: Debug Railway Token
-        run: echo "RAILWAY_TOKEN is $RAILWAY_TOKEN"
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-      - name: Deploy to Railway
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service=pulsecheck-mobile-app-
-
-      - name: Start Scheduler After Deploy
-        run: |
-          curl -X POST "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/start" 
+# The contents of this deploy file are commented out as it is no longer needed.
+#
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v2
+#     - name: Set up Node.js
+#       uses: actions/setup-node@v2
+#       with:
+#         node-version: '14'
+#     - name: Install dependencies
+#       run: npm install
+#     - name: Build project
+#       run: npm run build
+#     - name: Deploy to Railway
+#       env:
+#         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+#       run: npx railway up 
