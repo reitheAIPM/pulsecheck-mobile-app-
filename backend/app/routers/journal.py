@@ -774,6 +774,25 @@ async def submit_ai_reply(
         
         # 🚀 NEW: Trigger AI response to user's comment
         try:
+            # Check if there's already an AI response from the proactive scheduler
+            existing_ai_responses = service_client.table("ai_insights").select("*").eq("journal_entry_id", entry_id).execute()
+            
+            # If there are already AI responses from the proactive scheduler, don't create duplicates
+            if existing_ai_responses.data:
+                has_proactive_response = any(
+                    resp.get("topic_flags", {}).get("proactive_engagement", False) 
+                    for resp in existing_ai_responses.data
+                )
+                
+                if has_proactive_response:
+                    logger.info(f"Skipping AI reply generation - proactive AI already responded to entry {entry_id}")
+                    # Still store the user's reply but don't generate duplicate AI response
+                    return {
+                        "message": "Reply submitted successfully",
+                        "reply_id": reply_data_to_store["id"],
+                        "timestamp": reply_data_to_store["created_at"]
+                    }
+            
             # Use MultiPersonaService to determine if AI should respond
             from ..services.multi_persona_service import MultiPersonaService
             multi_persona_service = MultiPersonaService(db)
@@ -835,7 +854,12 @@ Keep it brief and friendly - this is a back-and-forth conversation, not a full a
                         "confidence_score": ai_response.confidence_score,
                         "response_type": "conversational_reply",
                         "triggered_by": "user_comment",
-                        "created_at": datetime.now(timezone.utc).isoformat()
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "topic_flags": {
+                            "conversational_reply": True,
+                            "user_initiated": True,
+                            "proactive_engagement": False  # Mark as NOT proactive
+                        }
                     }
                     
                     service_client.table("ai_insights").insert(ai_insight_data).execute()

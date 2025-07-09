@@ -374,48 +374,28 @@ export const JournalCard: React.FC<JournalCardProps> = ({
                 )}
                 
                 {/* User Replies Thread */}
-                {userReplies.length > 0 && (
+                {userReplies.filter(reply => !reply.is_ai_response).length > 0 && (
                   <div className="mt-3 space-y-2 ml-11">
-                    {userReplies.map((reply) => (
+                    {userReplies.filter(reply => !reply.is_ai_response).map((reply) => (
                       <div key={reply.id} className="flex items-start gap-2">
                         {/* Avatar */}
                         <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
-                          {reply.is_ai_response ? (
-                            <Sparkles className="h-3 w-3 text-blue-600" />
-                          ) : (
-                            <span className="text-xs font-medium text-gray-600">
-                              {currentUser?.user_metadata?.full_name?.charAt(0) || 
-                               currentUser?.user_metadata?.name?.charAt(0) || 'U'}
-                            </span>
-                          )}
+                          <span className="text-xs font-medium text-gray-600">
+                            {currentUser?.user_metadata?.full_name?.charAt(0) || 
+                             currentUser?.user_metadata?.name?.charAt(0) || 'U'}
+                          </span>
                         </div>
                         
                         {/* Reply Content */}
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            {reply.is_ai_response ? (
-                              <>
-                                <span className="font-medium text-xs text-blue-600">
-                                  {reply.ai_persona === 'pulse' ? 'Pulse AI' : 
-                                   reply.ai_persona === 'sage' ? 'Sage AI' :
-                                   reply.ai_persona === 'spark' ? 'Spark AI' :
-                                   reply.ai_persona === 'anchor' ? 'Anchor AI' : 'AI'}
-                                </span>
-                                <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                  {reply.ai_persona?.charAt(0).toUpperCase() + reply.ai_persona?.slice(1) || 'AI'}
-                                </Badge>
-                              </>
-                            ) : (
-                              <span className="font-medium text-xs text-gray-600">You</span>
-                            )}
+                            <span className="font-medium text-xs text-gray-600">You</span>
                             <span className="text-xs text-muted-foreground">
                               {formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}
                             </span>
                           </div>
                           
-                          <div className={`text-sm leading-relaxed ${
-                            reply.is_ai_response ? 'text-blue-700' : 'text-gray-700'
-                          }`}>
+                          <div className="text-sm leading-relaxed text-gray-700">
                             {reply.reply_text}
                           </div>
                         </div>
