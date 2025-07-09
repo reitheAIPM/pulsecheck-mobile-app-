@@ -890,7 +890,10 @@ async def get_ai_replies(
     current_user: dict = Depends(get_current_user_with_fallback)
 ):
     """
-    Get all AI persona responses and user replies for a specific journal entry
+    Get all user replies for a specific journal entry
+    
+    NOTE: AI responses are now included in the main entries response as ai_insights,
+    so this endpoint only returns actual user replies to prevent duplicates.
     """
     try:
         # Get JWT token from request headers for RLS authentication
@@ -918,45 +921,25 @@ async def get_ai_replies(
         if not entry_result.data:
             raise HTTPException(status_code=404, detail="Journal entry not found")
         
-        # CRITICAL FIX: Get AI insights (persona responses) first
-        ai_insights_result = client.table("ai_insights").select("*").eq("journal_entry_id", entry_id).eq("user_id", current_user["id"]).order("created_at", desc=False).execute()
-        
-        # Then get user replies
+        # ONLY get user replies - NOT AI insights
         replies_result = client.table("ai_user_replies").select("*").eq("journal_entry_id", entry_id).eq("user_id", current_user["id"]).order("created_at", desc=False).execute()
         
-        # Convert AI insights to reply format
+        # Convert to response format
         replies = []
         
-        # Add AI persona responses first
-        if ai_insights_result.data:
-            for insight in ai_insights_result.data:
-                reply = AIReplyResponse(
-                    id=insight["id"],
-                    journal_entry_id=insight["journal_entry_id"],
-                    user_id=insight["user_id"],
-                    reply_text=insight["ai_response"],
-                    is_ai_response=True,
-                    ai_persona=insight.get("persona_used", "pulse"),
-                    created_at=datetime.fromisoformat(insight["created_at"].replace('Z', '+00:00'))
-                )
-                replies.append(reply)
-        
-        # Then add user replies
+        # Only add actual user replies
         if replies_result.data:
             for reply_data in replies_result.data:
                 replies.append(AIReplyResponse(**reply_data))
         
-        # Sort by created_at to maintain conversation order
-        replies.sort(key=lambda x: x.created_at)
-        
-        logger.info(f"Returning {len(replies)} total replies for entry {entry_id} (AI + user)")
+        logger.info(f"Returning {len(replies)} user replies for entry {entry_id} (AI responses excluded)")
         
         return AIRepliesResponse(replies=replies)
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching AI replies: {str(e)}")
+        logger.error(f"Error fetching user replies: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching replies: {str(e)}")
 
 @router.get("/entries/{entry_id}/analysis", response_model=AIAnalysisResponse)
