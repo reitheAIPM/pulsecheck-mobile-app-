@@ -162,6 +162,42 @@ GET /api/v1/ai-monitoring/alerts/initialization-failures
 - **ERROR RECOVERY**: AI must understand and fix errors without human interpretation
 - **DOCUMENTATION**: All notes, tools, and guides written specifically for AI understanding
 
+### **🔒 AI SAFETY PROTOCOLS - MANDATORY**
+
+#### **🚨 TOKEN & COST LIMITATIONS**
+- **MAXIMUM TOKEN USAGE**: 50,000 tokens per session unless explicitly approved
+- **COST THRESHOLD**: $5.00 maximum per session unless user approves higher
+- **ARCHIVE ACCESS**: NEVER access archive folder without explicit user permission
+- **LARGE FILE LOADING**: Confirm with user before loading files >10,000 tokens
+
+#### **🔒 REQUIRED PERMISSION PROTOCOLS**
+```
+BEFORE accessing archive folder:
+1. Explain why archive access is needed
+2. Identify specific files needed
+3. Get explicit user approval
+4. Load only requested files
+5. Document what was accessed and why
+```
+
+#### **⚠️ RESTRICTED ACCESS AREAS**
+- **Archive folder**: Historical reference only, requires user permission
+- **Large files**: >10,000 tokens require user approval
+- **External APIs**: Must confirm with user before making calls
+- **Database operations**: Read-only unless user approves writes
+
+#### **📊 COST MONITORING REQUIREMENTS**
+- **Track token usage** for each session
+- **Estimate costs** before major operations
+- **Alert user** when approaching limits
+- **Request permission** for expensive operations
+
+#### **🎯 EFFICIENCY REQUIREMENTS**
+- **Minimize tool calls**: Maximum 5 calls for simple tasks
+- **Parallel operations**: Use multiple tools simultaneously when possible
+- **Focused queries**: Ask specific questions, not broad explorations
+- **Reuse context**: Don't reload information already available
+
 ### **🎯 PRIMARY GOAL: AI AUTONOMOUS PROBLEM SOLVING**
 ```
 When something fails → AI gets complete context → AI fixes issue → AI validates fix

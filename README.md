@@ -295,6 +295,14 @@ REACT_APP_API_URL=https://pulsecheck-mobile-app-production.up.railway.app
 - [Demo Guide](./DEMO_GUIDE.md) - Getting started
 - [Project Documentation](./DOCUMENTATION-AUDIT-PLAN.md) - Documentation overview
 
+### **Historical Reference**
+- [Archive Directory](./archive/README.md) - Historical reference & legacy content
+  - **AI Research**: Past AI analysis and insights
+  - **ChatGPT Logs**: Historical AI conversation records
+  - **Test Scripts**: Debugging and testing history
+  - **SQL Fixes**: Database migration history
+  - **⚠️ Access Protocol**: Read archive README before accessing
+
 ---
 
 ## 🤝 **Contributing**
@@ -359,6 +367,8 @@ We welcome contributions! Please see our [Contributing Guide](./ai/CONTRIBUTING.
 
 ---
 
-**PulseCheck represents a unique opportunity in the wellness app market with revolutionary UX, multi-persona AI, and enterprise-level offline functionality. Ready for immediate beta testing and app store submission.** 🚀 #   T r i g g e r   r e d e p l o y  
- #   T r i g g e r   r e d e p l o y  
+**PulseCheck represents a unique opportunity in the wellness app market with revolutionary UX, multi-persona AI, and enterprise-level offline functionality. Ready for immediate beta testing and app store submission.** 🚀 #   T r i g g e r   r e d e p l o y 
+ 
+ #   T r i g g e r   r e d e p l o y 
+ 
  
