@@ -1,0 +1,29 @@
+[build]
+builder = "NIXPACKS"
+watchPatterns = ["backend/**"]
+
+[deploy]
+startCommand = "python -m uvicorn main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ALWAYS"
+restartPolicyMaxRetries = 10
+
+# Health check configuration for faster deployment readiness
+[deploy.healthCheck]
+path = "/health"
+port = 8000
+initialDelaySeconds = 30
+periodSeconds = 10
+timeoutSeconds = 5
+successThreshold = 1
+failureThreshold = 3
+
+# Resource optimization
+[deploy.resources]
+# Enable CPU and memory limits for better resource management
+cpu = 2000m  # 2 vCPU cores
+memory = 4Gi # 4GB RAM
+
+[environments.production]
+variables = { PORT = "8000" } 

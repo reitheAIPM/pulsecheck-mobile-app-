@@ -1,0 +1,14 @@
+[variables]
+NIXPACKS_PATH = "backend"
+
+[phases.setup]
+nixPkgs = ["python39", "pip"]
+
+[phases.install]
+cmds = ["cd backend && pip install -r requirements.txt"]
+
+[phases.build]
+cmds = ["echo 'No build step needed for FastAPI'"]
+
+[start]
+cmd = "cd backend && python -m uvicorn main:app --host 0.0.0.0 --port $PORT" 
