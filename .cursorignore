@@ -1,1 +1,62 @@
 # Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
+
+# Large files that don't need AI indexing
+*.lock
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build artifacts
+build/
+dist/
+.next/
+.nuxt/
+out/
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Archive and historical content
+archive/
+personal/
+platform-docs/
+
+# Test files (unless specifically needed)
+tests/
+test_*.py
+*_test.py
+
+# Large documentation files that are chunked
+ai/CONTRIBUTING.md
+ai/AI-DEBUGGING-SYSTEM.md
+
+# Temporary and debug files
+*.log
+*.tmp
+*.temp
+
+# Database files
+*.db
+*.sqlite
+
+# Backup files
+*.bak
+*.backup
