@@ -45,8 +45,8 @@ test_*.py
 *_test.py
 
 # Large documentation files that are chunked
-ai/CONTRIBUTING.md
-ai/AI-DEBUGGING-SYSTEM.md
+# NOTE: CONTRIBUTING.md and AI-DEBUGGING-SYSTEM.md are ESSENTIAL for AI onboarding
+# DO NOT ignore these files - they contain critical project information
 
 # Temporary and debug files
 *.log
