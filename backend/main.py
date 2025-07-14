@@ -677,10 +677,23 @@ class DynamicCORSMiddleware:
             headers = MutableHeaders(scope=scope)
             origin = headers.get("origin", "")
             
+            # Debug logging for CORS issues
+            if origin:
+                print(f"🔍 CORS Debug: Origin: {origin}")
+                print(f"🔍 CORS Debug: Method: {scope.get('method')}")
+                print(f"🔍 CORS Debug: Path: {scope.get('path')}")
+            
             # Check if origin is allowed
             is_allowed = origin in self.exact_origins or any(
                 pattern.match(origin) for pattern in self.allowed_patterns
             )
+            
+            if origin:
+                print(f"🔍 CORS Debug: Is allowed: {is_allowed}")
+                print(f"🔍 CORS Debug: In exact origins: {origin in self.exact_origins}")
+                for i, pattern in enumerate(self.allowed_patterns):
+                    match = pattern.match(origin)
+                    print(f"🔍 CORS Debug: Pattern {i} match: {match}")
             
             async def send_wrapper(message):
                 if message["type"] == "http.response.start" and is_allowed:
@@ -720,6 +733,26 @@ class DynamicCORSMiddleware:
 
 # Apply custom CORS middleware
 app.add_middleware(DynamicCORSMiddleware)
+
+# Add standard CORS middleware as fallback for broader compatibility
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://pulsecheck-mobile-app.vercel.app",
+        "https://pulsecheck-mobile-2objhn451-reitheaipms-projects.vercel.app",
+        "https://pulsecheck-mobile-39l5vrdmt-reitheaipms-projects.vercel.app",
+        "https://pulsecheck-mobile-qeooko0vf-reitheaipms-projects.vercel.app",
+        "https://pulse-check.vercel.app",
+        "https://pulsecheck-web.vercel.app",
+        "https://pulsecheck-app.vercel.app",
+        "https://pulsecheck-mobile.vercel.app",
+        # Allow all Vercel preview deployments
+        "https://*.vercel.app",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 3. Security headers middleware
 app.add_middleware(SecurityHeadersMiddleware)
