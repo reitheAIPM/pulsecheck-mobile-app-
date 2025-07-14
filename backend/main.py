@@ -40,7 +40,87 @@ print("🚀 PulseCheck v2.0.0 with Enhanced Debug Logging - STARTING UP!")
 print("🚀 This should appear in Railway logs immediately!")
 sys.stdout.flush()
 
-# CRITICAL: Validate essential environment variables before any imports
+# CRITICAL: System health checks before any imports
+print("🔍 Running critical system health checks...")
+sys.stdout.flush()
+
+# 1. Python Runtime Checks
+try:
+    import sys
+    print(f"✅ Python version: {sys.version}")
+    print(f"✅ Python path: {sys.executable}")
+    print(f"✅ Recursion limit: {sys.getrecursionlimit()}")
+    
+    # Check memory usage
+    import psutil
+    memory_info = psutil.virtual_memory()
+    print(f"✅ Available memory: {memory_info.available / (1024**3):.2f} GB")
+    print(f"✅ Memory usage: {memory_info.percent}%")
+except Exception as e:
+    print(f"⚠️ Memory check failed: {e}")
+
+# 2. Network Connectivity Checks
+try:
+    import socket
+    import requests
+    
+    # Check DNS resolution
+    try:
+        socket.gethostbyname('google.com')
+        print("✅ DNS resolution working")
+    except Exception as e:
+        print(f"⚠️ DNS resolution failed: {e}")
+    
+    # Check network connectivity
+    try:
+        response = requests.get("https://httpbin.org/get", timeout=5)
+        print("✅ Network connectivity working")
+    except Exception as e:
+        print(f"⚠️ Network connectivity failed: {e}")
+        
+except Exception as e:
+    print(f"⚠️ Network checks failed: {e}")
+
+# 3. Package Availability Checks
+required_packages = [
+    'fastapi', 'uvicorn', 'pydantic', 'supabase',
+    'openai', 'python-dotenv', 'slowapi', 'requests'
+]
+
+missing_packages = []
+for package in required_packages:
+    try:
+        __import__(package)
+        print(f"✅ Package available: {package}")
+    except ImportError:
+        missing_packages.append(package)
+        print(f"❌ Missing package: {package}")
+
+if missing_packages:
+    print(f"⚠️ WARNING: Missing packages: {missing_packages}")
+    print("⚠️ Application may not function properly without these packages")
+else:
+    print("✅ All required packages available")
+
+# 4. Port Availability Check
+try:
+    import socket
+    def check_port_availability(port=8000):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('localhost', port))
+                return True
+        except:
+            return False
+    
+    if check_port_availability():
+        print("✅ Port 8000 available")
+    else:
+        print("⚠️ Port 8000 may be in use")
+except Exception as e:
+    print(f"⚠️ Port check failed: {e}")
+
+# 5. Environment Variable Validation
 print("🔍 Validating essential environment variables...")
 sys.stdout.flush()
 
@@ -65,6 +145,78 @@ if missing_critical_vars:
 else:
     print("✅ All critical environment variables found")
 
+# 6. Railway-Specific Checks
+railway_env_vars = {
+    "RAILWAY_ENVIRONMENT": os.getenv("RAILWAY_ENVIRONMENT"),
+    "RAILWAY_PROJECT_ID": os.getenv("RAILWAY_PROJECT_ID"),
+    "PORT": os.getenv("PORT"),
+}
+
+print("🔍 Railway environment check...")
+for var_name, var_value in railway_env_vars.items():
+    if var_value:
+        print(f"✅ Railway variable: {var_name}")
+    else:
+        print(f"⚠️ Missing Railway variable: {var_name}")
+
+# 7. Setup startup timeout for Railway
+try:
+    import signal
+    def setup_startup_timeout():
+        def timeout_handler(signum, frame):
+            print("⏰ Startup timeout - exiting gracefully")
+            sys.exit(1)
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(300)  # 5 minute timeout for Railway
+    
+    setup_startup_timeout()
+    print("✅ Startup timeout configured (5 minutes)")
+except Exception as e:
+    print(f"⚠️ Startup timeout setup failed: {e}")
+
+# 8. Startup Failure Recovery
+def check_startup_viability():
+    """Check if startup should proceed or if we should exit gracefully"""
+    critical_failures = []
+    
+    # Check if we have minimum required packages
+    min_required_packages = ['fastapi', 'uvicorn']
+    for package in min_required_packages:
+        try:
+            __import__(package)
+        except ImportError:
+            critical_failures.append(f"Missing critical package: {package}")
+    
+    # Check if we have minimum memory
+    try:
+        import psutil
+        memory_info = psutil.virtual_memory()
+        if memory_info.available < 100 * 1024 * 1024:  # Less than 100MB
+            critical_failures.append("Insufficient memory available")
+    except:
+        pass  # Skip memory check if psutil not available
+    
+    # Check if we can bind to port
+    try:
+        import socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('localhost', 8000))
+    except:
+        critical_failures.append("Cannot bind to port 8000")
+    
+    if critical_failures:
+        print("❌ CRITICAL STARTUP FAILURES DETECTED:")
+        for failure in critical_failures:
+            print(f"   - {failure}")
+        print("❌ Exiting gracefully to prevent deployment issues")
+        sys.exit(1)
+    else:
+        print("✅ Startup viability check passed")
+
+# Run startup viability check
+check_startup_viability()
+
+print("🔍 System health checks complete!")
 sys.stdout.flush()
 
 # Import DNS helper for Railway
@@ -792,6 +944,158 @@ async def health_check():
 async def health_check_fast():
     """Ultra-fast health check that bypasses all middleware and dependencies"""
     return {"status": "ok", "timestamp": time.time()}
+
+# Comprehensive health check with detailed diagnostics
+@app.get("/health-detailed")
+async def health_check_detailed():
+    """Comprehensive health check with detailed system diagnostics"""
+    diagnostics = {
+        "status": "checking",
+        "timestamp": time.time(),
+        "checks": {}
+    }
+    
+    # 1. Python Runtime Check
+    try:
+        import sys
+        diagnostics["checks"]["python_runtime"] = {
+            "status": "healthy",
+            "version": sys.version,
+            "executable": sys.executable,
+            "recursion_limit": sys.getrecursionlimit()
+        }
+    except Exception as e:
+        diagnostics["checks"]["python_runtime"] = {
+            "status": "unhealthy",
+            "error": str(e)
+        }
+    
+    # 2. Memory Check
+    try:
+        import psutil
+        memory_info = psutil.virtual_memory()
+        diagnostics["checks"]["memory"] = {
+            "status": "healthy" if memory_info.percent < 90 else "warning",
+            "available_gb": round(memory_info.available / (1024**3), 2),
+            "usage_percent": memory_info.percent
+        }
+    except Exception as e:
+        diagnostics["checks"]["memory"] = {
+            "status": "unhealthy",
+            "error": str(e)
+        }
+    
+    # 3. Network Connectivity Check
+    try:
+        import socket
+        import requests
+        
+        # DNS check
+        try:
+            socket.gethostbyname('google.com')
+            dns_status = "healthy"
+        except Exception as e:
+            dns_status = "unhealthy"
+            dns_error = str(e)
+        
+        # HTTP check
+        try:
+            response = requests.get("https://httpbin.org/get", timeout=5)
+            http_status = "healthy"
+            http_status_code = response.status_code
+        except Exception as e:
+            http_status = "unhealthy"
+            http_error = str(e)
+        
+        diagnostics["checks"]["network"] = {
+            "status": "healthy" if dns_status == "healthy" and http_status == "healthy" else "unhealthy",
+            "dns": {"status": dns_status, "error": locals().get("dns_error", None)},
+            "http": {"status": http_status, "status_code": locals().get("http_status_code", None), "error": locals().get("http_error", None)}
+        }
+    except Exception as e:
+        diagnostics["checks"]["network"] = {
+            "status": "unhealthy",
+            "error": str(e)
+        }
+    
+    # 4. Package Availability Check
+    required_packages = [
+        'fastapi', 'uvicorn', 'pydantic', 'supabase',
+        'openai', 'python-dotenv', 'slowapi', 'requests'
+    ]
+    
+    package_status = {}
+    for package in required_packages:
+        try:
+            __import__(package)
+            package_status[package] = "available"
+        except ImportError:
+            package_status[package] = "missing"
+    
+    diagnostics["checks"]["packages"] = {
+        "status": "healthy" if all(status == "available" for status in package_status.values()) else "unhealthy",
+        "packages": package_status
+    }
+    
+    # 5. Environment Variables Check
+    critical_env_vars = {
+        "SUPABASE_URL": os.getenv("SUPABASE_URL"),
+        "SUPABASE_ANON_KEY": os.getenv("SUPABASE_ANON_KEY"),
+        "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
+    }
+    
+    env_status = {}
+    for var_name, var_value in critical_env_vars.items():
+        env_status[var_name] = "present" if var_value else "missing"
+    
+    diagnostics["checks"]["environment"] = {
+        "status": "healthy" if all(status == "present" for status in env_status.values()) else "unhealthy",
+        "variables": env_status
+    }
+    
+    # 6. Database Connection Check
+    try:
+        if database_loaded:
+            db = get_database()
+            # Quick connection test
+            result = db.get_client().table('profiles').select('id').limit(1).execute()
+            diagnostics["checks"]["database"] = {
+                "status": "healthy",
+                "connection": "successful"
+            }
+        else:
+            diagnostics["checks"]["database"] = {
+                "status": "unhealthy",
+                "error": "Database system not loaded"
+            }
+    except Exception as e:
+        diagnostics["checks"]["database"] = {
+            "status": "unhealthy",
+            "error": str(e)
+        }
+    
+    # 7. Overall Status
+    all_checks = diagnostics["checks"]
+    healthy_checks = sum(1 for check in all_checks.values() if check.get("status") == "healthy")
+    total_checks = len(all_checks)
+    
+    if healthy_checks == total_checks:
+        diagnostics["status"] = "healthy"
+        diagnostics["message"] = "All systems operational"
+    elif healthy_checks >= total_checks * 0.8:  # 80% healthy
+        diagnostics["status"] = "degraded"
+        diagnostics["message"] = "Some systems degraded but operational"
+    else:
+        diagnostics["status"] = "unhealthy"
+        diagnostics["message"] = "Multiple systems unhealthy"
+    
+    diagnostics["summary"] = {
+        "total_checks": total_checks,
+        "healthy_checks": healthy_checks,
+        "unhealthy_checks": total_checks - healthy_checks
+    }
+    
+    return diagnostics
 
 # Monitoring endpoints
 @app.get("/monitoring/errors")
