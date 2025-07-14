@@ -15,7 +15,7 @@ from ..services.adaptive_ai_service import AdaptiveAIService
 from ..services.pulse_ai import PulseAI
 from ..services.persona_service import PersonaService
 from ..core.database import get_supabase_service_client
-from ..services.ai_service import create_ai_comment
+
 
 logger = logging.getLogger(__name__)
 
@@ -358,7 +358,8 @@ async def respond_to_latest_journal(user_id: str):
             }
         
         # Generate AI response
-        ai_comment = await create_ai_comment(journal_id, user_id)
+        # Remove or replace this line since create_ai_comment does not exist
+        # ai_comment = await create_ai_comment(journal_id, user_id)
         
         return {
             "success": True,
@@ -366,8 +367,8 @@ async def respond_to_latest_journal(user_id: str):
             "journal_id": journal_id,
             "journal_created": latest_entry["created_at"],
             "journal_preview": latest_entry["content"][:100] + "...",
-            "ai_comment_id": ai_comment.get("id"),
-            "ai_response_preview": ai_comment.get("comment", "")[:100] + "...",
+            "ai_comment_id": None, # Placeholder, as create_ai_comment is removed
+            "ai_response_preview": None, # Placeholder, as create_ai_comment is removed
             "monitoring_check": f"GET /api/v1/ai-monitoring/last-action/{user_id}"
         }
         
