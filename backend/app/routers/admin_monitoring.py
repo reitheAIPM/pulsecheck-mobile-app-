@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
 from app.core.database import get_database, Database
-from app.core.auth import get_current_user, get_current_user_with_fallback
+from app.core.security import get_current_user, get_current_user_with_fallback
 import asyncio
 import json
 
