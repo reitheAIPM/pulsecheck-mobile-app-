@@ -732,143 +732,137 @@ class DynamicCORSMiddleware:
         else:
             await self.app(scope, receive, send)
 
-# 1. CORS middleware - MUST BE FIRST
+# 1. CORS middleware - MUST BE FIRST (TEMPORARILY SIMPLIFIED)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://pulsecheck-mobile-app.vercel.app",
-        "https://pulsecheck-mobile-2objhn451-reitheaipms-projects.vercel.app",
-        "https://pulsecheck-mobile-39l5vrdmt-reitheaipms-projects.vercel.app",
-        "https://pulsecheck-mobile-qeooko0vf-reitheaipms-projects.vercel.app",
-        "https://pulse-check.vercel.app",
-        "https://pulsecheck-web.vercel.app",
-        "https://pulsecheck-app.vercel.app",
-        "https://pulsecheck-mobile.vercel.app",
-        # Allow all Vercel preview deployments
-        "https://*.vercel.app",
-    ],
+    allow_origins=["*"],  # Allow all origins temporarily
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 2. Apply custom CORS middleware as backup
-app.add_middleware(DynamicCORSMiddleware)
-
-# 3. Security headers middleware
-app.add_middleware(SecurityHeadersMiddleware)
-
-# 4. Custom observability middleware for performance monitoring
-app.add_middleware(ObservabilityMiddleware)
-
-# Debug middleware disabled for production deployment
-print("✅ Debug middleware disabled (production mode)")
+# TEMPORARILY DISABLE OTHER MIDDLEWARE FOR CORS DEBUGGING
+print("🔧 CORS DEBUG MODE: Only CORS middleware enabled")
 sys.stdout.flush()
 
-# 5. Security middleware - BYPASS HEALTH CHECKS (moved to end)
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=["*"]  # Allow all hosts for now to fix CORS
-)
+# # 2. Apply custom CORS middleware as backup
+# app.add_middleware(DynamicCORSMiddleware)
 
-@app.middleware("http")
-async def monitoring_middleware(request: Request, call_next):
-    """Middleware for monitoring requests and responses - BYPASSES HEALTH CHECKS"""
-    
-    # BYPASS ALL MIDDLEWARE FOR HEALTH CHECKS
-    if request.url.path in ["/health", "/health-fast", "/ready"]:
-        return await call_next(request)
-    
-    start_time = time.time()
-    
-    try:
-        # Process request
-        response = await call_next(request)
-        
-        # Calculate response time
-        response_time = (time.time() - start_time) * 1000
-        
-        # Add response time header (fast operation)
-        response.headers["X-Response-Time"] = f"{response_time:.2f}ms"
-        
-        # BACKGROUND TASK: Log performance metric (heavy operation)
-        asyncio.create_task(self._log_performance_async(
-            response_time,
-            request.method,
-            request.url.path,
-            response.status_code
-        ))
-        
-        return response
-        
-    except Exception as e:
-        # Calculate response time even for errors
-        response_time = (time.time() - start_time) * 1000
-        
-        # BACKGROUND TASK: Log error with context (heavy operation)
-        asyncio.create_task(self._log_error_async(
-            e,
-            request.method,
-            request.url.path,
-            response_time,
-            request.headers.get("user-agent", ""),
-            request.client.host if request.client else "unknown"
-        ))
-        
-        # BACKGROUND TASK: Log performance metric for failed request (heavy operation)
-        asyncio.create_task(self._log_performance_async(
-            response_time,
-            request.method,
-            request.url.path,
-            500,
-            error=str(e)
-        ))
-        
-        # Return error response (fast operation)
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "Internal server error",
-                "message": "An unexpected error occurred. Please try again later.",
-                "timestamp": time.time()
-            }
-        )
-    
-    async def _log_performance_async(self, response_time: float, method: str, path: str, status_code: int, error: str = None):
-        """Background task for performance logging"""
-        try:
-            log_performance(
-                "api_response_time",
-                response_time,
-                "ms",
-                {
-                    "method": method,
-                    "path": path,
-                    "status_code": status_code,
-                    **({"error": error} if error else {})
-                }
-            )
-        except Exception as e:
-            logger.warning(f"Background performance logging failed: {e}")
-    
-    async def _log_error_async(self, error: Exception, method: str, path: str, response_time: float, user_agent: str, client_ip: str):
-        """Background task for error logging"""
-        try:
-            log_error(
-                error,
-                ErrorSeverity.HIGH,
-                ErrorCategory.API_ENDPOINT,
-                {
-                    "method": method,
-                    "path": path,
-                    "response_time_ms": response_time,
-                    "user_agent": user_agent,
-                    "client_ip": client_ip
-                },
-                endpoint=f"{method} {path}"
-            )
-        except Exception as e:
-            logger.warning(f"Background error logging failed: {e}")
+# # 3. Security headers middleware
+# app.add_middleware(SecurityHeadersMiddleware)
+
+# # 4. Custom observability middleware for performance monitoring
+# app.add_middleware(ObservabilityMiddleware)
+
+# # Debug middleware disabled for production deployment
+# print("✅ Debug middleware disabled (production mode)")
+# sys.stdout.flush()
+
+# # 5. Security middleware - BYPASS HEALTH CHECKS (moved to end)
+# app.add_middleware(
+#     TrustedHostMiddleware,
+#     allowed_hosts=["*"]  # Allow all hosts for now to fix CORS
+# )
+
+# TEMPORARILY DISABLE MONITORING MIDDLEWARE FOR CORS DEBUGGING
+# @app.middleware("http")
+# async def monitoring_middleware(request: Request, call_next):
+#     """Middleware for monitoring requests and responses - BYPASSES HEALTH CHECKS"""
+#     
+#     # BYPASS ALL MIDDLEWARE FOR HEALTH CHECKS
+#     if request.url.path in ["/health", "/health-fast", "/ready"]:
+#         return await call_next(request)
+#     
+#     start_time = time.time()
+#     
+#     try:
+#         # Process request
+#         response = await call_next(request)
+#         
+#         # Calculate response time
+#         response_time = (time.time() - start_time) * 1000
+#         
+#         # Add response time header (fast operation)
+#         response.headers["X-Response-Time"] = f"{response_time:.2f}ms"
+#         
+#         # BACKGROUND TASK: Log performance metric (heavy operation)
+#         asyncio.create_task(self._log_performance_async(
+#             response_time,
+#             request.method,
+#             request.url.path,
+#             response.status_code
+#         ))
+#         
+#         return response
+#         
+#     except Exception as e:
+#         # Calculate response time even for errors
+#         response_time = (time.time() - start_time) * 1000
+#         
+#         # BACKGROUND TASK: Log error with context (heavy operation)
+#         asyncio.create_task(self._log_error_async(
+#             e,
+#             request.method,
+#             request.url.path,
+#             response_time,
+#             request.headers.get("user-agent", ""),
+#             request.client.host if request.client else "unknown"
+#         ))
+#         
+#         # BACKGROUND TASK: Log performance metric for failed request (heavy operation)
+#         asyncio.create_task(self._log_performance_async(
+#             response_time,
+#             request.method,
+#             request.url.path,
+#             500,
+#             error=str(e)
+#         ))
+#         
+#         # Return error response (fast operation)
+#         return JSONResponse(
+#             status_code=500,
+#             content={
+#                 "error": "Internal server error",
+#                 "message": "An unexpected error occurred. Please try again later.",
+#                 "timestamp": time.time()
+#             }
+#         )
+#     
+#     async def _log_performance_async(self, response_time: float, method: str, path: str, status_code: int, error: str = None):
+#         """Background task for performance logging"""
+#         try:
+#             log_performance(
+#                 "api_response_time",
+#                 response_time,
+#                 "ms",
+#                 {
+#                     "method": method,
+#                     "path": path,
+#                     "status_code": status_code,
+#                     **({"error": error} if error else {})
+#                 }
+#             )
+#         except Exception as e:
+#             logger.warning(f"Background performance logging failed: {e}")
+#     
+#     async def _log_error_async(self, error: Exception, method: str, path: str, response_time: float, user_agent: str, client_ip: str):
+#         """Background task for error logging"""
+#         try:
+#             log_error(
+#                 error,
+#                 ErrorSeverity.HIGH,
+#                 ErrorCategory.API_ENDPOINT,
+#                 {
+#                     "method": method,
+#                     "path": path,
+#                     "response_time_ms": response_time,
+#                     "user_agent": user_agent,
+#                     "client_ip": client_ip
+#                 },
+#                 endpoint=f"{method} {path}"
+#             )
+#         except Exception as e:
+#             logger.warning(f"Background error logging failed: {e}")
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
