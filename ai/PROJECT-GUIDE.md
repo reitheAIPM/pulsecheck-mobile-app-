@@ -1,6 +1,6 @@
 # Project Guide 🚀
 *Complete Setup, Deployment, and Testing Guide for PulseCheck*  
-*Last Updated: January 31, 2025*
+*Last Updated: July 14, 2025 - Probability-Based AI Response System Implemented*
 
 ## 🎯 **Project Overview**
 
@@ -8,8 +8,41 @@ PulseCheck is a production-ready AI-powered wellness journaling app with:
 - **Backend**: FastAPI + Supabase (Railway deployment)
 - **Frontend**: React + TypeScript (Vercel deployment)
 - **Mobile**: React Native + Expo
-- **AI**: OpenAI GPT-4 with 4 distinct personas
+- **AI**: OpenAI GPT-4 with 4 distinct personas (Pulse, Sage, Spark, Anchor)
 - **Status**: 99.9% uptime, 2-3 second AI response times
+- **NEW**: Probability-based AI response system with tiered user engagement
+
+### 🚀 **Latest Updates (July 14, 2025)**
+- **Implemented**: New probability-based AI response system
+- **Features**: Tiered user engagement (Free/Premium + Low/Normal/High interaction)
+- **Logic**: Exact probability calculations for AI responses based on user tier
+- **Personas**: Smart persona selection based on journal content and user preferences
+
+---
+
+## 🎲 **AI Response Probability System**
+
+### **User Tiers & Interaction Levels**
+
+#### **Non-Premium Users**
+- **Low AI Interaction**: 50% chance Pulse responds to 1 entry per day
+- **Normal AI Interaction**: 70% chance Pulse reacts, 100% chance replies to 1st entry, 50% to 2nd, 30% to 3rd+
+
+#### **Premium Users**
+- **Low AI Interaction**: 50% chance any 2 personas react, 30% chance 1 persona replies
+- **Normal AI Interaction**: 70% chance all 4 personas can react, 100% chance 2+ personas reply to 1st entry
+- **High AI Interaction**: 90% chance all 4 personas can react, 70% chance all 4 can reply
+
+### **Probability Logic**
+- **Reactions**: Independent persona responses (multiple personas can react)
+- **Replies**: Coordinated responses (prevents multiple personas replying to same entry)
+- **Daily Decay**: Probability decreases for subsequent journal entries
+- **Smart Selection**: Personas chosen based on journal content analysis
+
+### **Implementation Files**
+- `backend/app/services/ai_response_probability_service.py` - Core probability logic
+- `backend/app/services/comprehensive_proactive_ai_service.py` - Updated to use probability system
+- `backend/app/routers/journal.py` - Added test endpoints
 
 ---
 
@@ -156,6 +189,21 @@ curl -X POST "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/jou
 # Verify multi-persona responses
 curl "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/entries/{entry_id}/all-ai-insights" \
   -H "Authorization: Bearer YOUR_TOKEN"
+
+# Test probability system (NEW)
+curl "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/test-probability-system"
+```
+
+### **Probability System Testing**
+```bash
+# Check scheduler status
+curl "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/status"
+
+# Trigger manual cycle to test probability logic
+curl -X POST "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/manual-cycle"
+
+# Monitor AI response patterns
+curl "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/database/comprehensive-status"
 ```
 
 ### **Performance Testing**

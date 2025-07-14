@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 import { authService } from './authService';
+import { secureLogger } from '../utils/secureLogger';
 
 // Types for API responses
 export interface HealthCheck {
@@ -276,27 +277,27 @@ class ApiService {
         
         // If no token found, try to get fresh token from Supabase session
         if (!token) {
-          console.log('🔄 No cached token found, trying to get fresh token from Supabase...');
+          secureLogger.debug('No cached token found, trying to get fresh token from Supabase');
           token = await authService.getAuthTokenAsync();
         }
         
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
-          console.log('🔑 Auth token added to request');
+          secureLogger.debug('Auth token added to request');
         } else {
-          console.warn('⚠️ No authentication token available for API request');
+          secureLogger.warn('No authentication token available for API request');
           // Don't fail the request - let backend handle 401 response properly
         }
 
-        console.log(`🌐 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        secureLogger.debug(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
         if (config.data) {
-          console.log('📤 Request data:', config.data);
+          secureLogger.debug('Request data:', config.data);
         }
 
         return config;
       },
       (error) => {
-        console.error('❌ Request interceptor error:', error);
+        secureLogger.error('Request interceptor error:', error);
         return Promise.reject(error);
       }
     );
@@ -304,24 +305,24 @@ class ApiService {
     // Add response interceptor for better error handling
     this.client.interceptors.response.use(
       (response) => {
-        console.log(`✅ API Response: ${response.status} ${response.config.url}`);
+        secureLogger.debug(`API Response: ${response.status} ${response.config.url}`);
         if (response.data) {
-          console.log('📥 Response data:', response.data);
+          secureLogger.debug('Response data:', response.data);
         }
         return response;
       },
       (error: AxiosError) => {
-        console.error(`❌ API Error: ${error.response?.status} ${error.config?.url}`);
+        secureLogger.error(`API Error: ${error.response?.status} ${error.config?.url}`);
         
         if (error.response?.status === 401) {
           // Unauthorized - redirect to login
-          console.log('🚪 Unauthorized - clearing auth and redirecting to login');
+          secureLogger.info('Unauthorized - clearing auth and redirecting to login');
           authService.signOut();
           window.location.href = '/auth';
         }
         
         if (error.response?.data) {
-          console.error('📥 Error response:', error.response.data);
+          secureLogger.error('Error response:', error.response.data);
         }
         
         return Promise.reject(error);
@@ -332,12 +333,12 @@ class ApiService {
   // Health check
   async testConnection(): Promise<boolean> {
     try {
-      console.log('Testing connection to:', this.baseURL);
+      secureLogger.debug('Testing connection to:', this.baseURL);
       await this.healthCheck();
-      console.log('Connection test successful:', { connected: true });
+      secureLogger.debug('Connection test successful:', { connected: true });
       return true;
     } catch (error) {
-      console.error('Connection test failed:', error);
+      secureLogger.error('Connection test failed:', error);
       return false;
     }
   }
@@ -396,7 +397,7 @@ class ApiService {
     force_persona?: boolean;
     response_preferences?: any;
   }): Promise<AIResponse> {
-    console.log('Generating adaptive response:', request);
+    secureLogger.debug('Generating adaptive response:', request);
     
     // Get the user ID from the request or require authentication
     const result = await authService.getCurrentUser();
@@ -415,7 +416,7 @@ class ApiService {
       response_preferences: request.response_preferences || {}
     });
     
-    console.log('Adaptive response generated:', response.data);
+    secureLogger.debug('Adaptive response generated:', response.data);
     return response.data;
   }
 
@@ -461,7 +462,7 @@ class ApiService {
       
       return response.data.topics || [];
     } catch (error) {
-      console.warn('Topic classification failed, returning empty array:', error);
+      secureLogger.warn('Topic classification failed, returning empty array:', error);
       return [];
     }
   }

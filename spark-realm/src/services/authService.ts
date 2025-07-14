@@ -1,24 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
+import { secureLogger } from '../utils/secureLogger';
 
-// Supabase configuration with debugging
+// Supabase configuration
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
 
-// Debug environment variables in development
-if (import.meta.env.DEV) {
-  console.log('🔧 Auth Service Debug Info:');
-  console.log('- Supabase URL:', supabaseUrl);
-  console.log('- Has Anon Key:', !!supabaseAnonKey && supabaseAnonKey !== 'your-anon-key');
-  console.log('- Key length:', supabaseAnonKey?.length || 0);
-}
+// Log configuration status securely
+secureLogger.logConfigStatus({
+  supabaseUrl: supabaseUrl,
+  hasAnonKey: !!supabaseAnonKey && supabaseAnonKey !== 'your-anon-key'
+});
 
 // Validate configuration
 if (!supabaseUrl || supabaseUrl === 'https://your-project.supabase.co') {
-  console.error('❌ VITE_SUPABASE_URL not configured');
+  secureLogger.error('VITE_SUPABASE_URL not configured');
 }
 
 if (!supabaseAnonKey || supabaseAnonKey === 'your-anon-key') {
-  console.error('❌ VITE_SUPABASE_ANON_KEY not configured');
+  secureLogger.error('VITE_SUPABASE_ANON_KEY not configured');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

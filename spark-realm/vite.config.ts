@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     define: {
-      'process.env.BUILDER_API_KEY': JSON.stringify('93b18bce96bf4218884de91289488848'),
+      // Environment variables for client-side use
     },
     build: {
       outDir: "dist",
@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             vendor: ['react', 'react-dom'],
             ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs'],
-            builder: ['@builder.io/react', '@builder.io/sdk']
+            // UI components
           }
         }
       },

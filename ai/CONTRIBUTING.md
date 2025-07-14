@@ -1,8 +1,8 @@
 # Contributing to PulseCheck - AI-Only Development Environment
 
 **Purpose**: Master directory and guidelines for **AI-ONLY** development and debugging  
-**Last Updated**: January 30, 2025  
-**Status**: ✅ **PRODUCTION READY** - Event-driven AI processing with webhook integration
+**Last Updated**: July 14, 2025 - Probability-Based AI Response System Implemented  
+**Status**: ✅ **PRODUCTION READY** - Event-driven AI processing with webhook integration + Probability-based user engagement
 
 ---
 
@@ -177,9 +177,13 @@ ai/
 ├── AI-QUICK-REFERENCE.md             (Daily Commands & Operations)
 ├── AI-DEBUGGING-GUIDE.md             (Troubleshooting Guide)
 ├── DEVELOPER-GUIDE.md                (Development Guidelines)
-├── PROJECT-GUIDE.md                  (Project Overview)
+├── PROJECT-GUIDE.md                  (Project Overview - Updated with Probability System)
 ├── AI-SYSTEM-GUIDE.md               (AI System Architecture)
 └── PLATFORM-DOCS-ANALYSIS.md        (Optimization Opportunities)
+
+📁 ROOT LEVEL DOCUMENTATION
+├── PROBABILITY_SYSTEM_IMPLEMENTATION_STATUS.md  (NEW - Comprehensive Status)
+└── [Other project files...]
 ```
 
 ### **🚨 MANDATORY: AI FILE CREATION RULES**
@@ -241,11 +245,13 @@ Invoke-WebRequest -Uri "https://pulsecheck-mobile-app-production.up.railway.app/
 
 ### **Core Services**
 - **ComprehensiveProactiveAIService** - Main orchestration for background AI engagement
+- **AIResponseProbabilityService** - **NEW** Probability-based response logic for user tiers
 - **AdvancedSchedulerService** - Background task orchestration with APScheduler
 - **PulseAI** - Core AI response generation with safety and error handling
 - **AdaptiveAIService** - Pattern-based AI responses with persona selection
 
 ### **Key Features**
+- **Probability-Based Responses** - **NEW** Tiered user engagement (Free/Premium + Low/Normal/High)
 - **Sophisticated Timing Logic** - 5 minutes to 1 hour initial responses
 - **Collaborative Personas** - Team-based approach (Pulse, Sage, Spark, Anchor)
 - **User Engagement Tracking** - Active users with journal entries or AI interactions
@@ -261,12 +267,17 @@ POST /api/v1/scheduler/manual-cycle
 # AI Response Verification
 GET /api/v1/journal/test-ai
 GET /api/v1/journal/entries/{entry_id}/ai-insights
+
+# NEW - Probability System Testing
+GET /api/v1/journal/test-probability-system
 ```
 
 ### **Development Guidelines**
 - **See [AI-SYSTEM-GUIDE.md](AI-SYSTEM-GUIDE.md)** for detailed architecture
 - **See [DEVELOPER-GUIDE.md](DEVELOPER-GUIDE.md)** for development workflow
 - **See [AI-DEBUGGING-SYSTEM.md](AI-DEBUGGING-SYSTEM.md)** for debugging
+- **See [PROJECT-GUIDE.md](PROJECT-GUIDE.md)** for probability system details
+- **See [PROBABILITY_SYSTEM_IMPLEMENTATION_STATUS.md](../PROBABILITY_SYSTEM_IMPLEMENTATION_STATUS.md)** for implementation status
 
 ---
 
@@ -383,6 +394,18 @@ journal.py router
 
 ### AI Service Development
 
+#### **NEW: Probability System Implementation (July 2025)**
+**Key Files Added/Modified**:
+- `backend/app/services/ai_response_probability_service.py` - **NEW** Core probability logic
+- `backend/app/services/comprehensive_proactive_ai_service.py` - **UPDATED** Integrated probability system
+- `backend/app/routers/journal.py` - **UPDATED** Added test endpoints
+
+**Probability System Features**:
+- **Tiered User Engagement**: Free/Premium + Low/Normal/High interaction levels
+- **Exact Probability Calculations**: Based on user requirements
+- **Smart Persona Selection**: Content-based persona choice
+- **Daily Entry Tracking**: Probability decay for subsequent entries
+
 #### When Adding New AI Services
 1. **Check for redundancy** - Review existing services first
 2. **Follow separation of concerns** - Each service should have distinct purpose
@@ -417,15 +440,29 @@ WebSocket: /api/v1/journal/entries/{entry_id}/stream?persona=auto&token={jwt_tok
 
 #### Common Issues
 - **"0 opportunities found"** - Check user tier detection
+- **"0 engagements executed"** - **NEW** Expected with probability system (more restrictive than old daily limits)
 - **Slow AI responses** - Check OpenAI API connectivity
 - **Inconsistent responses** - Use structured AI service
 - **Multiple personas slow** - Use async multi-persona service
+- **Probability system not working** - Check user tier and interaction level detection
 
 #### Debugging Tools
 - AI diagnostic endpoints
 - Service self-test capabilities
 - Performance monitoring dashboards
 - Error tracking and logging
+
+#### **NEW: Probability System Testing**
+```bash
+# Test probability system
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/journal/test-probability-system"
+
+# Check scheduler status
+curl.exe -s "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/status"
+
+# Trigger manual cycle
+curl.exe -X POST "https://pulsecheck-mobile-app-production.up.railway.app/api/v1/scheduler/manual-cycle"
+```
 
 **Always check this document before starting AI-related development work.**
 

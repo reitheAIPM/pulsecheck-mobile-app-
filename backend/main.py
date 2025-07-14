@@ -77,6 +77,7 @@ from app.core.database import engine, Base, get_database
 # Import observability first to initialize early
 from app.core.observability import init_observability, observability
 from app.middleware.observability_middleware import ObservabilityMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 
 # Import required modules for lifespan and services
 from app.core.database import get_database, init_supabase
@@ -420,7 +421,10 @@ class DynamicCORSMiddleware:
 # Apply custom CORS middleware
 app.add_middleware(DynamicCORSMiddleware)
 
-# 3. Custom observability middleware for performance monitoring
+# 3. Security headers middleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# 4. Custom observability middleware for performance monitoring
 app.add_middleware(ObservabilityMiddleware)
 
 # o3 Fix: Debug middleware with proper error handling to prevent startup crashes
@@ -445,7 +449,14 @@ except Exception as e:
 # Security middleware
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["*"]  # Configure appropriately for production
+    allowed_hosts=[
+        "pulsecheck-mobile-app-production.up.railway.app",
+        "spark-realm.vercel.app",
+        "localhost:3000",
+        "localhost:5173",
+        "127.0.0.1:3000",
+        "127.0.0.1:5173"
+    ]
 )
 
 @app.middleware("http")

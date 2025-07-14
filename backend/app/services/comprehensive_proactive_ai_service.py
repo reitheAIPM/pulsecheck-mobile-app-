@@ -25,6 +25,7 @@ from ..core.database import Database, get_database
 from ..models.journal import JournalEntryResponse
 from ..services.adaptive_ai_service import AdaptiveAIService
 from ..services.async_multi_persona_service import AsyncMultiPersonaService
+from ..services.ai_response_probability_service import AIResponseProbabilityService, UserTier, AIInteractionLevel, ResponseType
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,9 @@ class ComprehensiveProactiveAIService:
         self.adaptive_ai = AdaptiveAIService(pulse_ai_service, pattern_analyzer)
         self.async_multi_persona = AsyncMultiPersonaService(db)
         
+        # Initialize the new probability-based AI response service
+        self.probability_service = AIResponseProbabilityService(db)
+        
         # 🧪 TESTING MODE - Enabled for immediate AI responses during testing
         self.testing_mode = True  # Changed back to True for testing
         logger.info("🧪 TESTING MODE ENABLED - AI responses will be immediate")
@@ -112,19 +116,9 @@ class ComprehensiveProactiveAIService:
             "bombardment_prevention": 30   # 30 minutes minimum between any responses
         }
         
-        # Daily limits based on user tier and AI interaction level
-        self.daily_limits = {
-            UserTier.FREE: {
-                AIInteractionLevel.MINIMAL: 5,    # Increased from 2 - freemium should be generous
-                AIInteractionLevel.MODERATE: 10,  # Increased from 3 - allow good engagement
-                AIInteractionLevel.HIGH: 15       # Increased from 5 - active users get more
-            },
-            UserTier.PREMIUM: {
-                AIInteractionLevel.MINIMAL: 20,   # Increased from 3 - premium gets much more
-                AIInteractionLevel.MODERATE: 50,  # Increased from 6 - very generous
-                AIInteractionLevel.HIGH: 999      # Unlimited for premium with high interaction
-            }
-        }
+        # 🚀 NEW: Probability-based response system replaces daily limits
+        # Daily limits are now handled by the AIResponseProbabilityService
+        # which implements the exact user requirements for each tier
         
         # Testing mode bypass - specific user IDs that bypass all limits
         self.testing_user_ids = {
@@ -450,68 +444,33 @@ class ComprehensiveProactiveAIService:
         # ✅ SIMPLIFIED: We already filtered out AI responses in check_comprehensive_opportunities
         # Now we just need to check which personas can respond
         
-        # Get available personas for this user
-        available_personas = self._get_available_personas_for_user(profile)
-        logger.info(f"🔍 DEBUG: Available personas for user {entry.user_id}: {available_personas}")
+        # 🚀 NEW: Use probability-based system to determine which personas should respond
+        responding_personas = await self.probability_service.should_ai_respond_to_entry(
+            entry.user_id, entry.id, ResponseType.REPLY
+        )
         
-        # Check which personas can respond to this entry
-        personas_to_respond = set()
-        for persona in available_personas:
-            # Create a temporary opportunity to check if persona should respond
-            temp_opportunity = ProactiveOpportunity(
+        logger.info(f"🔍 DEBUG: Probability system determined {len(responding_personas)} personas should respond: {responding_personas}")
+        
+        if not responding_personas:
+            logger.info(f"❌ No personas should respond to entry {entry.id} (probability-based decision)")
+            return opportunities
+        
+        # Generate opportunities for each responding persona
+        for persona in responding_personas:
+            delay = 0 if self.testing_mode else self._calculate_initial_delay(profile, entry)
+            opportunities.append(ProactiveOpportunity(
                 entry_id=entry.id,
                 user_id=entry.user_id,
-                reason="debug_check",
+                reason=f"Probability-based {persona} response to journal entry",
                 persona=persona,
-                priority=5,
-                delay_minutes=0,
-                message_context="debug",
+                priority=8,
+                delay_minutes=delay,
+                message_context=self._generate_context_message(entry, "initial"),
                 related_entries=[],
-                engagement_strategy="debug",
-                expected_engagement_score=5.0
-            )
-            
-            should_respond = await self._should_persona_respond(entry.user_id, temp_opportunity)
-            if should_respond:
-                personas_to_respond.add(persona)
-                logger.info(f"✅ Persona {persona} CAN respond to entry {entry.id}")
-            else:
-                logger.info(f"❌ Persona {persona} CANNOT respond to entry {entry.id}")
-        
-        if not personas_to_respond:
-            logger.info(f"❌ No available personas for entry {entry.id} (all personas already responded)")
-            return opportunities
-        else:
-            logger.info(f"✅ Found {len(personas_to_respond)} personas that can respond: {personas_to_respond}")
-        
-        # In testing mode, generate multi-persona opportunities for all available personas
-        if self.testing_mode:
-            logger.info(f"🧪 Testing mode: Generating multi-persona opportunities for entry {entry.id}")
-            persona_opportunities = self._generate_multi_persona_opportunities(
-                entry, [], personas_to_respond, profile, 0
-            )
-            opportunities.extend(persona_opportunities)
-            logger.info(f"🧪 Testing mode: Generated {len(persona_opportunities)} opportunities")
-        else:
-            # Standard single persona response
-            optimal_persona = self._select_optimal_persona_for_entry(entry, personas_to_respond)
-            if optimal_persona:
-                delay = 0 if self.testing_mode else self._calculate_initial_delay(profile, entry)
-                opportunities.append(ProactiveOpportunity(
-                    entry_id=entry.id,
-                    user_id=entry.user_id,
-                    reason="Initial response to new journal entry",
-                    persona=optimal_persona,
-                    priority=8,
-                    delay_minutes=delay,
-                    message_context=self._generate_context_message(entry, "initial"),
-                    related_entries=[],
-                    engagement_strategy="initial",
-                    expected_engagement_score=self._predict_engagement_score(entry, optimal_persona, profile)
-                ))
-                logger.info(f"✅ Generated single persona opportunity for {optimal_persona}")
-            else:
-                logger.info(f"❌ No optimal persona selected for entry {entry.id}")
+                engagement_strategy="initial",
+                expected_engagement_score=self._predict_engagement_score(entry, persona, profile)
+            ))
+            logger.info(f"✅ Generated opportunity for {persona} (probability-based)")
         
         logger.info(f"📊 Final result: Generated {len(opportunities)} opportunities for entry {entry.id}")
         return opportunities
@@ -1093,7 +1052,7 @@ Reference patterns you've noticed if relevant.
             }
     
     async def _should_persona_respond(self, user_id: str, opportunity: ProactiveOpportunity) -> bool:
-        """Check if this persona should respond based on recent responses and conversation threading"""
+        """🚀 NEW: Check if this persona should respond using probability-based system"""
         try:
             # CRITICAL: Use service role client to bypass RLS for AI operations
             client = self.db.get_service_client()
@@ -1111,22 +1070,19 @@ Reference patterns you've noticed if relevant.
             else:
                 logger.info(f"✅ Persona {opportunity.persona} has NOT responded to entry {opportunity.entry_id}")
             
-            # ✅ BALANCED APPROACH: Only apply bombardment prevention in production mode
-            if not self.testing_mode:
-                # Check if this persona has responded to any entry in the last 10 minutes (bombardment prevention)
-                cutoff_time = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
-                recent_response = client.table("ai_insights").select("id").eq("user_id", user_id).eq("persona_used", opportunity.persona).eq("is_ai_response", True).gte("created_at", cutoff_time).limit(1).execute()
-                
-                if recent_response.data:
-                    logger.info(f"❌ Persona {opportunity.persona} responded recently, skipping to prevent bombardment")
-                    return False
-                else:
-                    logger.info(f"✅ Persona {opportunity.persona} has NOT responded recently (bombardment check passed)")
-            else:
-                logger.info(f"🧪 Testing mode: Skipping bombardment prevention for persona {opportunity.persona}")
+            # 🚀 NEW: Use probability-based system to determine if persona should respond
+            responding_personas = await self.probability_service.should_ai_respond_to_entry(
+                user_id, opportunity.entry_id, ResponseType.REPLY
+            )
             
-            logger.info(f"✅ Persona {opportunity.persona} SHOULD respond to entry {opportunity.entry_id}")
-            return True
+            should_respond = opportunity.persona in responding_personas
+            
+            if should_respond:
+                logger.info(f"✅ Probability system: Persona {opportunity.persona} SHOULD respond to entry {opportunity.entry_id}")
+            else:
+                logger.info(f"❌ Probability system: Persona {opportunity.persona} should NOT respond to entry {opportunity.entry_id}")
+            
+            return should_respond
             
         except Exception as e:
             logger.error(f"❌ Error checking if persona should respond: {e}")
@@ -1187,7 +1143,9 @@ Reference patterns you've noticed if relevant.
         }
     
     def _get_available_personas_for_user(self, profile: UserEngagementProfile) -> set:
-        """Get available personas based on user tier"""
+        """🚀 NEW: Get available personas based on user tier and interaction level"""
+        # This method is now used for reference only - actual persona selection
+        # is handled by the AIResponseProbabilityService
         if profile.tier == UserTier.PREMIUM:
             return {"pulse", "sage", "spark", "anchor"}
         else:

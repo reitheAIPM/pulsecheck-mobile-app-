@@ -19,6 +19,7 @@ from app.services.weekly_summary_service import WeeklySummaryService, SummaryTyp
 from app.services.structured_ai_service import StructuredAIService
 from app.services.streaming_ai_service import StreamingAIService
 from app.services.async_multi_persona_service import AsyncMultiPersonaService
+from app.services.ai_response_probability_service import AIResponseProbabilityService, ResponseType
 from app.core.database import get_database, Database
 from app.core.security import get_current_user, get_current_user_with_fallback, limiter, validate_input_length, sanitize_user_input
 from app.core.utils import DateTimeUtils
@@ -2162,3 +2163,37 @@ async def get_all_entries_with_ai_insights(
     except Exception as e:
         logger.error(f"Error retrieving entries with AI insights: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error retrieving entries: {str(e)}")
+
+@router.get("/test-probability-system")
+async def test_probability_system(
+    user_id: str = "test-user",
+    db: Database = Depends(get_database)
+):
+    """Test the new probability-based AI response system"""
+    try:
+        probability_service = AIResponseProbabilityService(db)
+        
+        # Test the probability system
+        responding_personas = await probability_service.should_ai_respond_to_entry(
+            user_id, "test-entry-id", ResponseType.REPLY
+        )
+        
+        # Get user tier and interaction level
+        user_tier, interaction_level = await probability_service.get_user_tier_and_interaction_level(user_id)
+        
+        # Get daily entry count
+        entry_count = await probability_service.get_user_daily_entry_count(user_id)
+        
+        return {
+            "user_id": user_id,
+            "user_tier": user_tier.value,
+            "interaction_level": interaction_level.value,
+            "daily_entry_count": entry_count,
+            "responding_personas": responding_personas,
+            "message": "Probability system test completed",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error testing probability system: {e}")
+        raise HTTPException(status_code=500, detail=f"Error testing probability system: {str(e)}")

@@ -1,6 +1,5 @@
 import './App.css'
-// Import Builder.io registry for visual editing
-import '../builder-registry'
+// App component for PulseCheck
 import React, { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
@@ -108,7 +107,7 @@ function App() {
                     <div className="bg-white p-8 rounded-lg shadow-lg">
                       <h1 className="text-2xl font-bold text-blue-600">PulseCheck Test Page</h1>
                       <p className="mt-4">If you can see this, React is rendering correctly.</p>
-                      <p className="mt-2 text-gray-500">Builder.io API Key: 93b18bce96bf4218884de91289488848</p>
+              
                       <button className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
                         Test Button
                       </button>
