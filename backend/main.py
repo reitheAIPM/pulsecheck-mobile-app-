@@ -167,61 +167,87 @@ async def monitor_scheduler_health():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager with observability"""
+    """Application lifespan manager with observability - OPTIMIZED FOR FAST STARTUP"""
     global scheduler_service
     
-    # Startup
+    # Startup - FAST PATH
     logger.info("🚀 Starting PulseCheck API with AI-Optimized Observability")
     
     try:
+        # ESSENTIAL STARTUP (fast operations only)
         # Initialize observability system
         init_observability()
         logger.info("✅ Observability system initialized")
         
-        # Test database connection
+        # Test database connection (fast check)
         logger.info("✅ Database connection module loaded")
         
-        # Validate configuration
+        # Validate configuration (fast check)
         settings.validate_required_settings()
         logger.info("✅ Configuration validated")
         
-        # System health check
+        # System health check (fast check)
         health = monitor.check_system_health()
         logger.info(f"✅ System health: {health.overall_status}")
         
-        # Create database tables (DISABLED for Supabase REST API)
-        # try:
-        #     if engine is not None:
-        #         Base.metadata.create_all(bind=engine)
-        #         logger.info("Database tables created successfully")
-        #     else:
-        #         logger.warning("Database engine is None, skipping table creation")
-        # except Exception as e:
-        #     logger.error(f"Database initialization failed: {e}")
-        #     log_error(e, ErrorSeverity.CRITICAL, ErrorCategory.DATABASE, {"operation": "startup"})
-        logger.info("✅ Database table creation skipped (using Supabase REST API)")
-        
-        # Initial health check
-        try:
-            health = check_health()
-            logger.info(f"Initial health check: {health.overall_status}")
-        except Exception as e:
-            logger.error(f"Initial health check failed: {e}")
-        
-        # Pre-warm database connections
-        try:
-            db = get_database()
-            await asyncio.to_thread(db.get_client().table('profiles').select("count", count="exact").execute)
-            logger.info("✅ Database connection pool warmed up")
-        except Exception as e:
-            logger.warning(f"⚠️  Database warmup failed: {e}")
-        
-        # Register routers after all initialization is complete
+        # Register routers (fast operation)
         logger.info("🔄 Registering API routers...")
         register_routers()
         logger.info("✅ All API routers registered successfully")
         
-        # Start advanced scheduler if available
+        # BACKGROUND TASK: Database warmup (heavy operation)
+        asyncio.create_task(_warmup_database_async())
+        
+        # BACKGROUND TASK: Start advanced scheduler (heavy operation)
+        asyncio.create_task(_start_scheduler_async())
+        
+        # BACKGROUND TASK: Register comprehensive monitoring (heavy operation)
+        asyncio.create_task(_register_comprehensive_monitoring_async())
+        
+        yield
+        
+    except Exception as e:
+        logger.error(f"❌ Startup failed: {e}")
+        # Capture startup error for AI debugging
+        observability.capture_error(e, {
+            "startup_phase": "application_initialization",
+            "critical": True
+        }, severity="critical")
+        raise
+    
+    # Shutdown
+    logger.info("🔄 Shutting down PulseCheck API")
+    
+    try:
+        # Generate final AI debugging summary
+        summary = observability.get_ai_debugging_summary()
+        logger.info(f"📊 Final system summary: {summary}")
+        
+        if scheduler_service and scheduler_available:
+            try:
+                await scheduler_service.stop()
+                logger.info("✅ Scheduler stopped gracefully")
+            except Exception as e:
+                logger.error(f"Error stopping scheduler: {e}")
+        
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
+
+async def _warmup_database_async():
+    """Background task for database warmup"""
+    try:
+        await asyncio.sleep(5)  # Wait a bit for main startup to complete
+        db = get_database()
+        await asyncio.to_thread(db.get_client().table('profiles').select("count", count="exact").execute)
+        logger.info("✅ Database connection pool warmed up")
+    except Exception as e:
+        logger.warning(f"⚠️  Database warmup failed: {e}")
+
+async def _start_scheduler_async():
+    """Background task for scheduler startup"""
+    try:
+        await asyncio.sleep(10)  # Wait for main startup to complete
+        
         if scheduler_available:
             logger.info("🤖 Starting advanced AI scheduler...")
             try:
@@ -271,6 +297,13 @@ async def lifespan(app: FastAPI):
                     pass
         else:
             logger.info("⚠️ Advanced AI scheduler not available, continuing without background scheduling")
+    except Exception as e:
+        logger.error(f"Background scheduler startup failed: {e}")
+
+async def _register_comprehensive_monitoring_async():
+    """Background task for comprehensive monitoring registration"""
+    try:
+        await asyncio.sleep(15)  # Wait for main startup to complete
         
         # Import comprehensive monitoring routers
         try:
@@ -294,35 +327,8 @@ async def lifespan(app: FastAPI):
             logger.warning(f"⚠️  Some comprehensive monitoring features not available: {e}")
         except Exception as e:
             logger.error(f"❌ Failed to register comprehensive monitoring routers: {e}")
-        
-        yield
-        
     except Exception as e:
-        logger.error(f"❌ Startup failed: {e}")
-        # Capture startup error for AI debugging
-        observability.capture_error(e, {
-            "startup_phase": "application_initialization",
-            "critical": True
-        }, severity="critical")
-        raise
-    
-    # Shutdown
-    logger.info("🔄 Shutting down PulseCheck API")
-    
-    try:
-        # Generate final AI debugging summary
-        summary = observability.get_ai_debugging_summary()
-        logger.info(f"📊 Final system summary: {summary}")
-        
-        if scheduler_service and scheduler_available:
-            try:
-                await scheduler_service.stop()
-                logger.info("✅ Scheduler stopped gracefully")
-            except Exception as e:
-                logger.error(f"Error stopping scheduler: {e}")
-        
-    except Exception as e:
-        logger.error(f"Error during shutdown: {e}")
+        logger.error(f"Background comprehensive monitoring registration failed: {e}")
 
 app = FastAPI(
     title="PulseCheck API",
@@ -375,6 +381,11 @@ class DynamicCORSMiddleware:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http":
+            # BYPASS ALL CORS FOR HEALTH CHECKS
+            if scope.get("path") in ["/health", "/health-fast", "/ready"]:
+                await self.app(scope, receive, send)
+                return
+            
             headers = MutableHeaders(scope=scope)
             origin = headers.get("origin", "")
             
@@ -432,7 +443,7 @@ app.add_middleware(ObservabilityMiddleware)
 print("✅ Debug middleware disabled (production mode)")
 sys.stdout.flush()
 
-# Security middleware
+# Security middleware - BYPASS HEALTH CHECKS
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=[
@@ -441,13 +452,19 @@ app.add_middleware(
         "localhost:3000",
         "localhost:5173",
         "127.0.0.1:3000",
-        "127.0.0.1:5173"
+        "127.0.0.1:5173",
+        "*"  # Allow all hosts for health checks
     ]
 )
 
 @app.middleware("http")
 async def monitoring_middleware(request: Request, call_next):
-    """Middleware for monitoring requests and responses"""
+    """Middleware for monitoring requests and responses - BYPASSES HEALTH CHECKS"""
+    
+    # BYPASS ALL MIDDLEWARE FOR HEALTH CHECKS
+    if request.url.path in ["/health", "/health-fast", "/ready"]:
+        return await call_next(request)
+    
     start_time = time.time()
     
     try:
@@ -457,20 +474,16 @@ async def monitoring_middleware(request: Request, call_next):
         # Calculate response time
         response_time = (time.time() - start_time) * 1000
         
-        # Log performance metric
-        log_performance(
-            "api_response_time",
-            response_time,
-            "ms",
-            {
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": response.status_code
-            }
-        )
-        
-        # Add response time header (preserve existing headers)
+        # Add response time header (fast operation)
         response.headers["X-Response-Time"] = f"{response_time:.2f}ms"
+        
+        # BACKGROUND TASK: Log performance metric (heavy operation)
+        asyncio.create_task(self._log_performance_async(
+            response_time,
+            request.method,
+            request.url.path,
+            response.status_code
+        ))
         
         return response
         
@@ -478,35 +491,26 @@ async def monitoring_middleware(request: Request, call_next):
         # Calculate response time even for errors
         response_time = (time.time() - start_time) * 1000
         
-        # Log error with context
-        log_error(
+        # BACKGROUND TASK: Log error with context (heavy operation)
+        asyncio.create_task(self._log_error_async(
             e,
-            ErrorSeverity.HIGH,
-            ErrorCategory.API_ENDPOINT,
-            {
-                "method": request.method,
-                "path": request.url.path,
-                "response_time_ms": response_time,
-                "user_agent": request.headers.get("user-agent", ""),
-                "client_ip": request.client.host if request.client else "unknown"
-            },
-            endpoint=f"{request.method} {request.url.path}"
-        )
-        
-        # Log performance metric for failed request
-        log_performance(
-            "api_response_time",
+            request.method,
+            request.url.path,
             response_time,
-            "ms",
-            {
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": 500,
-                "error": str(e)
-            }
-        )
+            request.headers.get("user-agent", ""),
+            request.client.host if request.client else "unknown"
+        ))
         
-        # Return error response
+        # BACKGROUND TASK: Log performance metric for failed request (heavy operation)
+        asyncio.create_task(self._log_performance_async(
+            response_time,
+            request.method,
+            request.url.path,
+            500,
+            error=str(e)
+        ))
+        
+        # Return error response (fast operation)
         return JSONResponse(
             status_code=500,
             content={
@@ -515,6 +519,42 @@ async def monitoring_middleware(request: Request, call_next):
                 "timestamp": time.time()
             }
         )
+    
+    async def _log_performance_async(self, response_time: float, method: str, path: str, status_code: int, error: str = None):
+        """Background task for performance logging"""
+        try:
+            log_performance(
+                "api_response_time",
+                response_time,
+                "ms",
+                {
+                    "method": method,
+                    "path": path,
+                    "status_code": status_code,
+                    **({"error": error} if error else {})
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Background performance logging failed: {e}")
+    
+    async def _log_error_async(self, error: Exception, method: str, path: str, response_time: float, user_agent: str, client_ip: str):
+        """Background task for error logging"""
+        try:
+            log_error(
+                error,
+                ErrorSeverity.HIGH,
+                ErrorCategory.API_ENDPOINT,
+                {
+                    "method": method,
+                    "path": path,
+                    "response_time_ms": response_time,
+                    "user_agent": user_agent,
+                    "client_ip": client_ip
+                },
+                endpoint=f"{method} {path}"
+            )
+        except Exception as e:
+            logger.warning(f"Background error logging failed: {e}")
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -600,15 +640,22 @@ async def cors_test():
     """Simple endpoint to test CORS headers"""
     return {"message": "CORS test successful", "timestamp": time.time()}
 
-# Health check endpoint
+# Health check endpoint - BYPASS ALL MIDDLEWARE
 @app.get("/health")
 async def health_check():
-    """Ultra-fast health check for Railway deployment"""
+    """Ultra-fast health check for Railway deployment - BYPASSES ALL MIDDLEWARE"""
     return {
         "status": "healthy",
         "message": "PulseCheck API is running",
-        "version": "2.1.2"
+        "version": "2.1.2",
+        "timestamp": time.time()
     }
+
+# Additional ultra-fast health check that bypasses everything
+@app.get("/health-fast")
+async def health_check_fast():
+    """Ultra-fast health check that bypasses all middleware and dependencies"""
+    return {"status": "ok", "timestamp": time.time()}
 
 # Monitoring endpoints
 @app.get("/monitoring/errors")

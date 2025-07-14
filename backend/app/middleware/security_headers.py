@@ -17,6 +17,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         
     async def dispatch(self, request, call_next):
+        # BYPASS ALL SECURITY HEADERS FOR HEALTH CHECKS
+        if request.url.path in ["/health", "/health-fast", "/ready"]:
+            return await call_next(request)
+        
         response = await call_next(request)
         
         # Add security headers

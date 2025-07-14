@@ -11,11 +11,16 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 import logging
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from app.core.observability import observability, capture_error
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Thread pool for background tasks
+background_executor = ThreadPoolExecutor(max_workers=4)
 
 class ObservabilityMiddleware(BaseHTTPMiddleware):
     """
@@ -27,6 +32,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
     - Error context capture with AI debugging information
     - User journey tracking
     - Request/response logging for debugging
+    - Background task processing for heavy operations
     """
     
     def __init__(self, app: ASGIApp):
@@ -39,16 +45,21 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         }
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        """Process request with comprehensive observability"""
+        """Process request with comprehensive observability - BYPASSES HEALTH CHECKS"""
+        
+        # BYPASS ALL OBSERVABILITY FOR HEALTH CHECKS
+        if request.url.path in ["/health", "/health-fast", "/ready"]:
+            return await call_next(request)
+        
         start_time = time.time()
         
-        # Generate or extract request ID
+        # Generate or extract request ID (keep this fast)
         request_id = self._get_or_generate_request_id(request)
         
-        # Extract user context if available
+        # Extract user context if available (keep this fast)
         user_id = self._extract_user_id(request)
         
-        # Start request tracking
+        # Start request tracking (fast operation)
         observability.start_request(
             request_id=request_id,
             user_id=user_id,
@@ -69,16 +80,16 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
             # Calculate duration
             duration_ms = (time.time() - start_time) * 1000
             
-            # Add observability headers
+            # Add observability headers (fast operation)
             response.headers["X-Request-ID"] = request_id
             response.headers["X-Response-Time"] = f"{duration_ms:.2f}ms"
             
-            # Track performance
-            await self._track_performance(request, response, duration_ms)
+            # BACKGROUND TASK: Track performance (heavy operation)
+            asyncio.create_task(self._track_performance_async(request, response, duration_ms))
             
-            # Track user journey if successful
+            # BACKGROUND TASK: Track user journey if successful (heavy operation)
             if user_id and 200 <= response.status_code < 300:
-                observability.track_user_journey(
+                asyncio.create_task(self._track_user_journey_async(
                     user_id=user_id,
                     action=f"{request.method} {request.url.path}",
                     metadata={
@@ -86,9 +97,9 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
                         "duration_ms": duration_ms,
                         "request_id": request_id
                     }
-                )
+                ))
             
-            # End request tracking
+            # End request tracking (fast operation)
             observability.end_request(
                 request_id=request_id,
                 status_code=response.status_code,
@@ -101,19 +112,12 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
             # Calculate duration for error case
             duration_ms = (time.time() - start_time) * 1000
             
-            # Capture comprehensive error context
-            error_context = await self._build_error_context(request, error, duration_ms)
+            # BACKGROUND TASK: Capture comprehensive error context (heavy operation)
+            asyncio.create_task(self._build_error_context_async(request, error, duration_ms))
             
-            # Capture error with AI debugging context
-            capture_error(
-                error=error,
-                context=error_context,
-                severity="error" if not self._is_client_error(error) else "warning"
-            )
-            
-            # Track failed user journey
+            # BACKGROUND TASK: Track failed user journey (heavy operation)
             if user_id:
-                observability.track_user_journey(
+                asyncio.create_task(self._track_user_journey_async(
                     user_id=user_id,
                     action=f"ERROR {request.method} {request.url.path}",
                     metadata={
@@ -122,9 +126,9 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
                         "duration_ms": duration_ms,
                         "request_id": request_id
                     }
-                )
+                ))
             
-            # End request tracking with error
+            # End request tracking with error (fast operation)
             observability.end_request(
                 request_id=request_id,
                 status_code=500,
@@ -132,7 +136,33 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
             )
             
             # Return structured error response
-            return await self._create_error_response(error, request_id, error_context)
+            return await self._create_error_response(error, request_id, {"error": str(error)})
+    
+    async def _track_performance_async(self, request: Request, response: Response, duration_ms: float):
+        """Background task for performance tracking"""
+        try:
+            await self._track_performance(request, response, duration_ms)
+        except Exception as e:
+            logger.warning(f"Background performance tracking failed: {e}")
+    
+    async def _track_user_journey_async(self, user_id: str, action: str, metadata: dict):
+        """Background task for user journey tracking"""
+        try:
+            observability.track_user_journey(user_id=user_id, action=action, metadata=metadata)
+        except Exception as e:
+            logger.warning(f"Background user journey tracking failed: {e}")
+    
+    async def _build_error_context_async(self, request: Request, error: Exception, duration_ms: float):
+        """Background task for error context building"""
+        try:
+            error_context = await self._build_error_context(request, error, duration_ms)
+            capture_error(
+                error=error,
+                context=error_context,
+                severity="error" if not self._is_client_error(error) else "warning"
+            )
+        except Exception as e:
+            logger.warning(f"Background error context building failed: {e}")
     
     def _get_or_generate_request_id(self, request: Request) -> str:
         """Get request ID from headers or generate new one"""
