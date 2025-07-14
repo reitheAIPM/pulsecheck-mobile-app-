@@ -295,10 +295,11 @@ def get_db() -> Session:
         db.close()
 
 # Initialize engine on module import for better startup performance
-try:
-    create_optimized_engine()
-except Exception as e:
-    logger.warning(f"Failed to pre-initialize database engine: {e}")
+# DISABLED: SQLAlchemy engine not needed for Supabase REST API
+# try:
+#     create_optimized_engine()
+# except Exception as e:
+#     logger.warning(f"Failed to pre-initialize database engine: {e}")
 
 # Performance monitoring functions
 def get_connection_stats() -> dict:

@@ -189,16 +189,17 @@ async def lifespan(app: FastAPI):
         health = monitor.check_system_health()
         logger.info(f"✅ System health: {health.overall_status}")
         
-        # Create database tables
-        try:
-            if engine is not None:
-                Base.metadata.create_all(bind=engine)
-                logger.info("Database tables created successfully")
-            else:
-                logger.warning("Database engine is None, skipping table creation")
-        except Exception as e:
-            logger.error(f"Database initialization failed: {e}")
-            log_error(e, ErrorSeverity.CRITICAL, ErrorCategory.DATABASE, {"operation": "startup"})
+        # Create database tables (DISABLED for Supabase REST API)
+        # try:
+        #     if engine is not None:
+        #         Base.metadata.create_all(bind=engine)
+        #         logger.info("Database tables created successfully")
+        #     else:
+        #         logger.warning("Database engine is None, skipping table creation")
+        # except Exception as e:
+        #     logger.error(f"Database initialization failed: {e}")
+        #     log_error(e, ErrorSeverity.CRITICAL, ErrorCategory.DATABASE, {"operation": "startup"})
+        logger.info("✅ Database table creation skipped (using Supabase REST API)")
         
         # Initial health check
         try:
