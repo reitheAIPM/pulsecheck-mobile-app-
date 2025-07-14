@@ -250,11 +250,11 @@ class ComprehensiveProactiveAIService:
             client = self.db.get_service_client()
             
             # Check user's AI preferences and subscription status
-            prefs_result = client.table("user_ai_preferences").select("ai_interaction_level, premium_tier").eq("user_id", user_id).execute()
+            prefs_result = client.table("user_ai_preferences").select("ai_interaction_level, user_tier").eq("user_id", user_id).execute()
             
             if prefs_result.data:
                 ai_level_str = prefs_result.data[0].get("ai_interaction_level", "MODERATE")
-                premium_tier = prefs_result.data[0].get("premium_tier", False)
+                user_tier_str = prefs_result.data[0].get("user_tier", "free")
                 
                 # Map AI interaction level to enum
                 if ai_level_str == "HIGH":
@@ -267,7 +267,7 @@ class ComprehensiveProactiveAIService:
                     ai_level = AIInteractionLevel.MODERATE
                 
                 # Determine tier based on subscription status, not interaction level
-                if premium_tier:
+                if user_tier_str.lower() == "premium":
                     tier = UserTier.PREMIUM
                 else:
                     # Check if user has HIGH interaction level as fallback premium indicator
@@ -278,7 +278,7 @@ class ComprehensiveProactiveAIService:
                     else:
                         tier = UserTier.FREE
                 
-                logger.info(f"User {user_id} tier: {tier.value}, AI level: {ai_level.value} (premium_tier: {premium_tier})")
+                logger.info(f"User {user_id} tier: {tier.value}, AI level: {ai_level.value} (user_tier: {user_tier_str})")
                 return tier, ai_level
                 
             else:

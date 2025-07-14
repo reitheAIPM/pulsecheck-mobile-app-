@@ -284,24 +284,24 @@ class AIResponseProbabilityService:
             client = self.db.get_service_client()
             
             # Get user preferences
-            prefs_result = client.table("user_ai_preferences").select("ai_interaction_level, premium_tier").eq("user_id", user_id).execute()
+            prefs_result = client.table("user_ai_preferences").select("ai_interaction_level, user_tier").eq("user_id", user_id).execute()
             
             if prefs_result.data:
-                ai_level_str = prefs_result.data[0].get("ai_interaction_level", "MODERATE")
-                premium_tier = prefs_result.data[0].get("premium_tier", False)
+                ai_level_str = prefs_result.data[0].get("ai_interaction_level", "moderate")
+                user_tier_str = prefs_result.data[0].get("user_tier", "free")
                 
                 # Map AI interaction level
-                if ai_level_str == "HIGH":
+                if ai_level_str.upper() == "HIGH":
                     ai_level = AIInteractionLevel.HIGH
-                elif ai_level_str == "MODERATE":
+                elif ai_level_str.upper() == "MODERATE":
                     ai_level = AIInteractionLevel.MODERATE
-                elif ai_level_str == "MINIMAL":
+                elif ai_level_str.upper() == "MINIMAL":
                     ai_level = AIInteractionLevel.MINIMAL
                 else:
                     ai_level = AIInteractionLevel.MODERATE
                 
                 # Determine tier
-                if premium_tier:
+                if user_tier_str.lower() == "premium":
                     tier = UserTier.PREMIUM
                 else:
                     tier = UserTier.FREE
