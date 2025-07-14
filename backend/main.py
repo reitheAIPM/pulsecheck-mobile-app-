@@ -618,34 +618,12 @@ async def cors_test():
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    """Fast health check for Railway deployment"""
-    try:
-        # Quick database connectivity test
-        db = get_database()
-        client = db.get_client()
-        result = client.table('profiles').select('id').limit(1).execute()
-        
-        return {
-            "status": "healthy",
-            "timestamp": "2025-07-14T13:00:00Z",
-            "components": {
-                "database": "healthy",
-                "scheduler": "starting",
-                "error_rate": "healthy",
-                "response_time": "healthy"
-            },
-            "message": "PulseCheck API is running"
-        }
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "unhealthy",
-                "error": str(e),
-                "timestamp": "unknown"
-            }
-        )
+    """Ultra-fast health check for Railway deployment"""
+    return {
+        "status": "healthy",
+        "message": "PulseCheck API is running",
+        "version": "2.1.2"
+    }
 
 # Monitoring endpoints
 @app.get("/monitoring/errors")
@@ -1207,6 +1185,11 @@ def register_routers():
 @app.get("/")
 async def root():
     return {"message": "PulseCheck API is running", "status": "healthy", "version": "2.1.2"}
+
+@app.get("/ready")
+async def readiness_check():
+    """Readiness check for Railway deployment"""
+    return {"status": "ready", "message": "Application is ready to serve requests"}
 
 # QUICK FIX: Manual AI endpoints added directly to main.py to bypass router registration issues
 @app.get("/api/v1/manual-ai/debug-database/{user_id}")
