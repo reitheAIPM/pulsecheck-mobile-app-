@@ -961,6 +961,12 @@ async def cors_test():
     """Simple endpoint to test CORS headers"""
     return {"message": "CORS test successful", "timestamp": time.time()}
 
+# API CORS test endpoint
+@app.get("/api/v1/cors-test")
+async def cors_test_api():
+    """API endpoint to test CORS headers"""
+    return {"message": "CORS test API successful", "timestamp": time.time()}
+
 # Health check endpoint - BYPASS ALL MIDDLEWARE
 @app.get("/health")
 async def health_check():
