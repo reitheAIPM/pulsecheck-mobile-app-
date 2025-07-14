@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 from ..core.database import Database, get_database
 from ..core.security import get_current_user_with_fallback, limiter
-from ..services.proactive_ai_service import ProactiveAIService
+from ..services.comprehensive_proactive_ai_service import ComprehensiveProactiveAIService as ProactiveAIService
 from ..services.adaptive_ai_service import AdaptiveAIService
 
 logger = logging.getLogger(__name__)
