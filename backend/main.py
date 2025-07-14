@@ -428,24 +428,9 @@ app.add_middleware(SecurityHeadersMiddleware)
 # 4. Custom observability middleware for performance monitoring
 app.add_middleware(ObservabilityMiddleware)
 
-# o3 Fix: Debug middleware with proper error handling to prevent startup crashes
-try:
-    from app.middleware.debug_middleware import DebugMiddleware, debug_store
-    app.add_middleware(DebugMiddleware)
-    print("✅ Debug middleware loaded successfully")
-    print(f"✅ Debug store initialized: {type(debug_store).__name__}")
-    print(f"✅ Debug store has {len(debug_store.requests)} requests in memory")
-    sys.stdout.flush()
-except ImportError as e:
-    print(f"⚠️  Debug middleware not available (ImportError): {e}")
-    print("   Continuing without debug middleware (non-critical)")
-    sys.stdout.flush()
-except Exception as e:
-    print(f"❌ Debug middleware failed to load: {e}")
-    print("   Continuing without debug middleware")
-    import traceback
-    print(f"   Traceback: {traceback.format_exc()}")
-    sys.stdout.flush()
+# Debug middleware disabled for production deployment
+print("✅ Debug middleware disabled (production mode)")
+sys.stdout.flush()
 
 # Security middleware
 app.add_middleware(
@@ -854,333 +839,71 @@ async def record_ai_debugging_attempt(error_id: str, attempt_details: Dict[str, 
 # Note: OPTIONS requests are handled by CustomCORSMiddleware above
 # No need for additional OPTIONS handler as it causes conflicts
 
-# Router registration with enhanced debugging
 def register_routers():
-    """Register all API routers with comprehensive error handling"""
+    """Simplified router registration with better error handling"""
     routers_registered = 0
     routers_failed = 0
     
-    try:
-        # Import sys and os first before using them
-        import sys
-        import os
-        
-        print("🔄 Starting router registration...")
-        sys.stdout.flush()
-        
-        # Add the backend directory to Python path so relative imports work
-        backend_dir = os.path.dirname(__file__)
-        if backend_dir not in sys.path:
-            sys.path.insert(0, backend_dir)
-        
-        print(f"🔄 Added {backend_dir} to Python path")
-        sys.stdout.flush()
-        
-        # Core routers - import using absolute path from app package
-        print("🔄 Importing auth router...")
-        sys.stdout.flush()
-        from app.routers.auth import router as auth_router
-        print("✅ Auth router imported successfully")
-        sys.stdout.flush()
-        app.include_router(auth_router, prefix="/api/v1/auth", tags=["authentication"])
-        print("✅ Auth router registered")
-        routers_registered += 1
-        sys.stdout.flush()
-
-        print("🔄 Importing journal router...")
-        sys.stdout.flush()
-        from app.routers.journal import router as journal_router
-        print("✅ Journal router imported successfully")
-        sys.stdout.flush()
-        app.include_router(journal_router, prefix="/api/v1/journal", tags=["journal"])
-        print("✅ Journal router registered")
-        routers_registered += 1
-        sys.stdout.flush()
-
-        print("🔄 Importing adaptive AI router...")
-        sys.stdout.flush()
-        from app.routers.adaptive_ai import router as adaptive_ai_router
-        print("✅ Adaptive AI router imported successfully")
-        sys.stdout.flush()
-        app.include_router(adaptive_ai_router, prefix="/api/v1/adaptive-ai", tags=["adaptive-ai"])
-        print("✅ Adaptive AI router registered")
-        routers_registered += 1
-        sys.stdout.flush()
-
-        print("🔄 Importing proactive AI router...")
+    print("🔄 Starting simplified router registration...")
+    sys.stdout.flush()
+    
+    # Add /app to Python path for imports
+    sys.path.insert(0, '/app')
+    print("🔄 Added /app to Python path")
+    sys.stdout.flush()
+    
+    # Core routers (required)
+    core_routers = [
+        ("auth", "app.routers.auth", "auth"),
+        ("journal", "app.routers.journal", "journal"),
+        ("adaptive_ai", "app.routers.adaptive_ai", "adaptive-ai"),
+        ("checkins", "app.routers.checkins", "checkins"),
+        ("monitoring", "app.routers.monitoring", "monitoring"),
+    ]
+    
+    # Register core routers
+    for router_name, import_path, tag in core_routers:
+        print(f"🔄 Importing {router_name} router...")
         sys.stdout.flush()
         try:
-            from app.routers.proactive_ai import router as proactive_ai_router
-            print("✅ Proactive AI router imported successfully")
-            sys.stdout.flush()
-            app.include_router(proactive_ai_router, prefix="/api/v1/proactive-ai", tags=["proactive-ai"])
-            print("✅ Proactive AI router registered")
-            sys.stdout.flush()
-        except Exception as proactive_ai_error:
-            print(f"❌ Proactive AI router import/registration failed: {proactive_ai_error}")
-            print(f"❌ Proactive AI router traceback: {traceback.format_exc()}")
-            routers_failed += 1
-            sys.stdout.flush()
-            # Continue without proactive AI router rather than failing completely
-            pass
-
-        print("🔄 Importing checkins router...")
-        sys.stdout.flush()
-        from app.routers.checkins import router as checkins_router
-        print("✅ Checkins router imported successfully")
-        sys.stdout.flush()
-        app.include_router(checkins_router, prefix="/api/v1/checkins", tags=["checkins"])
-        print("✅ Checkins router registered")
-        routers_registered += 1
-        sys.stdout.flush()
-
-        print("🔄 Importing monitoring router...")
-        sys.stdout.flush()
-        from app.routers.monitoring import router as monitoring_router
-        print("✅ Monitoring router imported successfully")
-        sys.stdout.flush()
-        app.include_router(monitoring_router, prefix="/api/v1/monitoring", tags=["monitoring"])
-        print("✅ Monitoring router registered")
-        routers_registered += 1
-        sys.stdout.flush()
-
-        # Debug router with enhanced error handling
-        print("🔄 Attempting to import debug router...")
-        sys.stdout.flush()
-        try:
-            from app.routers.debug import router as debug_router
-            print("✅ Debug module imported successfully")
-            sys.stdout.flush()
-            
-            print("🔄 Registering debug router...")
-            sys.stdout.flush()
-            app.include_router(debug_router, prefix="/api/v1/debug", tags=["debug"])
-            print("✅ Debug router registered successfully!")
+            module = __import__(import_path, fromlist=['router'])
+            router = getattr(module, 'router')
+            app.include_router(router, prefix=f"/api/v1/{tag}", tags=[tag])
+            print(f"✅ {router_name} router registered")
             routers_registered += 1
             sys.stdout.flush()
-            
-        except Exception as debug_error:
-            print(f"❌ Debug router import/registration failed: {debug_error}")
-            print(f"❌ Debug router traceback: {traceback.format_exc()}")
+        except Exception as e:
+            print(f"❌ {router_name} router failed: {e}")
             routers_failed += 1
             sys.stdout.flush()
-            # Continue without debug router rather than failing completely
-            pass
-
-        # Debugging router with database client validation (NEW)
-        print("🔄 Attempting to import debugging router...")
+    
+    # Optional routers (non-critical)
+    optional_routers = [
+        ("proactive_ai", "app.routers.proactive_ai", "proactive-ai"),
+        ("admin", "app.routers.admin", "admin"),
+        ("admin_monitoring", "app.routers.admin_monitoring", "admin-monitoring"),
+        ("manual_ai_response", "app.routers.manual_ai_response", "manual-ai"),
+        ("webhook_handler", "app.routers.webhook_handler", "webhook"),
+    ]
+    
+    # Register optional routers
+    for router_name, import_path, tag in optional_routers:
+        print(f"🔄 Importing optional {router_name} router...")
         sys.stdout.flush()
         try:
-            from app.routers.debugging import router as debugging_router
-            print("✅ Debugging module imported successfully")
-            sys.stdout.flush()
-            
-            print("🔄 Registering debugging router...")
-            sys.stdout.flush()
-            app.include_router(debugging_router, prefix="/api/v1", tags=["debugging"])
-            print("✅ Debugging router registered successfully!")
+            module = __import__(import_path, fromlist=['router'])
+            router = getattr(module, 'router')
+            app.include_router(router, prefix=f"/api/v1/{tag}", tags=[tag])
+            print(f"✅ {router_name} router registered")
             routers_registered += 1
             sys.stdout.flush()
-            
-        except Exception as debugging_error:
-            print(f"❌ Debugging router import/registration failed: {debugging_error}")
-            print(f"❌ Debugging router traceback: {traceback.format_exc()}")
+        except Exception as e:
+            print(f"⚠️ {router_name} router skipped (optional): {e}")
             routers_failed += 1
             sys.stdout.flush()
-            # Continue without debugging router rather than failing completely
-            pass
-
-        # OpenAI Debug router
-        print("🔄 Importing OpenAI debug router...")
-        sys.stdout.flush()
-        try:
-            from app.routers.openai_debug import router as openai_debug_router
-            print("✅ OpenAI debug router imported successfully")
-            sys.stdout.flush()
-            app.include_router(openai_debug_router, prefix="/api/v1", tags=["openai-debug"])
-            print("✅ OpenAI debug router registered")
-            routers_registered += 1
-            sys.stdout.flush()
-        except Exception as openai_debug_error:
-            print(f"❌ OpenAI debug router import/registration failed: {openai_debug_error}")
-            print(f"❌ OpenAI debug router traceback: {traceback.format_exc()}")
-            routers_failed += 1
-            sys.stdout.flush()
-            # Continue without OpenAI debug router rather than failing completely
-            pass
-
-        # Journal Debug router for critical bug investigation
-        print("🔄 Importing Journal debug router...")
-        sys.stdout.flush()
-        try:
-            from app.routers.debug_journal import router as debug_journal_router
-            print("✅ Journal debug router imported successfully")
-            sys.stdout.flush()
-            app.include_router(debug_journal_router, prefix="/api/v1", tags=["debug-journal"])
-            print("✅ Journal debug router registered")
-            routers_registered += 1
-            sys.stdout.flush()
-        except Exception as journal_debug_error:
-            print(f"❌ Journal debug router import/registration failed: {journal_debug_error}")
-            print(f"❌ Journal debug router traceback: {traceback.format_exc()}")
-            routers_failed += 1
-            sys.stdout.flush()
-            # Continue without journal debug router rather than failing completely
-            pass
-
-        # Journal Fix router for critical bug fix
-        print("🔄 Importing Journal fix router...")
-        sys.stdout.flush()
-        try:
-            from app.routers.journal_fix import router as journal_fix_router
-            print("✅ Journal fix router imported successfully")
-            sys.stdout.flush()
-            app.include_router(journal_fix_router, prefix="/api/v1", tags=["journal-fix"])
-            print("✅ Journal fix router registered")
-            routers_registered += 1
-            sys.stdout.flush()
-        except Exception as journal_fix_error:
-            print(f"❌ Journal fix router import/registration failed: {journal_fix_error}")
-            print(f"❌ Journal fix router traceback: {traceback.format_exc()}")
-            routers_failed += 1
-            sys.stdout.flush()
-            # Continue without journal fix router rather than failing completely
-            pass
-
-        # Database Debug router for connection diagnostics
-        print("🔄 Importing Database debug router...")
-        sys.stdout.flush()
-        try:
-            from app.routers.database_debug import router as database_debug_router
-            print("✅ Database debug router imported successfully")
-            sys.stdout.flush()
-            app.include_router(database_debug_router, prefix="/api/v1", tags=["database-debug"])
-            print("✅ Database debug router registered")
-            routers_registered += 1
-            sys.stdout.flush()
-        except Exception as db_debug_error:
-            print(f"❌ Database debug router import/registration failed: {db_debug_error}")
-            print(f"❌ Database debug router traceback: {traceback.format_exc()}")
-            routers_failed += 1
-            sys.stdout.flush()
-            # Continue without database debug router rather than failing completely
-            pass
-
-        # Admin router
-        print("🔄 Importing admin router...")
-        sys.stdout.flush()
-        from app.routers.admin import router as admin_router
-        print("✅ Admin router imported successfully")
-        sys.stdout.flush()
-        app.include_router(admin_router, prefix="/api/v1/admin", tags=["admin"])
-        print("✅ Admin router registered")
-        routers_registered += 1
-        sys.stdout.flush()
-
-        # Advanced Scheduler router for comprehensive proactive AI
-        print("🔄 Importing advanced scheduler router...")
-        sys.stdout.flush()
-        try:
-            from app.routers.advanced_scheduler import router as advanced_scheduler_router
-            print("✅ Advanced scheduler router imported successfully")
-            sys.stdout.flush()
-            app.include_router(advanced_scheduler_router, prefix="/api/v1/scheduler", tags=["scheduler"])
-            print("✅ Advanced scheduler router registered")
-            routers_registered += 1
-            sys.stdout.flush()
-        except Exception as scheduler_error:
-            print(f"❌ Advanced scheduler router import/registration failed: {scheduler_error}")
-            print(f"❌ Advanced scheduler router traceback: {traceback.format_exc()}")
-            routers_failed += 1
-            sys.stdout.flush()
-            # Continue without advanced scheduler router rather than failing completely
-            pass
-
-        # AI Monitoring router for real-time AI health tracking
-        print("🔄 Importing AI monitoring router...")
-        sys.stdout.flush()
-        try:
-            from app.routers.ai_monitoring import router as ai_monitoring_router
-            print("✅ AI monitoring router imported successfully")
-            sys.stdout.flush()
-            app.include_router(ai_monitoring_router, tags=["ai-monitoring"])  # o3 Fix: Router already has prefix="/api/v1/ai-monitoring"
-            print("✅ AI monitoring router registered")
-            routers_registered += 1
-            sys.stdout.flush()
-        except Exception as ai_monitoring_error:
-            print(f"❌ AI monitoring router import/registration failed: {ai_monitoring_error}")
-            print(f"❌ AI monitoring router traceback: {traceback.format_exc()}")
-            routers_failed += 1
-            sys.stdout.flush()
-            # Continue without AI monitoring router rather than failing completely
-            pass
-
-        # Admin monitoring router for comprehensive user logs and monitoring capabilities
-        print("🔄 Importing admin monitoring router...")
-        sys.stdout.flush()
-        try:
-            from app.routers.admin_monitoring import router as admin_monitoring_router
-            print("✅ Admin monitoring router imported successfully")
-            sys.stdout.flush()
-            app.include_router(admin_monitoring_router, prefix="/api/v1", tags=["admin-monitoring"])
-            print("✅ Admin monitoring router registered")
-            routers_registered += 1
-            sys.stdout.flush()
-        except Exception as admin_monitoring_error:
-            print(f"❌ Admin monitoring router import/registration failed: {admin_monitoring_error}")
-            print(f"❌ Admin monitoring router traceback: {traceback.format_exc()}")
-            routers_failed += 1
-            sys.stdout.flush()
-            # Continue without admin monitoring router rather than failing completely
-            pass
-
-        # Manual AI Response router for testing AI without scheduler
-        print("🔄 Importing manual AI response router...")
-        sys.stdout.flush()
-        try:
-            from app.routers.manual_ai_response import router as manual_ai_router
-            print("✅ Manual AI response router imported successfully")
-            sys.stdout.flush()
-            app.include_router(manual_ai_router, tags=["manual-ai"])  # Router already has prefix
-            print("✅ Manual AI response router registered")
-            routers_registered += 1
-            sys.stdout.flush()
-        except Exception as manual_ai_error:
-            print(f"❌ Manual AI response router import/registration failed: {manual_ai_error}")
-            print(f"❌ Manual AI response router traceback: {traceback.format_exc()}")
-            routers_failed += 1
-            sys.stdout.flush()
-            # Continue without manual AI router rather than failing completely
-            pass
-
-        # Webhook handler router for Supabase event-driven AI processing
-        print("🔄 Importing webhook handler router...")
-        sys.stdout.flush()
-        try:
-            from app.routers.webhook_handler import router as webhook_router
-            print("✅ Webhook handler router imported successfully")
-            sys.stdout.flush()
-            app.include_router(webhook_router, tags=["webhook"])  # Router already has prefix
-            print("✅ Webhook handler router registered")
-            routers_registered += 1
-            sys.stdout.flush()
-        except Exception as webhook_error:
-            print(f"❌ Webhook handler router import/registration failed: {webhook_error}")
-            print(f"❌ Webhook handler router traceback: {traceback.format_exc()}")
-            routers_failed += 1
-            sys.stdout.flush()
-            # Continue without webhook router rather than failing completely
-            pass
-
-        print(f"🎉 Router registration complete! {routers_registered} routers registered successfully, {routers_failed} optional routers failed")
-        sys.stdout.flush()
-
-    except Exception as e:
-        print(f"❌ ERROR: Critical router registration failed: {e}")
-        print(f"❌ Full traceback: {traceback.format_exc()}")
-        sys.stdout.flush()
-        # Don't raise the error - let the app start with available routers
-        logger.error(f"Router registration failed but continuing startup: {e}")
+    
+    print(f"🎉 Router registration complete! {routers_registered} routers registered, {routers_failed} failed")
+    sys.stdout.flush()
 
 @app.get("/")
 async def root():
