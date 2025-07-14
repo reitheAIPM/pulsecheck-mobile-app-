@@ -954,6 +954,16 @@ async def cors_test_api():
     """API endpoint to test CORS headers"""
     return {"message": "CORS test API successful", "timestamp": time.time()}
 
+# Simple test endpoint for journal entries
+@app.get("/api/v1/test-journal")
+async def test_journal_endpoint():
+    """Test endpoint to verify journal API is accessible"""
+    return {
+        "message": "Journal API is accessible",
+        "timestamp": time.time(),
+        "cors_working": True
+    }
+
 # Health check endpoint - BYPASS ALL MIDDLEWARE
 @app.get("/health")
 async def health_check():
