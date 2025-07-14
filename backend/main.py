@@ -682,6 +682,7 @@ class DynamicCORSMiddleware:
                 print(f"🔍 CORS Debug: Origin: {origin}")
                 print(f"🔍 CORS Debug: Method: {scope.get('method')}")
                 print(f"🔍 CORS Debug: Path: {scope.get('path')}")
+                print(f"🔍 CORS Debug: Headers: {dict(headers)}")
             
             # Check if origin is allowed
             is_allowed = origin in self.exact_origins or any(
@@ -731,10 +732,7 @@ class DynamicCORSMiddleware:
         else:
             await self.app(scope, receive, send)
 
-# Apply custom CORS middleware
-app.add_middleware(DynamicCORSMiddleware)
-
-# Add standard CORS middleware as fallback for broader compatibility
+# 1. CORS middleware - MUST BE FIRST
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -754,6 +752,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 2. Apply custom CORS middleware as backup
+app.add_middleware(DynamicCORSMiddleware)
+
 # 3. Security headers middleware
 app.add_middleware(SecurityHeadersMiddleware)
 
@@ -764,18 +765,10 @@ app.add_middleware(ObservabilityMiddleware)
 print("✅ Debug middleware disabled (production mode)")
 sys.stdout.flush()
 
-# Security middleware - BYPASS HEALTH CHECKS
+# 5. Security middleware - BYPASS HEALTH CHECKS (moved to end)
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=[
-        "pulsecheck-mobile-app-production.up.railway.app",
-        "spark-realm.vercel.app",
-        "localhost:3000",
-        "localhost:5173",
-        "127.0.0.1:3000",
-        "127.0.0.1:5173",
-        "*"  # Allow all hosts for health checks
-    ]
+    allowed_hosts=["*"]  # Allow all hosts for now to fix CORS
 )
 
 @app.middleware("http")
