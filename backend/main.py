@@ -40,6 +40,33 @@ print("🚀 PulseCheck v2.0.0 with Enhanced Debug Logging - STARTING UP!")
 print("🚀 This should appear in Railway logs immediately!")
 sys.stdout.flush()
 
+# CRITICAL: Validate essential environment variables before any imports
+print("🔍 Validating essential environment variables...")
+sys.stdout.flush()
+
+critical_env_vars = {
+    "SUPABASE_URL": os.getenv("SUPABASE_URL"),
+    "SUPABASE_ANON_KEY": os.getenv("SUPABASE_ANON_KEY"),
+    "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
+}
+
+missing_critical_vars = []
+for var_name, var_value in critical_env_vars.items():
+    if not var_value:
+        missing_critical_vars.append(var_name)
+        print(f"❌ Missing critical environment variable: {var_name}")
+    else:
+        print(f"✅ Found environment variable: {var_name}")
+
+if missing_critical_vars:
+    print(f"⚠️ WARNING: Missing critical environment variables: {missing_critical_vars}")
+    print("⚠️ Application may not function properly without these variables")
+    print("⚠️ Health checks will still work, but features may be limited")
+else:
+    print("✅ All critical environment variables found")
+
+sys.stdout.flush()
+
 # Import DNS helper for Railway
 try:
     from app.core.dns_helper import configure_dns
@@ -52,11 +79,12 @@ except Exception as e:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import configuration and routers
+# Import configuration and routers with comprehensive error handling
 try:
     from app.core.config import settings
     from app.core.security import setup_rate_limiting, limiter
     config_loaded = True
+    print("✅ Core configuration loaded successfully")
 except Exception as e:
     print(f"❌ Configuration loading failed: {e}")
     config_loaded = False
@@ -66,18 +94,83 @@ except Exception as e:
         allowed_origins_list = ["*"]
         host = "0.0.0.0"
         port = 8000
+        def validate_required_settings(self):
+            pass  # Skip validation for minimal settings
     settings = MinimalSettings()
     limiter = None
 
-# Note: Routers are now imported and registered in the lifespan function
+# Import monitoring with error handling
+try:
+    from app.core.monitoring import monitor, log_error, log_performance, check_health, ErrorSeverity, ErrorCategory
+    monitoring_loaded = True
+    print("✅ Monitoring system loaded successfully")
+except Exception as e:
+    print(f"❌ Monitoring system failed to load: {e}")
+    monitoring_loaded = False
+    # Create minimal monitoring fallback
+    class MinimalMonitor:
+        def check_system_health(self):
+            return type('obj', (object,), {'overall_status': 'unknown'})()
+    monitor = MinimalMonitor()
+    def log_error(*args, **kwargs):
+        print(f"ERROR: {args}")
+    def log_performance(*args, **kwargs):
+        pass
+    ErrorSeverity = type('obj', (object,), {'HIGH': 'high', 'MEDIUM': 'medium', 'LOW': 'low'})()
+    ErrorCategory = type('obj', (object,), {'API_ENDPOINT': 'api_endpoint'})()
+    def check_health():
+        return type('obj', (object,), {'overall_status': 'unknown'})()
 
-from app.core.monitoring import monitor, log_error, log_performance, check_health, ErrorSeverity, ErrorCategory
-from app.core.database import engine, Base, get_database
+# Import database with error handling
+try:
+    from app.core.database import engine, Base, get_database
+    database_loaded = True
+    print("✅ Database system loaded successfully")
+except Exception as e:
+    print(f"❌ Database system failed to load: {e}")
+    database_loaded = False
+    def get_database():
+        raise Exception("Database system not available")
 
-# Import observability first to initialize early
-from app.core.observability import init_observability, observability
-from app.middleware.observability_middleware import ObservabilityMiddleware
-from app.middleware.security_headers import SecurityHeadersMiddleware
+# Import observability with error handling
+try:
+    from app.core.observability import init_observability, observability
+    observability_loaded = True
+    print("✅ Observability system loaded successfully")
+except Exception as e:
+    print(f"❌ Observability system failed to load: {e}")
+    observability_loaded = False
+    def init_observability():
+        print("Observability initialization skipped")
+    observability = type('obj', (object,), {
+        'capture_error': lambda *args, **kwargs: None,
+        'get_ai_debugging_summary': lambda: {'status': 'not_available'}
+    })()
+
+# Import middleware with error handling
+try:
+    from app.middleware.observability_middleware import ObservabilityMiddleware
+    from app.middleware.security_headers import SecurityHeadersMiddleware
+    middleware_loaded = True
+    print("✅ Middleware systems loaded successfully")
+except Exception as e:
+    print(f"❌ Middleware systems failed to load: {e}")
+    middleware_loaded = False
+    # Create minimal middleware fallbacks
+    class MinimalObservabilityMiddleware:
+        def __init__(self, app):
+            self.app = app
+        async def __call__(self, scope, receive, send):
+            await self.app(scope, receive, send)
+    
+    class MinimalSecurityHeadersMiddleware:
+        def __init__(self, app):
+            self.app = app
+        async def __call__(self, scope, receive, send):
+            await self.app(scope, receive, send)
+    
+    ObservabilityMiddleware = MinimalObservabilityMiddleware
+    SecurityHeadersMiddleware = MinimalSecurityHeadersMiddleware
 
 # Import required modules for lifespan and services
 from app.core.database import get_database, init_supabase
@@ -174,29 +267,59 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 Starting PulseCheck API with AI-Optimized Observability")
     
     try:
-        # ESSENTIAL STARTUP (fast operations only)
-        # Initialize observability system
-        init_observability()
-        logger.info("✅ Observability system initialized")
+        # ESSENTIAL STARTUP (fast operations only) - WITH ERROR HANDLING
         
-        # Test database connection (fast check)
-        logger.info("✅ Database connection module loaded")
+        # Initialize observability system (with error handling)
+        try:
+            if observability_loaded:
+                init_observability()
+                logger.info("✅ Observability system initialized")
+            else:
+                logger.warning("⚠️ Observability system not available, skipping initialization")
+        except Exception as e:
+            logger.warning(f"⚠️ Observability initialization failed: {e}")
         
-        # Validate configuration (fast check)
-        settings.validate_required_settings()
-        logger.info("✅ Configuration validated")
+        # Test database connection (fast check with error handling)
+        try:
+            if database_loaded:
+                logger.info("✅ Database connection module loaded")
+            else:
+                logger.warning("⚠️ Database system not available")
+        except Exception as e:
+            logger.warning(f"⚠️ Database connection check failed: {e}")
         
-        # System health check (fast check)
-        health = monitor.check_system_health()
-        logger.info(f"✅ System health: {health.overall_status}")
+        # Validate configuration (fast check with error handling)
+        try:
+            if config_loaded:
+                settings.validate_required_settings()
+                logger.info("✅ Configuration validated")
+            else:
+                logger.warning("⚠️ Configuration system not available, using minimal settings")
+        except Exception as e:
+            logger.warning(f"⚠️ Configuration validation failed: {e}")
         
-        # Register routers (fast operation)
-        logger.info("🔄 Registering API routers...")
-        register_routers()
-        logger.info("✅ All API routers registered successfully")
+        # System health check (fast check with error handling)
+        try:
+            if monitoring_loaded:
+                health = monitor.check_system_health()
+                logger.info(f"✅ System health: {health.overall_status}")
+            else:
+                logger.warning("⚠️ Monitoring system not available, health check skipped")
+        except Exception as e:
+            logger.warning(f"⚠️ System health check failed: {e}")
+        
+        # Register routers (fast operation with error handling)
+        try:
+            logger.info("🔄 Registering API routers...")
+            register_routers()
+            logger.info("✅ All API routers registered successfully")
+        except Exception as e:
+            logger.error(f"❌ Router registration failed: {e}")
+            # Continue without routers - health checks should still work
         
         # BACKGROUND TASK: Database warmup (heavy operation)
-        asyncio.create_task(_warmup_database_async())
+        if database_loaded:
+            asyncio.create_task(_warmup_database_async())
         
         # BACKGROUND TASK: Start advanced scheduler (heavy operation)
         asyncio.create_task(_start_scheduler_async())
@@ -208,20 +331,33 @@ async def lifespan(app: FastAPI):
         
     except Exception as e:
         logger.error(f"❌ Startup failed: {e}")
-        # Capture startup error for AI debugging
-        observability.capture_error(e, {
-            "startup_phase": "application_initialization",
-            "critical": True
-        }, severity="critical")
-        raise
-    
+        # Don't crash the entire application - continue with minimal functionality
+        logger.info("🔄 Continuing with minimal functionality...")
+        
+        # Try to capture startup error for AI debugging
+        try:
+            if observability_loaded:
+                observability.capture_error(e, {
+                    "startup_phase": "application_initialization",
+                    "critical": True
+                }, severity="critical")
+        except:
+            pass
+        
+        # Continue with minimal functionality
+        yield
+        
     # Shutdown
     logger.info("🔄 Shutting down PulseCheck API")
     
     try:
         # Generate final AI debugging summary
-        summary = observability.get_ai_debugging_summary()
-        logger.info(f"📊 Final system summary: {summary}")
+        try:
+            if observability_loaded:
+                summary = observability.get_ai_debugging_summary()
+                logger.info(f"📊 Final system summary: {summary}")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to get AI debugging summary: {e}")
         
         if scheduler_service and scheduler_available:
             try:
@@ -887,7 +1023,7 @@ async def record_ai_debugging_attempt(error_id: str, attempt_details: Dict[str, 
 # No need for additional OPTIONS handler as it causes conflicts
 
 def register_routers():
-    """Simplified router registration with better error handling"""
+    """Simplified router registration with comprehensive error handling"""
     routers_registered = 0
     routers_failed = 0
     
@@ -899,7 +1035,7 @@ def register_routers():
     print("🔄 Added /app to Python path")
     sys.stdout.flush()
     
-    # Core routers (required)
+    # Core routers (required) - with individual error handling
     core_routers = [
         ("auth", "app.routers.auth", "auth"),
         ("journal", "app.routers.journal", "journal"),
@@ -908,23 +1044,44 @@ def register_routers():
         ("monitoring", "app.routers.monitoring", "monitoring"),
     ]
     
-    # Register core routers
+    # Register core routers with individual error handling
     for router_name, import_path, tag in core_routers:
         print(f"🔄 Importing {router_name} router...")
         sys.stdout.flush()
         try:
+            # Try to import the module
             module = __import__(import_path, fromlist=['router'])
-            router = getattr(module, 'router')
-            app.include_router(router, prefix=f"/api/v1/{tag}", tags=[tag])
-            print(f"✅ {router_name} router registered")
-            routers_registered += 1
+            
+            # Try to get the router
+            try:
+                router = getattr(module, 'router')
+            except AttributeError:
+                print(f"❌ {router_name} router not found in module")
+                routers_failed += 1
+                sys.stdout.flush()
+                continue
+            
+            # Try to include the router
+            try:
+                app.include_router(router, prefix=f"/api/v1/{tag}", tags=[tag])
+                print(f"✅ {router_name} router registered")
+                routers_registered += 1
+                sys.stdout.flush()
+            except Exception as e:
+                print(f"❌ {router_name} router registration failed: {e}")
+                routers_failed += 1
+                sys.stdout.flush()
+                
+        except ImportError as e:
+            print(f"❌ {router_name} router import failed: {e}")
+            routers_failed += 1
             sys.stdout.flush()
         except Exception as e:
             print(f"❌ {router_name} router failed: {e}")
             routers_failed += 1
             sys.stdout.flush()
     
-    # Optional routers (non-critical)
+    # Optional routers (non-critical) - with individual error handling
     optional_routers = [
         ("proactive_ai", "app.routers.proactive_ai", "proactive-ai"),
         ("admin", "app.routers.admin", "admin"),
@@ -933,19 +1090,40 @@ def register_routers():
         ("webhook_handler", "app.routers.webhook_handler", "webhook"),
     ]
     
-    # Register optional routers
+    # Register optional routers with individual error handling
     for router_name, import_path, tag in optional_routers:
         print(f"🔄 Importing optional {router_name} router...")
         sys.stdout.flush()
         try:
+            # Try to import the module
             module = __import__(import_path, fromlist=['router'])
-            router = getattr(module, 'router')
-            app.include_router(router, prefix=f"/api/v1/{tag}", tags=[tag])
-            print(f"✅ {router_name} router registered")
-            routers_registered += 1
+            
+            # Try to get the router
+            try:
+                router = getattr(module, 'router')
+            except AttributeError:
+                print(f"⚠️ {router_name} router not found in module (optional)")
+                routers_failed += 1
+                sys.stdout.flush()
+                continue
+            
+            # Try to include the router
+            try:
+                app.include_router(router, prefix=f"/api/v1/{tag}", tags=[tag])
+                print(f"✅ {router_name} router registered")
+                routers_registered += 1
+                sys.stdout.flush()
+            except Exception as e:
+                print(f"⚠️ {router_name} router registration failed (optional): {e}")
+                routers_failed += 1
+                sys.stdout.flush()
+                
+        except ImportError as e:
+            print(f"⚠️ {router_name} router import failed (optional): {e}")
+            routers_failed += 1
             sys.stdout.flush()
         except Exception as e:
-            print(f"⚠️ {router_name} router skipped (optional): {e}")
+            print(f"⚠️ {router_name} router failed (optional): {e}")
             routers_failed += 1
             sys.stdout.flush()
     
